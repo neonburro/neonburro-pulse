@@ -312,7 +312,24 @@ const buildAdminAuditEmail = ({
 
 // ---------- resend handler ----------
 
-const handleResend = async ({ invoiceId, userId }) => {
+// ── SENDING A COPY SOMEWHERE ELSE ─────────────────────────────────────────
+//
+// toOverride sends the SAME stored document to a different address. It is for
+// the case where a client's bookkeeper, partner or accounts inbox needs the
+// invoice and it was only ever sent to one person.
+//
+// Three things it deliberately does not do. It does not change who the invoice
+// is addressed to, the document is the stored html and is untouched. It does
+// not carry the client's cc list, because those people already had it and a
+// forward is a separate errand. And it records send_type "forward" rather than
+// "resend", so the history can always answer whether a client was emailed again
+// or whether a copy went to a third party.
+//
+// Validated on the server as well as in the modal. Never trust a client side
+// regex on the one field that decides where an invoice goes.
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+const handleResend = async ({ invoiceId, userId, toOverride }) => {
   const { data: invoice } = await supabase
     .from('invoices')
     .select('*, clients(name, email, company)')
@@ -347,8 +364,15 @@ const handleResend = async ({ invoiceId, userId }) => {
     );
   }
 
-  const recipientEmail = lastHistory.sent_to || invoice.clients.email;
-  const ccList = sanitizeCcList(invoice.cc_emails, recipientEmail);
+  const forwarding = typeof toOverride === 'string' && toOverride.trim().length > 0;
+  if (forwarding && !EMAIL_RE.test(toOverride.trim())) {
+    throw new Error('That recipient address is not valid');
+  }
+  const recipientEmail = forwarding
+    ? toOverride.trim()
+    : (lastHistory.sent_to || invoice.clients.email);
+  const ccList = forwarding ? [] : sanitizeCcList(invoice.cc_emails, recipientEmail);
+  const sendType = forwarding ? 'forward' : 'resend';
 
   // ── A RESEND CARRIES THE SAME FILES ───────────────────────────────────────
   // The rebuilt HTML already lists the attachments, because the snapshot's
@@ -363,7 +387,9 @@ const handleResend = async ({ invoiceId, userId }) => {
     to: recipientEmail,
     cc: ccList.length > 0 ? ccList : undefined,
     reply_to: 'hello@neonburro.com',
-    subject: `Invoice ${invoice.invoice_number} from NeonBurro (resent)`,
+    subject: forwarding
+      ? `Invoice ${invoice.invoice_number} from NeonBurro`
+      : `Invoice ${invoice.invoice_number} from NeonBurro (resent)`,
     html,
     attachments: attachments.length ? attachments : undefined,
   });
@@ -375,7 +401,7 @@ const handleResend = async ({ invoiceId, userId }) => {
     sent_at: new Date().toISOString(),
     sent_to: recipientEmail,
     sent_by: userId || null,
-    send_type: 'resend',
+    send_type: sendType,
     rendered_html: html,
     invoice_snapshot: lastHistory.invoice_snapshot,
     notes: ccList.length > 0 ? `cc: ${ccList.join(', ')}` : null,
@@ -389,8 +415,9 @@ const handleResend = async ({ invoiceId, userId }) => {
     metadata: {
       invoice_number: invoice.invoice_number,
       client_name: invoice.clients?.name,
-      send_type: 'resend',
+      send_type: sendType,
       recipient_email: recipientEmail,
+      forwarded: forwarding,
       cc_count: ccList.length,
       cc_emails: ccList,
       rebuilt_from_snapshot: rebuiltFromSnapshot,
@@ -407,11 +434,13 @@ const handleResend = async ({ invoiceId, userId }) => {
     from: ADMIN_FROM,
     to: ADMIN_TO,
     reply_to: invoice.clients?.email || 'hello@neonburro.com',
-    subject: `Invoice Resent: ${invoice.invoice_number} - ${invoice.clients?.name || 'Client'}${ccList.length > 0 ? ` (+${ccList.length} cc)` : ''}`,
+    subject: forwarding
+      ? `Invoice Forwarded: ${invoice.invoice_number} to ${recipientEmail}`
+      : `Invoice Resent: ${invoice.invoice_number} - ${invoice.clients?.name || 'Client'}${ccList.length > 0 ? ` (+${ccList.length} cc)` : ''}`,
     html: adminHtml,
   }).catch((err) => console.error('Admin resend notification failed:', err));
 
-  return { success: true, recipient: recipientEmail, send_type: 'resend', ccCount: ccList.length };
+  return { success: true, recipient: recipientEmail, send_type: sendType, ccCount: ccList.length };
 };
 
 // ---------- reminder handler ----------
@@ -508,7 +537,7 @@ export const handler = async (event) => {
   }
 
   try {
-    const { invoiceId, action, subject, body, userId } = JSON.parse(event.body || '{}');
+    const { invoiceId, action, subject, body, userId, toOverride } = JSON.parse(event.body || '{}');
 
     if (!invoiceId) {
       return { statusCode: 400, body: JSON.stringify({ error: 'invoiceId required' }) };
@@ -518,7 +547,7 @@ export const handler = async (event) => {
     }
 
     const result = action === 'resend'
-      ? await handleResend({ invoiceId, userId })
+      ? await handleResend({ invoiceId, userId, toOverride })
       : await handleReminder({ invoiceId, subject, body, userId });
 
     return { statusCode: 200, body: JSON.stringify(result) };
