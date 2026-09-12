@@ -19,6 +19,12 @@
   function = "flip-overdue-invoices"
   cron = "0 6 * * *"
 
+# release-social runs every 5 minutes and posts staged, approved, due
+# releases through the burro's own channel account. See the function header.
+[[scheduled_functions]]
+  function = "release-social"
+  cron = "*/5 * * * *"
+
 # SPA rewrite - all routes serve index.html
 [[redirects]]
   from = "/*"
