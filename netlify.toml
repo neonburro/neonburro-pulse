@@ -8,22 +8,34 @@
 [build.environment]
   NODE_VERSION = "20"
 
-# Scheduled functions
-# keep-alive runs every 5 minutes to prevent Supabase cold starts on free tier
-# flip-overdue-invoices runs daily at 6am UTC (midnight Mountain Time)
-[[scheduled_functions]]
-  function = "keep-alive"
-  cron = "*/5 * * * *"
+# Scheduled functions.
+#
+# Netlify only honours the per function table with a schedule key, the form
+# below. This file carried made up [[scheduled_functions]] tables until
+# 2026-09-12 and Netlify ignored them without complaint, the same trap the
+# studio site found on 2026-08-23. The effect here: flip-overdue-invoices had
+# no schedule at all and never fired, and keep-alive ran on the inline
+# schedule in its own file, which said every five days. Every function that
+# needs a schedule now has it here AND in an inline `export const config`
+# in its file, and the two must agree. Change both or neither.
+#
+# keep-alive             every five days at 08:00 UTC, one read against the
+#                        shared Supabase project so the free tier's seven day
+#                        pause never lands. Five days, not five minutes, the
+#                        old table said minutes and was wrong.
+# flip-overdue-invoices  daily at 06:00 UTC, midnight Mountain, flips due
+#                        invoices to overdue
+# release-social         every five minutes, posts staged, approved, due
+#                        releases through the burro's own channel account
 
-[[scheduled_functions]]
-  function = "flip-overdue-invoices"
-  cron = "0 6 * * *"
+[functions."keep-alive"]
+  schedule = "0 8 */5 * *"
 
-# release-social runs every 5 minutes and posts staged, approved, due
-# releases through the burro's own channel account. See the function header.
-[[scheduled_functions]]
-  function = "release-social"
-  cron = "*/5 * * * *"
+[functions."flip-overdue-invoices"]
+  schedule = "0 6 * * *"
+
+[functions."release-social"]
+  schedule = "*/5 * * * *"
 
 # SPA rewrite - all routes serve index.html
 [[redirects]]
