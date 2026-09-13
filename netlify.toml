@@ -25,17 +25,17 @@
 #                        old table said minutes and was wrong.
 # flip-overdue-invoices  daily at 06:00 UTC, midnight Mountain, flips due
 #                        invoices to overdue
-# release-social         every five minutes, posts staged, approved, due
-#                        releases through the burro's own channel account
+# release-social         moved to the STUDIO site on 2026-09-12 because the
+#                        bot tokens were set there and a token lives in
+#                        exactly one place. The Releases page here is the
+#                        desk, neonburro/netlify/functions/release-social.js
+#                        is the hand. Do not schedule a copy here again.
 
 [functions."keep-alive"]
   schedule = "0 8 */5 * *"
 
 [functions."flip-overdue-invoices"]
   schedule = "0 6 * * *"
-
-[functions."release-social"]
-  schedule = "*/5 * * * *"
 
 # SPA rewrite - all routes serve index.html
 [[redirects]]
