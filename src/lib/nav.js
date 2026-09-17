@@ -4,22 +4,19 @@
 // ONE nav model. The sidebar and the bottom bar both read this file, and that
 // is the entire reason it exists.
 //
-// ── THE TWO BUGS THIS FIXES, BOTH REAL, BOTH SHIPPED ────────────────────────
+// THE TWO BUGS THIS FIXES, BOTH REAL, BOTH SHIPPED
 //
-//   1. MESSAGES WAS UNREACHABLE ON A PHONE. The sidebar listed it. The bottom
-//      bar's four primary tabs did not, and neither did the More sheet. A whole
-//      feature existed on desktop and did not exist on mobile, because the two
-//      lists were typed out separately and drifted.
+// 1. MESSAGES WAS UNREACHABLE ON A PHONE. The sidebar listed it. The bottom
+//    bar's four primary tabs did not, and neither did the More sheet. A whole
+//    feature existed on desktop and did not exist on mobile, because the two
+//    lists were typed out separately and drifted.
 //
-//   2. THE PROJECTS TAB WENT NOWHERE. /projects/ redirects to /clients/ in
-//      App.jsx, so the fourth tab on every phone navigated somewhere with a
-//      different name and then failed to highlight, because isActive checked a
-//      path the router had already thrown away.
+// 2. THE PROJECTS TAB WENT NOWHERE. /projects/ redirects to /clients/ in
+//    App.jsx, so the fourth tab on every phone navigated somewhere with a
+//    different name and then failed to highlight, because isActive checked a
+//    path the router had already thrown away.
 //
-// Neither was a hard failure. Both were invisible to anybody testing on a
-// laptop, which is how they lasted.
-//
-// ── HOW TO ADD A PAGE ───────────────────────────────────────────────────────
+// HOW TO ADD A PAGE
 // Add it to NAV once. It appears in the sidebar automatically. If it belongs on
 // a phone's primary bar, move it above the MOBILE_PRIMARY_COUNT line. Everything
 // below that line lands in the More sheet. There is nowhere else to edit.
@@ -28,22 +25,23 @@
 
 import {
   TbSunrise, TbUsers, TbFileInvoice, TbInbox,
-  TbPencil, TbHorse, TbWallet, TbMessageCircle, TbCalendar, TbChartBar, TbSettings,
-  TbRocket,
+  TbPencil, TbHorse, TbCoins, TbWallet, TbMessageCircle, TbCalendar, TbChartBar, TbSettings,
+  TbBroadcast,
 } from 'react-icons/tb';
 
 export const NAV = [
-  { path: '/today/',     label: 'Today',     icon: TbSunrise,       desc: 'What moved, and what needs you' },
-  { path: '/clients/',   label: 'Clients',   icon: TbUsers,         desc: 'Everybody we build for' },
-  { path: '/invoicing/', label: 'Invoicing', icon: TbFileInvoice,   desc: 'Sprints, invoices and what is owed' },
-  { path: '/forms/',     label: 'Forms',     icon: TbInbox,         desc: 'Inbound submissions' },
-  { path: '/blog/',      label: 'Blog',      icon: TbPencil,        desc: 'Posts and the social run' },
-  { path: '/releases/',  label: 'Releases',  icon: TbRocket,        desc: 'What leaves the yard, and when' },
-  { path: '/yard/',      label: 'Yard',      icon: TbHorse,         desc: 'The send a burro call' },
-  { path: '/registry/',  label: 'Registry',  icon: TbWallet,        desc: 'The book of our own wallets' },
-  { path: '/messages/',  label: 'Messages',  icon: TbMessageCircle, desc: 'Threads with clients' },
-  { path: '/calendar/',  label: 'Calendar',  icon: TbCalendar,      desc: 'Scheduling and sprints' },
-  { path: '/analytics/', label: 'Analytics', icon: TbChartBar,      desc: 'Traffic and trends' },
+  { path: '/today/',     label: 'Today',      icon: TbSunrise,       desc: 'What moved, and what needs you' },
+  { path: '/clients/',   label: 'Clients',    icon: TbUsers,         desc: 'Everybody we build for' },
+  { path: '/invoicing/', label: 'Invoicing',  icon: TbFileInvoice,   desc: 'Sprints, invoices and what is owed' },
+  { path: '/forms/',     label: 'Forms',      icon: TbInbox,         desc: 'Inbound submissions' },
+  { path: '/blog/',      label: 'Blog',       icon: TbPencil,        desc: 'Posts and the social run' },
+  { path: '/socials/',   label: 'Socials',    icon: TbBroadcast,     desc: 'Every voice, account and release' },
+  { path: '/yard/',      label: 'Yard',       icon: TbHorse,         desc: 'The send a burro call' },
+  { path: '/neonburro/', label: 'NEONBURRO',  icon: TbCoins,         desc: 'Services, reserves and receipts' },
+  { path: '/registry/',  label: 'Registry',   icon: TbWallet,        desc: 'The book of our own wallets' },
+  { path: '/messages/',  label: 'Messages',   icon: TbMessageCircle, desc: 'Threads with clients' },
+  { path: '/calendar/',  label: 'Calendar',   icon: TbCalendar,      desc: 'Scheduling and sprints' },
+  { path: '/analytics/', label: 'Analytics',  icon: TbChartBar,      desc: 'Traffic and trends' },
 ];
 
 export const SETTINGS_ITEM = {

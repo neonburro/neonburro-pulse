@@ -1,34 +1,49 @@
 // src/pages/Releases/components/Accounts.jsx
-// SENTINEL: NB_PULSE_RELEASES_ACCOUNTS_V1
+// SENTINEL: NB_PULSE_SOCIALS_ACCOUNTS_V2
 //
-// The accounts panel. One row per (burro, channel) in social_accounts, the
-// handle the burro posts as, the chat id for telegram, the NAME of the
-// Netlify env var that holds the token and the enabled switch, which is
-// the per account kill switch the function honours.
+// This is the account map, not the voice map. Neonburro and every council
+// member may own a publishing account while any council voice may write through
+// it. A release stores that choice in social_account_id. The burro column is
+// therefore the account owner and never implies who wrote the post.
 //
-// ── THE TOKEN NEVER COMES HERE ──────────────────────────────────────────────
-// token_env is a name, TELEGRAM_BOT_TOKEN_WARBLEUR, not a value. The value
-// lives in Netlify env on the pulse site and the function reads it by that
-// name at post time. This panel has no field for the value and never will.
-// If a token needs rotating the hue•man does it in Netlify and redeploys,
-// nothing on this page changes.
+// Tokens never enter Pulse. token_env is a read only label for the environment
+// variable on the main neonburro Netlify site. The posting hand lives there.
+// Telegram is the only automatic adapter today. Other channels can be planned
+// here but remain manual until their adapter is reviewed and connected.
 //
-// ── SAVES ON BLUR ───────────────────────────────────────────────────────────
-// Text fields keep a local draft and write when the field loses focus and
-// the value changed, so a row is not rewritten on every keystroke. The
-// switch writes at once. Adding a row takes a burro and a channel and
-// guesses the env var name in the seed's shape, editable after.
+// Handles and Telegram chat ids save on blur. The live switch writes at once.
+// Bot creation, permissions and token rotation still happen in Telegram and
+// Netlify because Pulse must never ask for a secret.
 //
 // No oxford commas, no em dashes.
 
 import { useState, useEffect, useCallback } from 'react';
-import { Box, VStack, HStack, Text, Input, Select, Switch, Spinner, Icon } from '@chakra-ui/react';
+import {
+  Box,
+  VStack,
+  HStack,
+  Text,
+  Input,
+  Select,
+  Switch,
+  Spinner,
+  Icon,
+} from '@chakra-ui/react';
 import { TbPlus, TbChevronDown, TbChevronRight } from 'react-icons/tb';
 import { supabase } from '../../../lib/supabase';
-import { P, VOICES, POSTING, VoiceDisc, Kicker, inputProps } from './shared';
+import { useAuth } from '../../../hooks/useAuth';
+import {
+  P,
+  ACCOUNT_OWNERS,
+  SOCIAL_CHANNELS,
+  isAutomatic,
+  VoiceDisc,
+  Kicker,
+  inputProps,
+} from './shared';
 import { TYPE, EASE, FAST } from '../../../theme/layout';
 
-const PULSE_SITE = '1554d7eb-08ea-4e53-ac72-c035681eb384';
+const STUDIO_SITE = '15e4962d-1edc-4a86-8386-008c2d3e03f1';
 
 const small = {
   ...inputProps,
@@ -39,53 +54,144 @@ const small = {
   borderRadius: '9px',
 };
 
-const guessEnv = (burro, channel) => (channel === 'telegram'
-  ? `TELEGRAM_BOT_TOKEN_${burro.toUpperCase()}`
-  : `${channel.toUpperCase()}_TOKEN_${burro.toUpperCase()}`);
+const guessEnv = (owner, channel) => (channel === 'telegram'
+  ? `TELEGRAM_BOT_TOKEN_${owner.toUpperCase()}`
+  : `${channel.toUpperCase()}_TOKEN_${owner.toUpperCase()}`);
 
-const Draft = ({ value, onCommit, placeholder, mono = true, w }) => {
-  const [v, setV] = useState(value || '');
-  useEffect(() => { setV(value || ''); }, [value]);
+const Draft = ({ value, onCommit, placeholder, w, isReadOnly = false }) => {
+  const [draft, setDraft] = useState(value || '');
+
+  useEffect(() => { setDraft(value || ''); }, [value]);
+
   return (
-    <Input {...small} fontFamily={mono ? 'mono' : undefined} value={v} placeholder={placeholder} w={w}
-      onChange={(e) => setV(e.target.value)}
-      onBlur={() => { const t = v.trim(); if (t !== (value || '')) onCommit(t || null); }}
-      onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }} />
+    <Input
+      {...small}
+      value={draft}
+      placeholder={placeholder}
+      w={w}
+      isReadOnly={isReadOnly}
+      cursor={isReadOnly ? 'default' : 'text'}
+      color={isReadOnly ? P.inkMuted : P.ink}
+      onChange={(event) => setDraft(event.target.value)}
+      onBlur={() => {
+        if (isReadOnly) return;
+        const trimmed = draft.trim();
+        if (trimmed !== (value || '')) onCommit(trimmed || null);
+      }}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter') event.target.blur();
+      }}
+    />
   );
 };
 
-const AccountRow = ({ a, onPatch }) => (
-  <VStack align="stretch" spacing={2} py={3} borderBottom="1px solid" borderColor={P.hairSoft}>
-    <HStack spacing={3}>
-      <VoiceDisc voice={a.burro} />
-      <Text fontSize={TYPE.body} color={P.ink} fontWeight="600" minW="72px">{a.burro}</Text>
-      <Text fontFamily="mono" fontSize={TYPE.label} color={P.inkMuted}
-        border="1px solid" borderColor={P.hair} borderRadius="full" px={2.5} py={0.5}>
-        {a.channel}
-      </Text>
-      <Box flex="1" />
-      <Switch colorScheme="brand" size="sm" isChecked={Boolean(a.enabled)}
-        onChange={(e) => onPatch(a.id, { enabled: e.target.checked })} />
-    </HStack>
-    <HStack spacing={2} flexWrap="wrap" rowGap={2}>
-      <Draft value={a.handle} placeholder="@handle" w={{ base: '100%', sm: '160px' }}
-        onCommit={(v) => onPatch(a.id, { handle: v })} />
-      <Draft value={a.chat_id} placeholder={a.channel === 'telegram' ? 'chat id' : 'chat id, unused'} w={{ base: '100%', sm: '150px' }}
-        onCommit={(v) => onPatch(a.id, { chat_id: v })} />
-      <Draft value={a.token_env} placeholder="ENV_VAR_NAME" w={{ base: '100%', sm: '260px' }}
-        onCommit={(v) => onPatch(a.id, { token_env: v })} />
-    </HStack>
-    {a.note && <Text fontSize={TYPE.label} color={P.inkFaint}>{a.note}</Text>}
-  </VStack>
-);
+const AccountRow = ({ account, onPatch, canManage }) => {
+  const automatic = isAutomatic(account.channel);
+  const status = automatic
+    ? account.enabled ? 'live' : 'off'
+    : account.handle ? 'manual' : 'planned';
+  const statusColor = status === 'live'
+    ? P.green
+    : status === 'off' ? P.coral : P.inkMuted;
+
+  return (
+    <VStack align="stretch" spacing={2} py={3} borderBottom="1px solid" borderColor={P.hairSoft}>
+      <HStack spacing={3}>
+        <VoiceDisc voice={account.burro} />
+        <Text fontSize={TYPE.body} color={P.ink} fontWeight="600" minW="82px">
+          {account.burro}
+        </Text>
+        <Text
+          fontFamily="mono"
+          fontSize={TYPE.label}
+          color={P.inkMuted}
+          border="1px solid"
+          borderColor={P.hair}
+          borderRadius="full"
+          px={2.5}
+          py={0.5}
+        >
+          {account.channel}
+        </Text>
+        <Box flex="1" />
+        <Text fontFamily="mono" fontSize={TYPE.micro} color={statusColor}>
+          {status}
+        </Text>
+        <Switch
+          colorScheme="brand"
+          size="sm"
+          isChecked={Boolean(account.enabled)}
+          isDisabled={!automatic || !canManage}
+          title={automatic ? 'automatic posting switch' : 'manual channel'}
+          onChange={(event) => onPatch(account.id, { enabled: event.target.checked })}
+        />
+      </HStack>
+
+      <HStack spacing={2} flexWrap="wrap" rowGap={2}>
+        <Draft
+          value={account.handle}
+          placeholder="@handle"
+          w={{ base: '100%', sm: '170px' }}
+          isReadOnly={!canManage}
+          onCommit={(value) => onPatch(account.id, { handle: value })}
+        />
+        <Draft
+          value={account.chat_id}
+          placeholder={account.channel === 'telegram' ? 'chat id' : 'chat id unused'}
+          w={{ base: '100%', sm: '160px' }}
+          isReadOnly={!canManage}
+          onCommit={(value) => onPatch(account.id, { chat_id: value })}
+        />
+        <Input
+          {...small}
+          value={account.token_env || ''}
+          placeholder="environment variable"
+          w={{ base: '100%', sm: '280px' }}
+          isReadOnly
+          cursor="default"
+          color={P.inkFaint}
+          title="The variable name is fixed here. Its value stays in Netlify."
+        />
+      </HStack>
+
+      {account.note && (
+        <Text fontSize={TYPE.label} color={P.inkFaint}>{account.note}</Text>
+      )}
+    </VStack>
+  );
+};
 
 const Accounts = () => {
+  const { user } = useAuth();
   const [rows, setRows] = useState(null);
   const [missing, setMissing] = useState(false);
-  const [open, setOpen] = useState(false);
-  const [burro, setBurro] = useState('warbleur');
+  const [open, setOpen] = useState(true);
+  const [owner, setOwner] = useState('neonburro');
   const [channel, setChannel] = useState('telegram');
   const [note, setNote] = useState('');
+  const [role, setRole] = useState('');
+
+  const canManage = ['super_admin', 'admin'].includes(role);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setRole('');
+      return;
+    }
+
+    let cancelled = false;
+    const loadRole = async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .maybeSingle();
+      if (!cancelled) setRole(data?.role || '');
+    };
+
+    loadRole();
+    return () => { cancelled = true; };
+  }, [user?.id]);
 
   const load = useCallback(async () => {
     const { data, error } = await supabase
@@ -93,49 +199,104 @@ const Accounts = () => {
       .select('*')
       .order('channel', { ascending: true })
       .order('burro', { ascending: true });
-    if (error) { setMissing(true); setRows([]); return; }
+
+    if (error) {
+      setMissing(true);
+      setRows([]);
+      return;
+    }
+
+    setMissing(false);
     setRows(data || []);
   }, []);
 
-  useEffect(() => { if (open && rows === null) load(); }, [open, rows, load]);
+  useEffect(() => {
+    if (open && rows === null) load();
+  }, [open, rows, load]);
 
   const patch = async (id, fields) => {
-    setRows((rs) => rs.map((a) => (a.id === id ? { ...a, ...fields } : a)));
-    const { error } = await supabase.from('social_accounts').update(fields).eq('id', id);
-    if (error) { setNote(`could not save. ${error.message}`); load(); } else setNote('');
+    if (!canManage) {
+      setNote('Only an admin can change publishing accounts.');
+      return;
+    }
+    setRows((current) => current.map((account) => (
+      account.id === id ? { ...account, ...fields } : account
+    )));
+    const { data, error } = await supabase
+      .from('social_accounts')
+      .update(fields)
+      .eq('id', id)
+      .select('id')
+      .maybeSingle();
+    if (error || !data) {
+      setNote(`could not save. ${error?.message || 'your account cannot change publishing accounts.'}`);
+      load();
+      return;
+    }
+    setNote('');
   };
 
   const add = async () => {
-    const { error } = await supabase.from('social_accounts').insert({
-      burro, channel, token_env: guessEnv(burro, channel), enabled: false,
-    });
-    if (error) { setNote(error.code === '23505' ? `${burro} already has a ${channel} account.` : `could not add. ${error.message}`); return; }
+    if (!canManage) {
+      setNote('Only an admin can add publishing accounts.');
+      return;
+    }
+    const { data, error } = await supabase
+      .from('social_accounts')
+      .insert({
+        burro: owner,
+        channel,
+        token_env: guessEnv(owner, channel),
+        enabled: false,
+      })
+      .select('id')
+      .maybeSingle();
+
+    if (error || !data) {
+      setNote(
+        error?.code === '23505'
+          ? `${owner} already has a ${channel} account.`
+          : `could not add. ${error?.message || 'your account cannot add publishing accounts.'}`,
+      );
+      return;
+    }
+
     setNote('');
     load();
   };
 
-  const enabled = (rows || []).filter((a) => a.enabled).length;
+  const live = (rows || []).filter((account) => (
+    isAutomatic(account.channel) && account.enabled
+  )).length;
+  const automatic = (rows || []).filter((account) => isAutomatic(account.channel)).length;
 
   return (
     <Box>
-      <HStack as="button" type="button" onClick={() => setOpen((o) => !o)} spacing={2} mb={open ? 2 : 0}
-        _hover={{ opacity: 0.75 }} transition={`opacity ${FAST} ${EASE}`}>
+      <HStack
+        as="button"
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        spacing={2}
+        mb={open ? 2 : 0}
+        _hover={{ opacity: 0.75 }}
+        transition={`opacity ${FAST} ${EASE}`}
+      >
         <Icon as={open ? TbChevronDown : TbChevronRight} boxSize={3.5} color={P.inkMuted} />
-        <Kicker>accounts{rows ? ` · ${enabled} of ${rows.length} on` : ''}</Kicker>
+        <Kicker>account map{rows ? ` · ${live} of ${automatic} live` : ''}</Kicker>
       </HStack>
 
       {open && (
         <VStack align="stretch" spacing={3}>
           {rows === null && !missing && (
-            <HStack justify="center" py={8}><Spinner size="sm" color={P.inkMuted} /></HStack>
+            <HStack justify="center" py={8}>
+              <Spinner size="sm" color={P.inkMuted} />
+            </HStack>
           )}
 
           {missing && (
             <Box bg={P.sunken} border="1px solid" borderColor={P.hair} borderRadius="14px" p={5}>
               <Text fontSize={TYPE.body} color={P.inkSec}>
-                The social_accounts table is not in the database yet. Paste
-                supabase/migrations/2026091202_social_timeline.sql into the dashboard SQL editor
-                and reload, the twelve telegram rows come with it.
+                The social account map is not available yet. Apply the Socials migrations and reload.
               </Text>
             </Box>
           )}
@@ -143,36 +304,78 @@ const Accounts = () => {
           {rows !== null && !missing && (
             <>
               <VStack align="stretch" spacing={0} borderTop="1px solid" borderColor={P.hair}>
-                {rows.map((a) => <AccountRow key={a.id} a={a} onPatch={patch} />)}
+                {rows.map((account) => (
+                  <AccountRow
+                    key={account.id}
+                    account={account}
+                    onPatch={patch}
+                    canManage={canManage}
+                  />
+                ))}
                 {rows.length === 0 && (
-                  <Text fontSize={TYPE.body} color={P.inkFaint} py={6}>No accounts on the record yet.</Text>
+                  <Text fontSize={TYPE.body} color={P.inkFaint} py={6}>
+                    No accounts on the record yet.
+                  </Text>
                 )}
               </VStack>
 
-              <HStack spacing={2} flexWrap="wrap" rowGap={2}>
-                <Select {...small} w={{ base: '46%', sm: '150px' }} value={burro} onChange={(e) => setBurro(e.target.value)}>
-                  {VOICES.map((v) => <option key={v} value={v}>{v}</option>)}
-                </Select>
-                <Select {...small} w={{ base: '46%', sm: '140px' }} value={channel} onChange={(e) => setChannel(e.target.value)}>
-                  {POSTING.map((c) => <option key={c} value={c}>{c}</option>)}
-                </Select>
-                <HStack as="button" type="button" onClick={add} spacing={1.5}
-                  bg={P.sheet} border="1px solid" borderColor={P.hair} color={P.ink} borderRadius="full" px={3.5} h="34px"
-                  fontSize={TYPE.small} fontWeight="600" _hover={{ borderColor: P.limeDeep }} transition={`border-color ${FAST} ${EASE}`}>
-                  <Icon as={TbPlus} boxSize={3.5} />
-                  <Text>add account</Text>
+              {canManage ? (
+                <HStack spacing={2} flexWrap="wrap" rowGap={2}>
+                  <Select
+                    {...small}
+                    w={{ base: '46%', sm: '160px' }}
+                    value={owner}
+                    onChange={(event) => setOwner(event.target.value)}
+                  >
+                    {ACCOUNT_OWNERS.map((value) => (
+                      <option key={value} value={value}>{value}</option>
+                    ))}
+                  </Select>
+                  <Select
+                    {...small}
+                    w={{ base: '46%', sm: '150px' }}
+                    value={channel}
+                    onChange={(event) => setChannel(event.target.value)}
+                  >
+                    {SOCIAL_CHANNELS.map((value) => (
+                      <option key={value} value={value}>{value}</option>
+                    ))}
+                  </Select>
+                  <HStack
+                    as="button"
+                    type="button"
+                    onClick={add}
+                    spacing={1.5}
+                    bg={P.sheet}
+                    border="1px solid"
+                    borderColor={P.hair}
+                    color={P.ink}
+                    borderRadius="full"
+                    px={3.5}
+                    h="34px"
+                    fontSize={TYPE.small}
+                    fontWeight="600"
+                    _hover={{ borderColor: P.limeDeep }}
+                    transition={`border-color ${FAST} ${EASE}`}
+                  >
+                    <Icon as={TbPlus} boxSize={3.5} />
+                    <Text>add account</Text>
+                  </HStack>
                 </HStack>
-              </HStack>
+              ) : (
+                <Text fontFamily="mono" fontSize={TYPE.label} color={P.inkFaint}>
+                  account settings are view only. an admin manages publishing access.
+                </Text>
+              )}
 
-              {note && <Text fontFamily="mono" fontSize={TYPE.label} color={P.coral}>{note}</Text>}
+              {note && (
+                <Text fontFamily="mono" fontSize={TYPE.label} color={P.coral}>{note}</Text>
+              )}
             </>
           )}
 
           <Text fontSize={TYPE.small} color={P.inkMuted} lineHeight="1.6">
-            The third field is the name of the env var, never the token. Tokens go in Netlify env on the
-            pulse site ({PULSE_SITE}) under Site configuration then Environment variables. A function only
-            sees a value after a build that ran with it present. This panel has no place for a token and
-            never asks for one.
+            The final field names an environment variable. It never contains the token. Bot tokens live only on the main neonburro Netlify site {STUDIO_SITE}. Telegram posts automatically today. Instagram, X and Reddit stay manual until their reviewed adapters are connected.
           </Text>
         </VStack>
       )}

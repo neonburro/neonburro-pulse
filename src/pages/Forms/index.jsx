@@ -525,9 +525,15 @@ const ReplyModal = ({ isOpen, onClose, submission, replyCount, userId, onSuccess
     if (!body.trim()) { toast({ title: 'Message is empty', status: 'warning', duration: 1500 }); return; }
     setSending(true);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error('Sign in again before sending.');
       const res = await fetch('/.netlify/functions/reply-to-form', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ submissionId: submission.id, recipientEmail: senderEmail, recipientName: senderName, subject, body, userId, isFollowUp }),
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ submissionId: submission.id, subject, body }),
       });
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || 'Send failed');

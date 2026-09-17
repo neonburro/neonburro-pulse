@@ -1,33 +1,16 @@
 // src/pages/Releases/components/shared.jsx
-// SENTINEL: NB_PULSE_RELEASES_SHARED_V1
+// SENTINEL: NB_PULSE_SOCIALS_SHARED_V2
 //
-// The lists and the small parts every piece of the Releases page reads. One
-// file so the timeline, the drawer, the shelves and the accounts panel agree
-// on what a channel is, who the voices are and what colour a burro wears.
+// One registry for the Socials desk. A voice is the council member speaking.
+// An account owner is the identity that publishes. Those ideas used to be one
+// field which made it impossible for Lyra to speak through the studio account.
+// Keep SOCIAL_CHANNELS aligned with the account panel. Keep AUTOMATIC_CHANNELS
+// aligned with netlify/functions/release-social.js in the neonburro repo.
 //
-// ── THE LISTS ───────────────────────────────────────────────────────────────
-// CHANNELS is a suggestion list, the column is free text on purpose (see
-// supabase/migrations/2026082901_releases.sql). POSTING is the subset the
-// release-social function carries. A row on one of those channels stops at
-// staged under the pip and the function moves it to released or failed, so
-// the page and netlify/functions/release-social.js must agree on this list.
-// VOICES is the fixed thirteen. Seed rows carry gauge and latch, the picker
-// keeps an unknown voice as an extra option rather than wiping it.
-//
-// ── THE WORD RAIL ───────────────────────────────────────────────────────────
-// The studio does not talk about the coin's price, anywhere, ever. wordRail
-// reads a body and returns the word that breaks the rule or null. The dollar
-// test is the same regex the function uses as its last rail, forty
-// characters either side of NEONBURRO. The banned list applies only when
-// the body mentions the coin, that is the page's contract. The function's
-// regex is wider, it refuses the banned words without a mention, so a body
-// that says moon over the reservoir passes here and fails there. Flagged in
-// the hand off, not silently widened here.
-//
-// ── COLOUR BY VOICE ─────────────────────────────────────────────────────────
-// Thirteen tints, each dark enough to hold a cream letter and to read as a
-// rule on the cream mat. None of them is the lime, the lime is spent on the
-// add button. warbleur wears limeDeep because he is the origin.
+// Telegram is the only automatic channel today. X, Instagram and Reddit stay
+// on the same calendar but release by hand until their own adapters are real.
+// The creative queue belongs to the release so Lyra and the writer see one
+// brief, one asset state and one approval record.
 //
 // No oxford commas, no em dashes.
 
@@ -38,11 +21,41 @@ import { TYPE } from '../../../theme/layout';
 export const P = colors.paper;
 
 export const STATUSES = ['idea', 'drafted', 'staged', 'released'];
-export const CHANNELS = ['site', 'x', 'instagram', 'reddit', 'telegram', 'blog', 'newsletter', 'phosphor', 'shop', 'pulse'];
-export const POSTING = ['telegram', 'x', 'instagram', 'reddit'];
-export const VOICES = ['warbleur', 'cypher', 'lyra', 'volt', 'ion', 'aster', 'skye', 'pixel', 'echo', 'epoch', 'tender', 'kolache', 'phosphor'];
+export const SOCIAL_CHANNELS = ['telegram', 'instagram', 'x', 'reddit'];
+export const AUTOMATIC_CHANNELS = ['telegram'];
+export const CHANNELS = [
+  ...SOCIAL_CHANNELS,
+  'site',
+  'blog',
+  'newsletter',
+  'phosphor',
+  'shop',
+  'pulse',
+];
+export const VOICES = [
+  'warbleur',
+  'cypher',
+  'lyra',
+  'volt',
+  'ion',
+  'aster',
+  'skye',
+  'pixel',
+  'echo',
+  'epoch',
+  'tender',
+  'kolache',
+  'phosphor',
+];
+export const ACCOUNT_OWNERS = ['neonburro', ...VOICES];
 
-// characters per channel. reddit carries the title only, so no body limit.
+export const ASSET_STATUSES = [
+  { value: 'not_needed', label: 'no asset needed' },
+  { value: 'needs_lyra', label: 'needs Lyra' },
+  { value: 'generating', label: 'in generation' },
+  { value: 'ready', label: 'asset ready' },
+];
+
 export const LIMITS = { x: 280, telegram: 4096, instagram: 2200 };
 
 export const STATUS_TINT = {
@@ -70,14 +83,26 @@ export const VOICE_TINT = {
 };
 
 export const voiceTint = (voice) => VOICE_TINT[voice] || P.inkMuted;
+export const isSocial = (channel) => SOCIAL_CHANNELS.includes(channel);
+export const isAutomatic = (channel) => AUTOMATIC_CHANNELS.includes(channel);
+export const assetStatusLabel = (value) => (
+  ASSET_STATUSES.find((item) => item.value === value)?.label || 'no asset needed'
+);
 
-export const isPosting = (channel) => POSTING.includes(channel);
+export const bucketFor = (channel) => (isSocial(channel) ? `social-${channel}` : 'social-site');
 
-// the bucket a channel keeps its pictures in. matches the five buckets in
-// supabase/migrations/2026091202_social_timeline.sql.
-export const bucketFor = (channel) => (isPosting(channel) ? `social-${channel}` : 'social-site');
-
-const BANNED = ['pump', 'moon', '100x', '10x', 'gains', 'price target', 'buy now', 'last chance', 'undervalued', 'early'];
+const BANNED = [
+  'pump',
+  'moon',
+  '100x',
+  '10x',
+  'gains',
+  'price target',
+  'buy now',
+  'last chance',
+  'undervalued',
+  'early',
+];
 const MENTION = /neonburro/i;
 const DOLLAR_NEAR = /NEONBURRO[^.\n]{0,40}\$|\$[^.\n]{0,40}NEONBURRO/i;
 
@@ -92,27 +117,28 @@ export const wordRail = (body) => {
   return null;
 };
 
-// ── dates. the column is timestamptz, the inputs are local ──────────────────
-const pad = (n) => String(n).padStart(2, '0');
+const pad = (number) => String(number).padStart(2, '0');
 
-export const dayKey = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+export const dayKey = (date) => (
+  `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+);
 
 export const toLocalDate = (iso) => {
   if (!iso) return '';
-  const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? '' : dayKey(d);
+  const date = new Date(iso);
+  return Number.isNaN(date.getTime()) ? '' : dayKey(date);
 };
 
 export const toLocalTime = (iso) => {
   if (!iso) return '';
-  const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? '' : `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  const date = new Date(iso);
+  return Number.isNaN(date.getTime()) ? '' : `${pad(date.getHours())}:${pad(date.getMinutes())}`;
 };
 
 export const fromLocal = (date, time) => {
   if (!date) return null;
-  const d = new Date(`${date}T${time || '12:00'}:00`);
-  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+  const value = new Date(`${date}T${time || '12:00'}:00`);
+  return Number.isNaN(value.getTime()) ? null : value.toISOString();
 };
 
 export const when = (iso) => {
@@ -120,7 +146,6 @@ export const when = (iso) => {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 };
 
-// ── the small parts ─────────────────────────────────────────────────────────
 export const inputProps = {
   bg: P.sheet,
   border: '1px solid',
@@ -136,7 +161,14 @@ export const inputProps = {
 };
 
 export const Kicker = ({ children, ...rest }) => (
-  <Text fontFamily="mono" fontSize={TYPE.label} letterSpacing="0.14em" textTransform="uppercase" color={P.inkMuted} {...rest}>
+  <Text
+    fontFamily="mono"
+    fontSize={TYPE.label}
+    letterSpacing="0.14em"
+    textTransform="uppercase"
+    color={P.inkMuted}
+    {...rest}
+  >
     {children}
   </Text>
 );
@@ -144,21 +176,42 @@ export const Kicker = ({ children, ...rest }) => (
 export const Field = ({ label, hint, hintColor, children }) => (
   <VStack align="stretch" spacing={1.5}>
     <HStack justify="space-between" align="baseline">
-      <Text fontFamily="mono" fontSize={TYPE.micro} fontWeight="600" letterSpacing="0.18em" textTransform="uppercase" color={P.inkMuted}>
+      <Text
+        fontFamily="mono"
+        fontSize={TYPE.micro}
+        fontWeight="600"
+        letterSpacing="0.18em"
+        textTransform="uppercase"
+        color={P.inkMuted}
+      >
         {label}
       </Text>
-      {hint && <Text fontFamily="mono" fontSize={TYPE.micro} color={hintColor || P.inkFaint}>{hint}</Text>}
+      {hint && (
+        <Text fontFamily="mono" fontSize={TYPE.micro} color={hintColor || P.inkFaint}>
+          {hint}
+        </Text>
+      )}
     </HStack>
     {children}
   </VStack>
 );
 
-// one letter of the burro on a disc of their tint. the timeline card, the
-// row and the accounts panel all wear it.
 export const VoiceDisc = ({ voice, size = '18px' }) => (
-  <Box boxSize={size} borderRadius="full" bg={voiceTint(voice)} color={P.sheet}
-    display="flex" alignItems="center" justifyContent="center" flexShrink={0}
-    fontFamily="mono" fontSize={TYPE.micro} fontWeight="600" textTransform="uppercase" lineHeight="1">
+  <Box
+    boxSize={size}
+    borderRadius="full"
+    bg={voiceTint(voice)}
+    color={P.sheet}
+    display="flex"
+    alignItems="center"
+    justifyContent="center"
+    flexShrink={0}
+    fontFamily="mono"
+    fontSize={TYPE.micro}
+    fontWeight="600"
+    textTransform="uppercase"
+    lineHeight="1"
+  >
     {(voice || '?').slice(0, 1)}
   </Box>
 );

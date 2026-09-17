@@ -1,7 +1,7 @@
 // src/App.jsx
 // SENTINEL: NB_PULSE_APP_V2
 //
-// ── THE SPLIT, 2026-08-26 ───────────────────────────────────────────────────
+// THE SPLIT, 2026-08-26
 // Every page except Login is React.lazy behind one quiet Suspense fallback,
 // the same decision the studio made in its App.jsx and for the same reason.
 // Before this the whole tool shipped as one 1.2MB chunk, so signing in on a
@@ -42,10 +42,11 @@ const Forms         = lazy(() => import('./pages/Forms'));
 const Blog          = lazy(() => import('./pages/Blog'));
 const PostEditor    = lazy(() => import('./pages/Blog/PostEditor'));
 const Yard          = lazy(() => import('./pages/Yard'));
+const Neonburro     = lazy(() => import('./pages/Neonburro'));
 const Registry      = lazy(() => import('./pages/Registry'));
 const Messages      = lazy(() => import('./pages/Messages'));
 const Calendar      = lazy(() => import('./pages/Calendar'));
-const Releases      = lazy(() => import('./pages/Releases'));
+const Socials       = lazy(() => import('./pages/Releases'));
 const Analytics     = lazy(() => import('./pages/Analytics'));
 const Settings      = lazy(() => import('./pages/Settings'));
 
@@ -87,13 +88,15 @@ function App() {
               <Route path="blog/new/" element={<PostEditor />} />
               <Route path="blog/:postId/" element={<PostEditor />} />
               <Route path="yard/" element={<Yard />} />
+              <Route path="neonburro/" element={<Neonburro />} />
               <Route path="registry/" element={<Registry />} />
               <Route path="messages/" element={<Messages />} />
               <Route path="calendar/" element={<Calendar />} />
-              <Route path="releases/" element={<Releases />} />
+              <Route path="socials/" element={<Socials />} />
+              <Route path="releases/" element={<Navigate to="/socials/" replace />} />
               <Route path="analytics/" element={<Analytics />} />
               <Route path="settings/" element={<Settings />} />
-              {/* Projects redirect to clients - the source of truth now */}
+              {/* Projects redirect to clients, the source of truth now. */}
               <Route path="projects/" element={<Navigate to="/clients/" replace />} />
               <Route path="projects/*" element={<Navigate to="/clients/" replace />} />
               <Route path="*" element={<Navigate to="/today/" replace />} />
