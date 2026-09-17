@@ -27,6 +27,8 @@ const InvoicePreview = ({ invoice, client, sprints }) => {
       invoiceDate,
       payUrl: '#preview',
       attachments,
+      paid: invoice?.status === 'paid',
+      paidAt: invoice?.paid_at || null,
     });
   }, [invoice, client, sprints, attachments]);
 

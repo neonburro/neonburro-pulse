@@ -100,10 +100,15 @@ const buildSprintRow = (item, idx, isFirst) => {
   const amount = parseFloat(item.amount || 0);
   const dueNow = getDueNow(item);
   const mode = item.payment_mode || 'approve_only';
-  const chip = CHIP[mode] || CHIP.approve_only;
+  // A sprint that has been paid says so, on the invoice and on the receipt,
+  // instead of repeating the funding rule it was sent under.
+  const settled = item.payment_status === 'paid' || item.locked === true;
+  const chip = settled ? { bg: '#EAF0D2', ink: '#3A4319' } : (CHIP[mode] || CHIP.approve_only);
+  const chipLabel = settled ? 'paid' : getFundingLabel(mode);
   const topBorder = isFirst ? `2px solid ${EMAIL.ink}` : `1px solid ${EMAIL.hair}`;
-  const dueLabel =
-    dueNow > 0
+  const dueLabel = settled
+    ? `<span style="color:${EMAIL.limeDeep};font-weight:600;">paid</span>`
+    : dueNow > 0
       ? `due now <span style="color:${EMAIL.limeDeep};font-weight:600;">${currency(dueNow)}</span>`
       : `due now <span style="color:${EMAIL.inkFaint};">$0</span>`;
 
@@ -134,7 +139,7 @@ const buildSprintRow = (item, idx, isFirst) => {
         }
         <div style="margin-top:11px;">
           <span style="display:inline-block;font-family:${MONO};font-size:10px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase;padding:4px 10px;border-radius:100px;background:${chip.bg};color:${chip.ink};">
-            ${escapeHtml(getFundingLabel(mode))}
+            ${escapeHtml(chipLabel)}
           </span>
         </div>
       </td>
@@ -200,10 +205,16 @@ export const buildInvoiceEmailHTML = ({
   // is tell the reader the evidence is in the message, which is the whole point
   // of a pass through line billed at cost. See the note in send-invoice.js.
   attachments,
+  // Tyler, 2026-09-17. A paid invoice carries a stamp, clean, in the house
+  // style, and no pay button. The same template makes the receipt a client
+  // gets when a paid invoice is resent. paidAt is the date on the stamp.
+  paid = false,
+  paidAt = null,
 }) => {
   const items = lineItems || [];
   const totalAmount = items.reduce((sum, i) => sum + parseFloat(i.amount || 0), 0);
-  const totalDueNow = items.reduce((sum, i) => sum + getDueNow(i), 0);
+  // A paid document owes nothing whatever the rows say, the stamp is the truth.
+  const totalDueNow = paid ? 0 : items.reduce((sum, i) => sum + getDueNow(i), 0);
   const itemsHTML = items.map((item, idx) => buildSprintRow(item, idx, idx === 0)).join('');
 
   const clientPin = client?.portal_pin || client?.lookup_pin;
@@ -215,13 +226,21 @@ export const buildInvoiceEmailHTML = ({
   // ---- header, letterhead ------------------------------------------------
   const header = `
     <div style="font-family:${SANS};font-size:22px;font-weight:600;letter-spacing:-0.035em;color:${EMAIL.ink};">neonburro<span style="color:${EMAIL.signal};">.</span></div>
-    <div style="font-family:${SANS};font-size:12px;line-height:1.6;color:${EMAIL.inkSec};margin-top:10px;">
-      The Burroship, LLC<br>PO Box 2111, Ridgway CO 81432<br>hello@neonburro.com
-    </div>`;
+    <div style="font-family:${SANS};font-size:13px;font-weight:600;letter-spacing:-0.02em;color:${EMAIL.inkSec};margin-top:8px;">theburroship<span style="display:inline-block;width:0.16em;height:0.16em;border-radius:99px;background:${EMAIL.signal};margin-left:0.03em;vertical-align:baseline;"></span></div>`;
 
+  const stampDate = paid ? escapeHtml(formatDate(paidAt) || formatDate(new Date())) : '';
+  const stamp = paid ? `
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:14px;">
+      <tr>
+        <td style="border:2px solid ${EMAIL.signal};border-radius:10px;padding:8px 14px;">
+          <div style="font-family:${MONO};font-size:12px;font-weight:600;letter-spacing:0.28em;text-transform:uppercase;color:${EMAIL.limeInk};line-height:1;">paid</div>
+          <div style="font-family:${MONO};font-size:10px;letter-spacing:0.12em;color:${EMAIL.inkSec};margin-top:5px;line-height:1;">${stampDate}</div>
+        </td>
+      </tr>
+    </table>` : '';
   const title = `
-    <div style="font-family:${DISP};font-size:38px;font-weight:500;letter-spacing:-0.01em;line-height:1;color:${EMAIL.ink};">Invoice</div>
-    <div style="font-family:${MONO};font-size:13px;color:${EMAIL.inkSec};letter-spacing:0.04em;margin-top:8px;">${safeInvoiceNum}</div>`;
+    <div style="font-family:${DISP};font-size:38px;font-weight:500;letter-spacing:-0.01em;line-height:1;color:${EMAIL.ink};">${paid ? 'Receipt' : 'Invoice'}</div>
+    <div style="font-family:${MONO};font-size:13px;color:${EMAIL.inkSec};letter-spacing:0.04em;margin-top:8px;">${safeInvoiceNum}</div>${stamp}`;
 
   // ---- billed-to + dates -------------------------------------------------
   const dateRow = (k, v, accent) => `
@@ -253,7 +272,7 @@ export const buildInvoiceEmailHTML = ({
   const dates = `
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
       ${dateRow('Issued', issued)}
-      ${due ? dateRow('Due', due, EMAIL.limeDeep) : ''}
+      ${paid ? dateRow('Paid', stampDate, EMAIL.limeDeep) : due ? dateRow('Due', due, EMAIL.limeDeep) : ''}
       ${project ? dateRow('Project', escapeHtml(project.name)) : ''}
     </table>`;
 
@@ -271,8 +290,8 @@ export const buildInvoiceEmailHTML = ({
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
             <tr>
               <td valign="middle" style="width:52%;">
-                <div style="font-family:${MONO};font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:${EMAIL.inkMuted};">${totalDueNow > 0 ? 'To push forward' : 'Due now'}</div>
-                <div style="font-family:${SANS};font-size:12px;line-height:1.4;color:${EMAIL.inkSec};margin-top:4px;">${totalDueNow > 0 ? 'Confirm scope,<br>fund what starts' : 'Scope confirmed,<br>nothing due'}</div>
+                <div style="font-family:${MONO};font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:${EMAIL.inkMuted};">${paid ? 'Settled' : totalDueNow > 0 ? 'To push forward' : 'Due now'}</div>
+                <div style="font-family:${SANS};font-size:12px;line-height:1.4;color:${EMAIL.inkSec};margin-top:4px;">${paid ? 'Paid in full,<br>nothing due' : totalDueNow > 0 ? 'Confirm scope,<br>fund what starts' : 'Scope confirmed,<br>nothing due'}</div>
               </td>
               <td valign="middle" align="right" class="fig" style="font-family:${DISP};font-size:44px;font-weight:500;line-height:1;color:${EMAIL.ink};white-space:nowrap;padding-left:14px;">
                 ${totalDueNow > 0 ? `<span style="font-size:26px;color:${EMAIL.inkMuted};vertical-align:6px;">$</span>${totalDueNow.toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '&mdash;'}
@@ -284,7 +303,15 @@ export const buildInvoiceEmailHTML = ({
     </table>`;
 
   // ---- call to action ----------------------------------------------------
-  const cta = `
+  const cta = paid ? `
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:30px;">
+      <tr>
+        <td align="center" style="background:${EMAIL.sheet2};border-radius:14px;padding:26px 30px;">
+          <div style="font-family:${SANS};font-size:15px;font-weight:600;color:${EMAIL.ink};">Paid in full. Thank you.</div>
+          <div style="font-family:${SANS};font-size:12.5px;color:${EMAIL.inkSec};margin-top:8px;">This is your receipt. Keep it with your records, nothing else is due on this invoice.</div>
+        </td>
+      </tr>
+    </table>` : `
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:30px;">
       <tr>
         <td align="center" style="background:${EMAIL.sheet2};border-radius:14px;padding:30px;">
@@ -353,6 +380,7 @@ export const buildInvoiceEmailHTML = ({
         <div style="font-family:${SANS};font-size:11px;line-height:1.6;color:${EMAIL.inkFaint};margin-top:18px;max-width:60ch;">
           ${due ? `Payment due ${due} in accordance with our service agreement. ` : ''}A sprint marked confirm scope carries no charge now, it starts when you approve it.
         </div>
+        <div style="font-family:${MONO};font-size:9.5px;letter-spacing:0.14em;text-transform:uppercase;color:${EMAIL.inkMuted};line-height:1.8;margin-top:22px;">The Burroship, LLC · PO Box 2111, Ridgway CO 81432 · hello@neonburro.com</div>
       </td>
     </tr>`;
 

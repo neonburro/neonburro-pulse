@@ -47,6 +47,7 @@ import InvoicePreview from './InvoicePreview';
 import InvoiceSnapshotModal from './InvoiceSnapshotModal';
 import SendHistoryStrip from './SendHistoryStrip';
 import ReminderModal from './ReminderModal';
+import ResendModal, { payLinkFor } from './ResendModal';
 import ReviewSendModal from './ReviewSendModal';
 
 const P = colors.paper;
@@ -100,6 +101,7 @@ const InvoiceEditor = ({ invoiceId, clientId: initialClientId, clients, onClose,
   const [showSnapshot, setShowSnapshot] = useState(false);
 
   const [resending, setResending] = useState(false);
+  const [showResendModal, setShowResendModal] = useState(false);
   const [showReminderModal, setShowReminderModal] = useState(false);
   const [sendingReminder, setSendingReminder] = useState(false);
   const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
@@ -119,6 +121,8 @@ const InvoiceEditor = ({ invoiceId, clientId: initialClientId, clients, onClose,
   const isDraft = invoice?.status === 'draft' || isNew;
   const wasSent = !isNew && invoice?.status && invoice.status !== 'draft';
   const canResendOrRemind = isSentish && !invoice?.cancelled_at;
+  // A paid invoice can still be sent, as the receipt. It cannot be reminded.
+  const canResend = (isSentish || isPaid) && !invoice?.cancelled_at;
   const canMarkPaid = isSentish && !invoice?.cancelled_at;
   const canDuplicate = !isNew && !invoice?.cancelled_at;
 
@@ -400,7 +404,7 @@ const InvoiceEditor = ({ invoiceId, clientId: initialClientId, clients, onClose,
     }
   };
 
-  const handleResend = async () => {
+  const handleResend = async ({ to, forwarding } = {}) => {
     if (!invoiceId) return;
     setResending(true);
     try {
@@ -408,17 +412,18 @@ const InvoiceEditor = ({ invoiceId, clientId: initialClientId, clients, onClose,
       const res = await fetch('/.netlify/functions/resend-invoice', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ invoiceId, action: 'resend', userId: user?.id }),
+        body: JSON.stringify({ invoiceId, action: 'resend', userId: user?.id, toOverride: forwarding ? to : undefined }),
       });
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || 'Resend failed');
 
       toast({
-        title: 'Invoice resent',
-        description: `Same email re-delivered to ${result.recipient}`,
+        title: isPaid ? 'Receipt sent' : forwarding ? 'Copy sent' : 'Invoice resent',
+        description: `Delivered to ${result.recipient}`,
         status: 'success',
         duration: 3000,
       });
+      setShowResendModal(false);
       setHistoryRefreshKey((k) => k + 1);
       onSaved();
     } catch (err) {
@@ -835,9 +840,9 @@ const InvoiceEditor = ({ invoiceId, clientId: initialClientId, clients, onClose,
                 </Button>
               )}
 
-              {canResendOrRemind && (
+              {canResend && (
                 <>
-                  <Tooltip label="Send the same email again" {...TOOLTIP_PROPS}>
+                  <Tooltip label={isPaid ? 'Send the stamped receipt' : 'Send it again, or to somebody else'} {...TOOLTIP_PROPS}>
                     <Button
                       size="sm"
                       variant="outline"
@@ -846,14 +851,39 @@ const InvoiceEditor = ({ invoiceId, clientId: initialClientId, clients, onClose,
                       fontWeight="600"
                       borderRadius="full"
                       leftIcon={<TbRotateClockwise size={14} />}
-                      onClick={handleResend}
+                      onClick={() => setShowResendModal(true)}
                       isLoading={resending}
-                      loadingText="Resending"
+                      loadingText="Sending"
                       _hover={{ bg: P.sheet, borderColor: P.limeDeep }}
                     >
-                      Resend
+                      {isPaid ? 'Receipt' : 'Resend'}
                     </Button>
                   </Tooltip>
+                  {payLinkFor(invoice) && !isPaid && (
+                    <Tooltip label="Copy the pay link" {...TOOLTIP_PROPS}>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        borderColor={P.hair}
+                        color={P.inkSec}
+                        fontWeight="600"
+                        borderRadius="full"
+                        leftIcon={<TbCopy size={14} />}
+                        onClick={async () => {
+                          try {
+                            await navigator.clipboard.writeText(payLinkFor(invoice));
+                            toast({ title: 'Link copied', description: 'Paste it anywhere the client will see it', status: 'success', duration: 2500 });
+                          } catch {
+                            toast({ title: 'Could not copy', description: payLinkFor(invoice), status: 'warning', duration: 6000 });
+                          }
+                        }}
+                        _hover={{ bg: P.sheet, borderColor: P.limeDeep }}
+                      >
+                        Copy link
+                      </Button>
+                    </Tooltip>
+                  )}
+                  {canResendOrRemind && !isPaid && (
                   <Tooltip label="Send a friendly nudge" {...TOOLTIP_PROPS}>
                     <Button
                       size="sm"
@@ -869,6 +899,7 @@ const InvoiceEditor = ({ invoiceId, clientId: initialClientId, clients, onClose,
                       Remind
                     </Button>
                   </Tooltip>
+                  )}
                 </>
               )}
 
@@ -1158,6 +1189,22 @@ const InvoiceEditor = ({ invoiceId, clientId: initialClientId, clients, onClose,
         invoice={invoice}
         onConfirm={handleSoftCancel}
         processing={cancelling}
+      />
+
+      <ResendModal
+
+        isOpen={showResendModal}
+
+        onClose={() => setShowResendModal(false)}
+
+        invoice={invoice}
+
+        client={client}
+
+        onSend={handleResend}
+
+        sending={resending}
+
       />
 
       <ReminderModal

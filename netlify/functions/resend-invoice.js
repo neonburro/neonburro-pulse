@@ -111,6 +111,8 @@ const rebuildHtmlFromSnapshot = async ({ invoice, snapshot }) => {
     payUrl: snapshot.pay_url || (invoice.pay_token
       ? `https://neonburro.com/pay/?token=${invoice.pay_token}`
       : 'https://neonburro.com/account/'),
+    paid: invoice.status === 'paid',
+    paidAt: invoice.paid_at || null,
   });
 };
 
@@ -352,7 +354,12 @@ const handleResend = async ({ invoiceId, userId, toOverride }) => {
     throw new Error('No prior send found for this invoice. Use the Send button instead.');
   }
 
-  let html = lastHistory.rendered_html;
+  // A paid invoice is never resent as the invoice. It is rebuilt from the
+  // snapshot with the stamp on it and goes out as the receipt, Tyler's ask
+  // of 2026-09-17. The stored html is the unpaid document and stays as the
+  // record of what was sent the first time.
+  const isPaid = invoice.status === 'paid';
+  let html = isPaid ? null : lastHistory.rendered_html;
   const rebuiltFromSnapshot = !html;
   if (!html) {
     html = await rebuildHtmlFromSnapshot({ invoice, snapshot: lastHistory.invoice_snapshot });
@@ -387,9 +394,11 @@ const handleResend = async ({ invoiceId, userId, toOverride }) => {
     to: recipientEmail,
     cc: ccList.length > 0 ? ccList : undefined,
     reply_to: 'hello@neonburro.com',
-    subject: forwarding
-      ? `Invoice ${invoice.invoice_number} from NeonBurro`
-      : `Invoice ${invoice.invoice_number} from NeonBurro (resent)`,
+    subject: isPaid
+      ? `Receipt for ${invoice.invoice_number} from neonburro`
+      : forwarding
+        ? `Invoice ${invoice.invoice_number} from neonburro`
+        : `Invoice ${invoice.invoice_number} from neonburro (resent)`,
     html,
     attachments: attachments.length ? attachments : undefined,
   });
