@@ -9,3 +9,6 @@ dist
 
 # Working scratch. Retired source kept on disk, never in history.
 _to_delete/
+
+# supabase cli scratch
+supabase/.temp/
