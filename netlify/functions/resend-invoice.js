@@ -1,7 +1,8 @@
 // netlify/functions/resend-invoice.js
 // V4, recipients lists on resend and reminder, 2026-09-17.
 // resend:   re-fires stored rendered_html (already the light template), or
-//           rebuilds from snapshot via the shared template.
+//           draws it again from the live rows, then from the snapshot.
+// receipt:  a paid invoice resent goes out stamped, drawn from the live rows.
 // reminder: editorial nudge, now light-mode with banner.
 // Admin audit emails also light-mode with banner. Palette from emailTokens.js.
 
@@ -117,6 +118,59 @@ const rebuildHtmlFromSnapshot = async ({ invoice, snapshot }) => {
   });
 };
 
+// ── THE LIVE ROWS ARE THE TRUTH FOR A RECEIPT ───────────────────────────────
+//
+// 2026-09-17, Tyler pressed Send the receipt on NB260801 and got "the original
+// snapshot is missing". Two ways that happens. The invoice was first sent
+// before invoice_snapshot existed, so no history row carries one. Or the
+// latest history row is a reminder, which never stores a snapshot, and the
+// query took the latest row of any kind. Either way the invoice's own rows are
+// still in the database, so a receipt has no business failing.
+//
+// This builds the document from invoices, invoice_items, clients and projects
+// as they stand now. For a paid invoice that is better than the snapshot
+// anyway, the live items carry payment_status and the template marks each
+// settled line paid, which a snapshot cannot. The snapshot stays the record
+// of what was sent the first time. It is not the only way to draw the
+// document again.
+const buildHtmlFromLiveRows = async ({ invoice }) => {
+  const { data: items } = await supabase
+    .from('invoice_items')
+    .select('*')
+    .eq('invoice_id', invoice.id)
+    .order('sort_order');
+  const lineItems = (items || []).filter((i) => i.is_billable !== false);
+  if (!lineItems.length) return null;
+
+  let client = { name: invoice.clients?.name || 'Client', email: invoice.clients?.email || '', company: invoice.clients?.company || null };
+  if (invoice.client_id) {
+    const { data } = await supabase.from('clients').select('*').eq('id', invoice.client_id).maybeSingle();
+    if (data) client = data;
+  }
+  let project = null;
+  if (invoice.project_id) {
+    const { data } = await supabase.from('projects').select('*').eq('id', invoice.project_id).maybeSingle();
+    if (data) project = data;
+  }
+  const { data: attachmentRows } = await supabase
+    .from('invoice_attachments')
+    .select('filename, label')
+    .eq('invoice_id', invoice.id)
+    .order('sort_order');
+
+  const sentAt = invoice.sent_at ? new Date(invoice.sent_at) : new Date();
+  return buildInvoiceEmailHTML({
+    invoice, client, project, lineItems,
+    attachments: attachmentRows || [],
+    invoiceDate: sentAt.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+    payUrl: invoice.pay_token
+      ? `https://neonburro.com/pay/?token=${invoice.pay_token}`
+      : 'https://neonburro.com/account/',
+    paid: invoice.status === 'paid',
+    paidAt: invoice.paid_at || null,
+  });
+};
+
 // ── BACKUP DOCUMENTS, PULLED FROM THE PRIVATE BUCKET ────────────────────────
 // invoice-attachments has no anon read policy on purpose, these are supplier
 // invoices carrying wholesale pricing. The service role reads the bytes and
@@ -214,10 +268,12 @@ const buildAdminAuditEmail = ({
   const safeAdmin = escapeHtml(adminName);
 
   const accentColor = EMAIL.signalDeep;
-  const actionLabel = action === 'resend' ? 'Invoice Resent' : 'Reminder Sent';
-  const actionSub = action === 'resend'
-    ? `Same email re-delivered${rebuiltFromSnapshot ? ' (rebuilt from archived snapshot)' : ''}`
-    : 'Editorial nudge dispatched';
+  const actionLabel = action === 'receipt' ? 'Receipt Sent' : action === 'resend' ? 'Invoice Resent' : 'Reminder Sent';
+  const actionSub = action === 'receipt'
+    ? 'The paid document, stamped, drawn from the live rows'
+    : action === 'resend'
+      ? `Same email re-delivered${rebuiltFromSnapshot ? ' (rebuilt from archived snapshot)' : ''}`
+      : 'Editorial nudge dispatched';
 
   const ccBlock = ccList && ccList.length > 0
     ? `
@@ -359,32 +415,54 @@ const handleResend = async ({ invoiceId, userId, toOverride, recipients }) => {
   if (invoice.cancelled_at) throw new Error('Cannot resend a cancelled invoice');
   if (!invoice.clients?.email) throw new Error('Client has no email on file');
 
+  // The history is read twice, on purpose. The latest row of any kind says
+  // who last had it. The latest row that actually carries a document, and
+  // is not a reminder, is the one a resend can re-fire. A reminder stores
+  // its own html and no snapshot, and picking it as "the last send" is how
+  // the receipt broke on 2026-09-17.
   const { data: lastHistory } = await supabase
     .from('invoice_history')
-    .select('rendered_html, invoice_snapshot, sent_to')
+    .select('sent_to, send_type')
     .eq('invoice_id', invoiceId)
     .order('sent_at', { ascending: false })
     .limit(1)
     .maybeSingle();
+  const { data: lastDocument } = await supabase
+    .from('invoice_history')
+    .select('rendered_html, invoice_snapshot')
+    .eq('invoice_id', invoiceId)
+    .in('send_type', ['initial', 'resend', 'forward', 'receipt'])
+    .order('sent_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
-  if (!lastHistory) {
+  if (!lastHistory && invoice.status !== 'paid') {
     throw new Error('No prior send found for this invoice. Use the Send button instead.');
   }
 
-  // A paid invoice is never resent as the invoice. It is rebuilt from the
-  // snapshot with the stamp on it and goes out as the receipt, Tyler's ask
-  // of 2026-09-17. The stored html is the unpaid document and stays as the
-  // record of what was sent the first time.
+  // A paid invoice is never resent as the invoice. It goes out as the receipt,
+  // with the stamp, Tyler's ask of 2026-09-17, drawn from the live rows first
+  // because they know which lines are settled. An unpaid resend re-fires the
+  // stored document, then the live rows, then the snapshot. The stored html
+  // stays the record of what was sent the first time.
   const isPaid = invoice.status === 'paid';
-  let html = isPaid ? null : lastHistory.rendered_html;
-  const rebuiltFromSnapshot = !html;
+  let html = isPaid ? null : (lastDocument?.rendered_html || null);
+  let source = html ? 'stored' : null;
   if (!html) {
-    html = await rebuildHtmlFromSnapshot({ invoice, snapshot: lastHistory.invoice_snapshot });
+    html = await buildHtmlFromLiveRows({ invoice });
+    source = html ? 'live' : null;
   }
+  if (!html) {
+    html = await rebuildHtmlFromSnapshot({ invoice, snapshot: lastDocument?.invoice_snapshot });
+    source = html ? 'snapshot' : null;
+  }
+  const rebuiltFromSnapshot = source === 'snapshot';
 
   if (!html) {
     throw new Error(
-      'Could not rebuild this invoice email. The original snapshot is missing. Use the Send button to generate a fresh email.'
+      isPaid
+        ? 'Could not draw the receipt. This invoice has no billable lines and no stored document.'
+        : 'Could not rebuild this invoice email. There are no billable lines and no stored document. Use the Send button to generate a fresh email.'
     );
   }
 
@@ -397,13 +475,13 @@ const handleResend = async ({ invoiceId, userId, toOverride, recipients }) => {
   }
   const recipientEmail = forwarding
     ? toOverride.trim()
-    : (lastHistory.sent_to || invoice.clients.email);
+    : (lastHistory?.sent_to || invoice.clients.email);
   // A history row now stores every address joined with commas, so a resend
   // with no list of its own goes to everyone the last send went to.
   const toList = list.length ? list : cleanRecipients(String(recipientEmail || '').split(','));
   if (!toList.length) throw new Error('Nobody to send to');
   const ccList = list.length ? [] : (forwarding ? [] : sanitizeCcList(invoice.cc_emails, recipientEmail));
-  const sendType = forwarding ? 'forward' : 'resend';
+  const sendType = isPaid ? 'receipt' : forwarding ? 'forward' : 'resend';
 
   // ── A RESEND CARRIES THE SAME FILES ───────────────────────────────────────
   // The rebuilt HTML already lists the attachments, because the snapshot's
@@ -436,8 +514,8 @@ const handleResend = async ({ invoiceId, userId, toOverride, recipients }) => {
     sent_by: userId || null,
     send_type: sendType,
     rendered_html: html,
-    invoice_snapshot: lastHistory.invoice_snapshot,
-    notes: ccList.length > 0 ? `cc: ${ccList.join(', ')}` : null,
+    invoice_snapshot: lastDocument?.invoice_snapshot || null,
+    notes: [ccList.length > 0 ? `cc: ${ccList.join(', ')}` : null, `document from ${source}`].filter(Boolean).join(' · '),
   });
 
   await supabase.from('activity_log').insert({
@@ -454,22 +532,26 @@ const handleResend = async ({ invoiceId, userId, toOverride, recipients }) => {
       cc_count: ccList.length,
       cc_emails: ccList,
       rebuilt_from_snapshot: rebuiltFromSnapshot,
+      document_source: source,
+      receipt: isPaid,
     },
   });
 
   const adminName = await fetchAdminName(userId);
   const amountDue = parseFloat(invoice.total || 0) - parseFloat(invoice.total_paid || 0);
   const adminHtml = buildAdminAuditEmail({
-    action: 'resend', invoice, client: invoice.clients,
-    recipientEmail, ccList, adminName, amountDue, rebuiltFromSnapshot,
+    action: isPaid ? 'receipt' : 'resend', invoice, client: invoice.clients,
+    recipientEmail: toList.join(', '), ccList, adminName, amountDue, rebuiltFromSnapshot,
   });
   resend.emails.send({
     from: ADMIN_FROM,
     to: ADMIN_TO,
     reply_to: invoice.clients?.email || 'hello@neonburro.com',
-    subject: forwarding
-      ? `Invoice Forwarded: ${invoice.invoice_number} to ${recipientEmail}`
-      : `Invoice Resent: ${invoice.invoice_number} - ${invoice.clients?.name || 'Client'}${ccList.length > 0 ? ` (+${ccList.length} cc)` : ''}`,
+    subject: isPaid
+      ? `Receipt Sent: ${invoice.invoice_number} to ${toList.join(', ')}`
+      : forwarding
+        ? `Invoice Forwarded: ${invoice.invoice_number} to ${recipientEmail}`
+        : `Invoice Resent: ${invoice.invoice_number} - ${invoice.clients?.name || 'Client'}${ccList.length > 0 ? ` (+${ccList.length} cc)` : ''}`,
     html: adminHtml,
   }).catch((err) => console.error('Admin resend notification failed:', err));
 

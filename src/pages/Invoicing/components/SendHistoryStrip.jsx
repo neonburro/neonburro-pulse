@@ -11,9 +11,15 @@ import colors from '../../../theme/colors';
 
 const P = colors.paper;
 
+// Every send_type the functions write. forward and receipt were written by
+// resend-invoice.js for a while with no row here, so the strip called them
+// Sent. A forward is a copy to someone who is not the client, a receipt is
+// the paid document, stamped.
 const SEND_TYPE_META = {
   initial:  { icon: TbSend,            label: 'Sent',     color: P.limeDeep },
   resend:   { icon: TbRotateClockwise, label: 'Resent',   color: P.inkMuted },
+  forward:  { icon: TbSend,            label: 'Copied to', color: P.inkMuted },
+  receipt:  { icon: TbRotateClockwise, label: 'Receipt',  color: P.limeDeep },
   reminder: { icon: TbBellRinging,     label: 'Reminder', color: P.gold },
 };
 
