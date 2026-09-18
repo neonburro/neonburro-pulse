@@ -115,7 +115,39 @@ const rebuildHtmlFromSnapshot = async ({ invoice, snapshot }) => {
       : 'https://neonburro.com/account/'),
     paid: invoice.status === 'paid',
     paidAt: invoice.paid_at || null,
+    paidBy: invoice.status === 'paid' ? await paidByFor(invoice) : null,
   });
+};
+
+// ── PAID BY, THE LINE ON THE RECEIPT ────────────────────────────────────────
+// Tyler, 2026-09-17. The receipt names how it was paid, from the payments rows
+// when Stripe wrote them (brand, last four, wallet, ACH, USDC) and from the
+// invoice's own payment_method when a person marked it paid by hand (check,
+// Zelle, wire). One short line, never a card number, never a reference the
+// client did not give us. Null when nothing is known and the row prints
+// nothing.
+const HAND_METHODS = { bank_transfer: 'Bank transfer', venmo: 'Venmo', zelle: 'Zelle', check: 'Check', ach: 'ACH', wire: 'Wire', cash: 'Cash', card: 'Card', crypto: 'USDC', other: null };
+const paidByFor = async (invoice) => {
+  const { data: rows } = await supabase
+    .from('payments')
+    .select('method, payment_method_brand, payment_method_last4, payment_method_wallet, notes, received_at')
+    .eq('invoice_id', invoice.id)
+    .order('received_at', { ascending: false })
+    .limit(3);
+  const lines = (rows || []).map((r) => {
+    const brand = r.payment_method_brand ? r.payment_method_brand.charAt(0).toUpperCase() + r.payment_method_brand.slice(1) : null;
+    if (r.payment_method_wallet === 'apple_pay') return 'Apple Pay';
+    if (r.payment_method_wallet === 'google_pay') return 'Google Pay';
+    if (r.method === 'ach') return 'Bank transfer, ACH';
+    if (r.method === 'crypto') return 'USDC';
+    if (r.method === 'card') return brand && r.payment_method_last4 ? `${brand} ending ${r.payment_method_last4}` : 'Card';
+    return HAND_METHODS[r.method] || null;
+  }).filter(Boolean);
+  const unique = [...new Set(lines)];
+  if (unique.length) return unique.join(', ');
+  const hand = HAND_METHODS[invoice.payment_method] || null;
+  if (hand) return invoice.payment_reference ? `${hand}, ${invoice.payment_reference}` : hand;
+  return null;
 };
 
 // ── THE LIVE ROWS ARE THE TRUTH FOR A RECEIPT ───────────────────────────────
@@ -168,6 +200,7 @@ const buildHtmlFromLiveRows = async ({ invoice }) => {
       : 'https://neonburro.com/account/',
     paid: invoice.status === 'paid',
     paidAt: invoice.paid_at || null,
+    paidBy: invoice.status === 'paid' ? await paidByFor(invoice) : null,
   });
 };
 

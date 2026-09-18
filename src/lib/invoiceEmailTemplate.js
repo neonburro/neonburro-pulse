@@ -210,6 +210,10 @@ export const buildInvoiceEmailHTML = ({
   // gets when a paid invoice is resent. paidAt is the date on the stamp.
   paid = false,
   paidAt = null,
+  // Tyler, 2026-09-17, the receipt says how it was paid. A short human line
+  // built by the caller from the payments rows, "Visa ending 4242", "Check
+  // 1043", "USDC on Solana". Null prints nothing, the stamp still stands.
+  paidBy = null,
 }) => {
   const items = lineItems || [];
   const totalAmount = items.reduce((sum, i) => sum + parseFloat(i.amount || 0), 0);
@@ -273,6 +277,7 @@ export const buildInvoiceEmailHTML = ({
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
       ${dateRow('Issued', issued)}
       ${paid ? dateRow('Paid', stampDate, EMAIL.limeDeep) : due ? dateRow('Due', due, EMAIL.limeDeep) : ''}
+      ${paid && paidBy ? dateRow('Paid by', escapeHtml(paidBy)) : ''}
       ${project ? dateRow('Project', escapeHtml(project.name)) : ''}
     </table>`;
 

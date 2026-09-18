@@ -25,6 +25,8 @@
 #                        old table said minutes and was wrong.
 # flip-overdue-invoices  daily at 06:00 UTC, midnight Mountain, flips due
 #                        invoices to overdue
+# draft-repeat-invoices  daily at 12:00 UTC, drafts the period invoice for push
+#                        rail subscriptions, unsent
 # release-social         moved to the STUDIO site on 2026-09-12 because the
 #                        bot tokens were set there and a token lives in
 #                        exactly one place. The Releases page here is the
@@ -36,6 +38,13 @@
 
 [functions."flip-overdue-invoices"]
   schedule = "0 6 * * *"
+
+# draft-repeat-invoices  daily at 12:00 UTC, six in the morning in Ridgway.
+#                        Drafts the invoice for every active push rail
+#                        subscription whose next_invoice_at has arrived. Sends
+#                        nothing, the draft sits in Invoicing for a person.
+[functions."draft-repeat-invoices"]
+  schedule = "0 12 * * *"
 
 # SPA rewrite - all routes serve index.html
 [[redirects]]

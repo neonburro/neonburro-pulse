@@ -456,6 +456,13 @@ const processCheckoutSuccess = async (session) => {
     created_at: now,
   });
 
+  // The second half of any deposit sprint drafts itself now, see the helper.
+  try {
+    await draftSecondHalf({ invoice, paidSprints });
+  } catch (e) {
+    console.warn('[webhook] second half did not draft', e.message);
+  }
+
   // Recompute total_paid from all items for this invoice
   const refreshedItems = await sbGet('invoice_items', `invoice_id=eq.${invoice_id}&select=payment_amount,amount`);
   const totalPaid = (refreshedItems || []).reduce(
@@ -561,6 +568,83 @@ const processCheckoutSuccess = async (session) => {
     amount: amountReceived,
     status: newStatus,
   };
+};
+
+
+// ── THE SECOND HALF DRAFTS ITSELF ───────────────────────────────────────────
+// Tyler, 2026-09-17. A sprint funded at 50% to start owes its other half on
+// completion, and that half used to live in somebody's head. The moment a
+// deposit lands, this drafts the balance invoice for every sprint the deposit
+// touched, one line per sprint, pay in full, in Invoicing, unsent. A person
+// reads it when the work is done and presses Send. It never sends itself.
+//
+// One draft per source invoice. The guard is the activity_log row this writes,
+// action second_half_drafted with the source invoice id, so a retried session
+// or a second deposit on the same invoice adds lines to nothing and drafts
+// nothing twice. Numbers come from next_invoice_number(), the same as the
+// editor. A failure here is logged and never fails the payment.
+const draftSecondHalf = async ({ invoice, paidSprints }) => {
+  const halves = paidSprints.filter((s) => (s.payment_mode || 'approve_only') === 'deposit_50');
+  if (!halves.length) return null;
+
+  const prior = await sbGet('activity_log', `action=eq.second_half_drafted&entity_type=eq.invoice&metadata->>source_invoice_id=eq.${invoice.id}&select=id&limit=1`);
+  if (prior && prior.length) return null;
+
+  const numberRes = await sbFetch('rpc/next_invoice_number', { method: 'POST', body: '{}' });
+  const number = typeof numberRes === 'string' ? numberRes.replace(/"/g, '') : (numberRes?.[0] || numberRes || null);
+  const now = new Date().toISOString();
+  const total = halves.reduce((sum, s) => sum + Math.max(0, parseFloat(s.amount || 0) - parseFloat(s.amount || 0) * 0.5), 0);
+
+  const inserted = await sbInsert('invoices', {
+    client_id: invoice.client_id,
+    project_id: invoice.project_id || null,
+    status: 'draft',
+    invoice_number: number || undefined,
+    total,
+    total_paid: 0,
+    notes: `The second half of ${invoice.invoice_number}. Deposit received ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/Denver' })}. Send when the work is done.`,
+    due_date: null,
+    created_at: now,
+  }, 'return=representation');
+  const draft = Array.isArray(inserted) ? inserted[0] : inserted;
+  if (!draft?.id) throw new Error('second half insert returned no row');
+
+  let i = 0;
+  for (const s of halves) {
+    const sprintRes = await sbFetch('rpc/next_sprint_number', { method: 'POST', body: JSON.stringify({ p_invoice_id: draft.id }) });
+    const sprintNumber = typeof sprintRes === 'string' ? sprintRes.replace(/"/g, '') : null;
+    await sbInsert('invoice_items', {
+      invoice_id: draft.id,
+      sprint_number: sprintNumber || null,
+      title: `${s.title || 'Sprint'}, the second half`,
+      description: `The balance on ${s.sprint_number || 'the sprint'} of ${invoice.invoice_number}, half paid to start, the rest on completion.`,
+      amount: Math.max(0, parseFloat(s.amount || 0) * 0.5),
+      payment_mode: 'pay_full',
+      is_billable: true,
+      sort_order: i,
+      created_at: now,
+    });
+    i += 1;
+  }
+
+  await sbInsert('activity_log', {
+    action: 'second_half_drafted',
+    entity_type: 'invoice',
+    entity_id: draft.id,
+    client_id: invoice.client_id,
+    category: 'invoice',
+    metadata: {
+      source_invoice_id: invoice.id,
+      source_invoice_number: invoice.invoice_number,
+      invoice_number: draft.invoice_number || number,
+      sprint_count: halves.length,
+      total,
+      by: 'stripe-payment-webhook',
+    },
+    created_at: now,
+  });
+  console.log(`[webhook] second half drafted ${draft.invoice_number || number} from ${invoice.invoice_number}`);
+  return draft;
 };
 
 // ============================================================

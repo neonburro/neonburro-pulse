@@ -1,19 +1,23 @@
 // src/pages/Invoicing/components/InvoiceList.jsx
 // Row based invoice list on Paper. Eye icon opens the sent snapshot, trash hard
-// deletes a draft with a two click confirm. The status dot warms toward lime as
-// the invoice progresses. Lime is the paid win state and is not spent elsewhere
-// in the row. No oxford commas, no dashes.
+// deletes a draft with a two click confirm, and a copy icon puts the pay link
+// on the clipboard for anything sent and not yet paid, Tyler's ask of
+// 2026-09-17, the link is the thing most often needed from a row. The link is
+// built by payLinkFor in ResendModal.jsx so the row and the editor agree. The
+// status dot warms toward lime as the invoice progresses. Lime is the paid win
+// state and is not spent elsewhere in the row. No oxford commas, no dashes.
 
 import { useState } from 'react';
 import {
   Box, HStack, VStack, Text, Icon, Center, Spinner, Button,
 } from '@chakra-ui/react';
 import {
-  TbCash, TbBolt, TbTrash, TbAlertTriangle, TbEye,
+  TbCash, TbBolt, TbTrash, TbAlertTriangle, TbEye, TbCopy, TbCheck,
 } from 'react-icons/tb';
 import { timeAgo } from '../../../utils/phone';
 import Avatar from '../../../components/common/Avatar';
 import InvoiceSnapshotModal from './InvoiceSnapshotModal';
+import { payLinkFor } from './ResendModal';
 import colors from '../../../theme/colors';
 
 const P = colors.paper;
@@ -39,6 +43,7 @@ const currency = (val) => {
 
 const InvoiceRow = ({ invoice, onSelect, onQuickDelete, onViewSnapshot }) => {
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [copied, setCopied] = useState(false);
   const client = invoice.clients;
   const status = STATUS_COLORS[invoice.status] || STATUS_COLORS.draft;
   const sprintCount = invoice.invoice_items?.length || 0;
@@ -48,6 +53,7 @@ const InvoiceRow = ({ invoice, onSelect, onQuickDelete, onViewSnapshot }) => {
   const outstanding = parseFloat(invoice.total || 0) - parseFloat(invoice.total_paid || 0);
   const isDraft = invoice.status === 'draft';
   const wasSent = SENT_LIKE_STATUSES.includes(invoice.status);
+  const payLink = invoice.status !== 'paid' && invoice.status !== 'cancelled' ? payLinkFor(invoice) : null;
 
   const handleTrashClick = (e) => {
     e.stopPropagation();
@@ -62,6 +68,18 @@ const InvoiceRow = ({ invoice, onSelect, onQuickDelete, onViewSnapshot }) => {
   const handleEyeClick = (e) => {
     e.stopPropagation();
     onViewSnapshot(invoice.id);
+  };
+
+  const handleCopyClick = async (e) => {
+    e.stopPropagation();
+    if (!payLink) return;
+    try {
+      await navigator.clipboard.writeText(payLink);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch {
+      window.prompt('Copy the pay link', payLink);
+    }
   };
 
   return (
@@ -167,6 +185,26 @@ const InvoiceRow = ({ invoice, onSelect, onQuickDelete, onViewSnapshot }) => {
         </Text>
 
         <HStack spacing={0.5}>
+          {payLink ? (
+            <Box
+              as="button"
+              onClick={handleCopyClick}
+              opacity={copied ? 1 : 0}
+              color={copied ? P.limeDeep : P.inkFaint}
+              p={1.5}
+              borderRadius="md"
+              transition="all 0.15s"
+              _groupHover={{ opacity: copied ? 1 : 0.6 }}
+              _hover={{ opacity: '1 !important', color: P.limeDeep, bg: `${P.lime}22` }}
+              title={copied ? 'Copied' : 'Copy the pay link'}
+              aria-label={copied ? 'Pay link copied' : 'Copy the pay link'}
+            >
+              <Icon as={copied ? TbCheck : TbCopy} boxSize={3.5} />
+            </Box>
+          ) : (
+            <Box w="28px" />
+          )}
+
           {wasSent ? (
             <Box
               as="button"
