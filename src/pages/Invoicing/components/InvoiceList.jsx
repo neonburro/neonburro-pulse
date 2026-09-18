@@ -102,6 +102,41 @@ const InvoiceRow = ({ invoice, onSelect, onQuickDelete, onViewSnapshot }) => {
           </Text>
         </VStack>
 
+        {/* sent, opened, paid. three dots and the last one that lit, with its day.
+            Tyler, 2026-09-17, opened and not paid is the thing a list should say. */}
+        {!isDraft && (() => {
+          const steps = [
+            ['sent', invoice.sent_at],
+            ['opened', invoice.viewed_at],
+            ['paid', invoice.paid_at],
+          ];
+          const lit = steps.filter(([, t]) => !!t);
+          const last = lit[lit.length - 1];
+          const day = last ? new Date(last[1]).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : '';
+          const openedUnpaid = !!invoice.viewed_at && !invoice.paid_at;
+          return (
+            <VStack spacing={1} align="start" minW="118px" display={{ base: 'none', md: 'flex' }}>
+              <HStack spacing={1.5}>
+                {steps.map(([name, t]) => (
+                  <Box
+                    key={name}
+                    w="6px"
+                    h="6px"
+                    borderRadius="full"
+                    bg={t ? (name === 'paid' ? P.green : name === 'opened' && openedUnpaid ? P.gold : P.inkSec) : 'transparent'}
+                    border="1px solid"
+                    borderColor={t ? 'transparent' : P.hair}
+                    title={name}
+                  />
+                ))}
+              </HStack>
+              <Text fontSize="2xs" fontFamily="mono" color={openedUnpaid ? P.gold : P.inkMuted} whiteSpace="nowrap">
+                {last ? `${last[0]} ${day}` : 'not sent'}
+              </Text>
+            </VStack>
+          );
+        })()}
+
         <HStack spacing={1.5} display={{ base: 'none', md: 'flex' }}>
           <Icon as={TbBolt} boxSize={3} color={P.inkFaint} />
           <Text color={P.inkSec} fontSize="xs" fontFamily="mono" fontWeight="700">

@@ -308,7 +308,7 @@ export const buildInvoiceEmailHTML = ({
       <tr>
         <td align="center" style="background:${EMAIL.sheet2};border-radius:14px;padding:26px 30px;">
           <div style="font-family:${SANS};font-size:15px;font-weight:600;color:${EMAIL.ink};">Paid in full. Thank you.</div>
-          <div style="font-family:${SANS};font-size:12.5px;color:${EMAIL.inkSec};margin-top:8px;">This is your receipt. Keep it with your records, nothing else is due on this invoice.</div>
+          <div style="font-family:${SANS};font-size:12.5px;color:${EMAIL.inkSec};margin-top:8px;">Your receipt, for the records. Nothing else is due on this invoice, and the next thing you hear from us will be about the work.</div>
         </td>
       </tr>
     </table>` : `

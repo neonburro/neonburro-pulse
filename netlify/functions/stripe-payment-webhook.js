@@ -476,6 +476,25 @@ const processCheckoutSuccess = async (session) => {
     updated_at: now,
   });
 
+  // ── THE RECEIPT SENDS ITSELF ────────────────────────────────────────────
+  // Tyler, 2026-09-17. The moment an invoice is settled in full, everyone who
+  // had the invoice gets the stamped receipt, without a thumb. It is the same
+  // document resend-invoice.js builds for a paid invoice, called over HTTP on
+  // this site so there is one place the receipt is made. Only on the crossing
+  // into paid, a retry of the same session finds the row already paid above
+  // and never reaches here. A failure here never fails the webhook, the
+  // payment is recorded and the receipt can be sent by hand from the editor.
+  if (isFull && invoice.status !== 'paid') {
+    const site = process.env.URL || 'https://pulse.neonburro.com';
+    fetch(`${site}/.netlify/functions/resend-invoice`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ invoiceId: invoice_id, action: 'resend', userId: null, auto: 'receipt' }),
+    }).then(async (r) => {
+      if (!r.ok) console.warn('[webhook] receipt did not send', r.status, (await r.text()).slice(0, 200));
+    }).catch((e) => console.warn('[webhook] receipt did not send', e.message));
+  }
+
   // Activity log
   await sbInsert('activity_log', {
     action: isFull ? 'invoice_paid' : 'invoice_partial',

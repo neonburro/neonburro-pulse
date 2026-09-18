@@ -398,7 +398,10 @@ const handleResend = async ({ invoiceId, userId, toOverride, recipients }) => {
   const recipientEmail = forwarding
     ? toOverride.trim()
     : (lastHistory.sent_to || invoice.clients.email);
-  const toList = list.length ? list : [recipientEmail];
+  // A history row now stores every address joined with commas, so a resend
+  // with no list of its own goes to everyone the last send went to.
+  const toList = list.length ? list : cleanRecipients(String(recipientEmail || '').split(','));
+  if (!toList.length) throw new Error('Nobody to send to');
   const ccList = list.length ? [] : (forwarding ? [] : sanitizeCcList(invoice.cc_emails, recipientEmail));
   const sendType = forwarding ? 'forward' : 'resend';
 
@@ -570,7 +573,8 @@ export const handler = async (event) => {
   }
 
   try {
-    const { invoiceId, action, subject, body, userId, toOverride, recipients } = JSON.parse(event.body || '{}');
+    const { invoiceId, action, subject, body, userId, toOverride, recipients, auto } = JSON.parse(event.body || '{}');
+    if (auto) console.log('[resend-invoice] automatic', auto, invoiceId);
 
     if (!invoiceId) {
       return { statusCode: 400, body: JSON.stringify({ error: 'invoiceId required' }) };
