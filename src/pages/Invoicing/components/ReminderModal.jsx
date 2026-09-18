@@ -9,6 +9,7 @@ import {
 } from '@chakra-ui/react';
 import { TbBellRinging, TbSend } from 'react-icons/tb';
 import colors from '../../../theme/colors';
+import RecipientsField, { cleanList } from './RecipientsField';
 
 const P = colors.paper;
 
@@ -42,6 +43,7 @@ const FIELD_LABEL = {
 const ReminderModal = ({ isOpen, onClose, invoice, client, onSend, sending }) => {
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
+  const [recipients, setRecipients] = useState([]);
 
   useEffect(() => {
     if (!isOpen || !invoice) return;
@@ -51,11 +53,12 @@ const ReminderModal = ({ isOpen, onClose, invoice, client, onSend, sending }) =>
       const ms = Date.now() - new Date(invoice.sent_at).getTime();
       daysSinceSent = Math.floor(ms / (1000 * 60 * 60 * 24));
     }
+    setRecipients(cleanList([client?.email, ...(Array.isArray(invoice.cc_emails) ? invoice.cc_emails : [])]));
     setSubject(`A gentle reminder about ${invoice.invoice_number}`);
     setBody(buildDefaultBody({ clientName: client?.name, invoiceNumber: invoice.invoice_number, amountDue, daysSinceSent }));
   }, [isOpen, invoice, client]);
 
-  const handleSend = () => { if (body.trim()) onSend({ subject, body }); };
+  const handleSend = () => { if (body.trim() && recipients.length) onSend({ subject, body, recipients }); };
 
   const amountDue = invoice ? parseFloat(invoice.total || 0) - parseFloat(invoice.total_paid || 0) : 0;
 
@@ -85,6 +88,7 @@ const ReminderModal = ({ isOpen, onClose, invoice, client, onSend, sending }) =>
 
         <ModalBody px={6} py={4}>
           <VStack align="stretch" spacing={4}>
+            <RecipientsField value={recipients} onChange={setRecipients} label="send to" note="Everyone listed gets the nudge and the pay link." />
             <Box>
               <Text {...FIELD_LABEL} mb={2} display="block">Subject</Text>
               <Input value={subject} onChange={(e) => setSubject(e.target.value)} {...INPUT} />

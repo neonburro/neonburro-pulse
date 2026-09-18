@@ -22,7 +22,7 @@
 //
 // No oxford commas, no dashes.
 
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import {
   Modal, ModalOverlay, ModalContent, ModalBody,
   Box, VStack, HStack, Text, Icon, Button,
@@ -31,6 +31,7 @@ import { TbArrowLeft, TbSend, TbAlertTriangle, TbMailFast } from 'react-icons/tb
 import { buildInvoiceEmailHTML } from '../../../lib/invoiceEmailTemplate';
 import { useInvoiceAttachments } from '../../../lib/useInvoiceAttachments';
 import colors from '../../../theme/colors';
+import RecipientsField from './RecipientsField';
 
 const P = colors.paper;
 
@@ -58,6 +59,10 @@ const Meta = ({ label, value, accent }) => (
 );
 
 const ReviewSendModal = ({ isOpen, onClose, invoice, client, project, sprints, dueDate, sending, onConfirm }) => {
+  // Extra addresses beyond the client, saved to the invoice as cc_emails on
+  // approve so send-invoice.js carries them, Tyler's ask of 2026-09-17.
+  const [cc, setCc] = useState(Array.isArray(invoice?.cc_emails) ? invoice.cc_emails : []);
+  useEffect(() => { if (isOpen) setCc(Array.isArray(invoice?.cc_emails) ? invoice.cc_emails : []); }, [isOpen, invoice]);
   const billable = (sprints || []).filter((s) => s.is_billable !== false);
   const total = billable.reduce((sum, s) => sum + parseFloat(s.amount || 0), 0);
   const hasEmail = !!client?.email;
@@ -104,15 +109,20 @@ const ReviewSendModal = ({ isOpen, onClose, invoice, client, project, sprints, d
 
           {/* Recipient + amount + due */}
           <HStack spacing={6} align="flex-start" flexWrap="wrap" rowGap={3}>
-            <Meta
-              label="To"
-              value={hasEmail ? client.email : 'No email on file'}
-              accent={hasEmail ? P.ink : P.coral}
-            />
             <Meta label="Amount" value={currency(total)} />
             <Meta label="Due" value={formatDue(dueDate || invoice?.due_date)} accent={P.limeDeep} />
             {invoice?.invoice_number && <Meta label="Invoice" value={invoice.invoice_number} />}
           </HStack>
+
+          <Box mt={4}>
+            <RecipientsField
+              value={cc}
+              onChange={setCc}
+              fixed={hasEmail ? [client.email] : []}
+              label="to"
+              note="The client is fixed. Anyone else you add gets the same email and is kept on the invoice for reminders and resends."
+            />
+          </Box>
 
           {!hasEmail && (
             <HStack spacing={2} mt={4} bg={`${P.coral}12`} border="1px solid" borderColor={`${P.coral}40`} borderRadius="lg" px={3} py={2}>
@@ -185,7 +195,7 @@ const ReviewSendModal = ({ isOpen, onClose, invoice, client, project, sprints, d
             borderRadius="full"
             px={7}
             rightIcon={<TbSend size={15} />}
-            onClick={onConfirm}
+            onClick={() => onConfirm({ ccEmails: cc })}
             isLoading={sending}
             loadingText="Sending"
             isDisabled={!hasEmail || !html}

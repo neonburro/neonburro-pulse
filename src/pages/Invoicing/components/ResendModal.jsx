@@ -14,34 +14,29 @@ import {
 } from '@chakra-ui/react';
 import { TbRotateClockwise, TbSend, TbCopy, TbCheck } from 'react-icons/tb';
 import colors from '../../../theme/colors';
+import RecipientsField, { cleanList } from './RecipientsField';
 
 const P = colors.paper;
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-
-const FIELD_LABEL = {
-  fontSize: '2xs', fontWeight: '700', color: P.inkMuted,
-  textTransform: 'uppercase', letterSpacing: '0.1em', fontFamily: 'mono',
-};
 
 export const payLinkFor = (invoice) => (invoice?.pay_token ? `https://neonburro.com/pay/?token=${invoice.pay_token}` : '');
 
 const ResendModal = ({ isOpen, onClose, invoice, client, onSend, sending }) => {
   const toast = useToast();
-  const [to, setTo] = useState('');
+  const [recipients, setRecipients] = useState([]);
   const [copied, setCopied] = useState(false);
-  const clientEmail = client?.email || '';
+  const clientEmail = String(client?.email || '').toLowerCase();
   const link = payLinkFor(invoice);
   const isPaid = invoice?.status === 'paid';
 
+  // Starts as everyone who had it, the client and the cc list on the invoice.
   useEffect(() => {
     if (!isOpen) return;
-    setTo(clientEmail);
+    setRecipients(cleanList([clientEmail, ...(Array.isArray(invoice?.cc_emails) ? invoice.cc_emails : [])]));
     setCopied(false);
-  }, [isOpen, clientEmail]);
+  }, [isOpen, clientEmail, invoice]);
 
-  const trimmed = to.trim();
-  const valid = EMAIL_RE.test(trimmed);
-  const forwarding = valid && trimmed.toLowerCase() !== clientEmail.toLowerCase();
+  const valid = recipients.length > 0;
+  const forwarding = valid && !recipients.includes(clientEmail);
 
   const copy = async () => {
     try {
@@ -54,7 +49,7 @@ const ResendModal = ({ isOpen, onClose, invoice, client, onSend, sending }) => {
     }
   };
 
-  const handleSend = () => { if (valid) onSend({ to: trimmed, forwarding }); };
+  const handleSend = () => { if (valid) onSend({ recipients, forwarding }); };
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} isCentered size="lg">
@@ -74,31 +69,20 @@ const ResendModal = ({ isOpen, onClose, invoice, client, onSend, sending }) => {
         <ModalCloseButton color={P.inkMuted} />
         <ModalBody>
           <VStack spacing={5} align="stretch">
-            <Box>
-              <Text {...FIELD_LABEL} mb={2}>send to</Text>
-              <Input
-                value={to}
-                onChange={(e) => setTo(e.target.value)}
-                type="email"
-                placeholder="name@company.com"
-                bg={P.mat}
-                borderColor={valid || !trimmed ? P.hair : '#B5462F'}
-                color={P.ink}
-                fontSize="sm"
-                _focus={{ borderColor: P.limeDeep, boxShadow: 'none' }}
-              />
-              <Text mt={2} fontSize="xs" color={P.inkMuted} lineHeight="1.6">
-                {forwarding
-                  ? 'A different address. The same document goes there and the history records it as a forward, not a resend.'
-                  : isPaid
-                    ? 'The client on file. The stamped receipt goes out, no pay button, nothing due.'
-                    : 'The client on file. The same email and the same files go again.'}
-              </Text>
-            </Box>
+            <RecipientsField
+              value={recipients}
+              onChange={setRecipients}
+              label="send to"
+              note={forwarding
+                ? 'The client is not on this list, so the history records a forward, not a resend.'
+                : isPaid
+                  ? 'The stamped receipt goes to everyone listed, no pay button, nothing due.'
+                  : 'The same email and the same files go to everyone listed.'}
+            />
 
             {link && !isPaid && (
               <Box>
-                <Text {...FIELD_LABEL} mb={2}>the pay link</Text>
+                <Text fontSize="2xs" fontWeight="700" color={P.inkMuted} textTransform="uppercase" letterSpacing="0.1em" fontFamily="mono" mb={2}>the pay link</Text>
                 <HStack spacing={2}>
                   <Box flex={1} px={3} py={2} bg={P.mat} border="1px solid" borderColor={P.hair} borderRadius="lg" minW={0}>
                     <Text fontSize="xs" fontFamily="mono" color={P.inkSec} isTruncated>{link}</Text>

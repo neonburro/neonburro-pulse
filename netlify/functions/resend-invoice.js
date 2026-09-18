@@ -1,4 +1,5 @@
 // netlify/functions/resend-invoice.js
+// V4, recipients lists on resend and reminder, 2026-09-17.
 // resend:   re-fires stored rendered_html (already the light template), or
 //           rebuilds from snapshot via the shared template.
 // reminder: editorial nudge, now light-mode with banner.
@@ -331,7 +332,23 @@ const buildAdminAuditEmail = ({
 // regex on the one field that decides where an invoice goes.
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
-const handleResend = async ({ invoiceId, userId, toOverride }) => {
+// recipients, V4, Tyler's ask of 2026-09-17, a list of addresses shown and
+// edited in the modal. When it is given it is the whole list, to and cc, and
+// toOverride is ignored. The client on the list makes it a resend, the client
+// absent makes it a forward, the history says which and names everyone.
+const cleanRecipients = (list) => {
+  const seen = new Set();
+  const out = [];
+  for (const raw of Array.isArray(list) ? list : []) {
+    const e = String(raw || '').trim().toLowerCase();
+    if (!e || !EMAIL_RE.test(e) || seen.has(e)) continue;
+    seen.add(e);
+    out.push(e);
+  }
+  return out;
+};
+
+const handleResend = async ({ invoiceId, userId, toOverride, recipients }) => {
   const { data: invoice } = await supabase
     .from('invoices')
     .select('*, clients(name, email, company)')
@@ -371,14 +388,18 @@ const handleResend = async ({ invoiceId, userId, toOverride }) => {
     );
   }
 
-  const forwarding = typeof toOverride === 'string' && toOverride.trim().length > 0;
+  const list = cleanRecipients(recipients);
+  if (Array.isArray(recipients) && recipients.length && !list.length) throw new Error('No valid address in the list');
+  const clientEmail = String(invoice.clients.email || '').toLowerCase();
+  const forwarding = list.length ? !list.includes(clientEmail) : (typeof toOverride === 'string' && toOverride.trim().length > 0);
   if (forwarding && !EMAIL_RE.test(toOverride.trim())) {
     throw new Error('That recipient address is not valid');
   }
   const recipientEmail = forwarding
     ? toOverride.trim()
     : (lastHistory.sent_to || invoice.clients.email);
-  const ccList = forwarding ? [] : sanitizeCcList(invoice.cc_emails, recipientEmail);
+  const toList = list.length ? list : [recipientEmail];
+  const ccList = list.length ? [] : (forwarding ? [] : sanitizeCcList(invoice.cc_emails, recipientEmail));
   const sendType = forwarding ? 'forward' : 'resend';
 
   // ── A RESEND CARRIES THE SAME FILES ───────────────────────────────────────
@@ -391,7 +412,7 @@ const handleResend = async ({ invoiceId, userId, toOverride }) => {
 
   const result = await resend.emails.send({
     from: FROM_EMAIL,
-    to: recipientEmail,
+    to: toList,
     cc: ccList.length > 0 ? ccList : undefined,
     reply_to: 'hello@neonburro.com',
     subject: isPaid
@@ -408,7 +429,7 @@ const handleResend = async ({ invoiceId, userId, toOverride }) => {
   await supabase.from('invoice_history').insert({
     invoice_id: invoiceId,
     sent_at: new Date().toISOString(),
-    sent_to: recipientEmail,
+    sent_to: toList.join(', '),
     sent_by: userId || null,
     send_type: sendType,
     rendered_html: html,
@@ -449,12 +470,12 @@ const handleResend = async ({ invoiceId, userId, toOverride }) => {
     html: adminHtml,
   }).catch((err) => console.error('Admin resend notification failed:', err));
 
-  return { success: true, recipient: recipientEmail, send_type: sendType, ccCount: ccList.length };
+  return { success: true, recipient: toList[0], recipients: toList, send_type: sendType, ccCount: ccList.length };
 };
 
 // ---------- reminder handler ----------
 
-const handleReminder = async ({ invoiceId, subject, body, userId }) => {
+const handleReminder = async ({ invoiceId, subject, body, userId, recipients }) => {
   if (!body || !body.trim()) throw new Error('Reminder body is required');
 
   const { data: invoice } = await supabase
@@ -469,7 +490,10 @@ const handleReminder = async ({ invoiceId, subject, body, userId }) => {
   if (!invoice.clients?.email) throw new Error('Client has no email on file');
 
   const adminName = await fetchAdminName(userId);
-  const ccList = sanitizeCcList(invoice.cc_emails, invoice.clients.email);
+  const list = cleanRecipients(recipients);
+  if (Array.isArray(recipients) && recipients.length && !list.length) throw new Error('No valid address in the list');
+  const reminderTo = list.length ? list : [invoice.clients.email];
+  const ccList = list.length ? [] : sanitizeCcList(invoice.cc_emails, invoice.clients.email);
   const amountDue = parseFloat(invoice.total || 0) - parseFloat(invoice.total_paid || 0);
 
   const payUrl = invoice.pay_token
@@ -485,7 +509,7 @@ const handleReminder = async ({ invoiceId, subject, body, userId }) => {
 
   const result = await resend.emails.send({
     from: FROM_EMAIL,
-    to: invoice.clients.email,
+    to: reminderTo,
     cc: ccList.length > 0 ? ccList : undefined,
     reply_to: 'hello@neonburro.com',
     subject: subject || `A gentle reminder about ${invoice.invoice_number}`,
@@ -497,7 +521,7 @@ const handleReminder = async ({ invoiceId, subject, body, userId }) => {
   await supabase.from('invoice_history').insert({
     invoice_id: invoiceId,
     sent_at: new Date().toISOString(),
-    sent_to: invoice.clients.email,
+    sent_to: reminderTo.join(', '),
     sent_by: userId || null,
     send_type: 'reminder',
     reminder_subject: subject || null,
@@ -546,7 +570,7 @@ export const handler = async (event) => {
   }
 
   try {
-    const { invoiceId, action, subject, body, userId, toOverride } = JSON.parse(event.body || '{}');
+    const { invoiceId, action, subject, body, userId, toOverride, recipients } = JSON.parse(event.body || '{}');
 
     if (!invoiceId) {
       return { statusCode: 400, body: JSON.stringify({ error: 'invoiceId required' }) };
@@ -556,8 +580,8 @@ export const handler = async (event) => {
     }
 
     const result = action === 'resend'
-      ? await handleResend({ invoiceId, userId, toOverride })
-      : await handleReminder({ invoiceId, subject, body, userId });
+      ? await handleResend({ invoiceId, userId, toOverride, recipients })
+      : await handleReminder({ invoiceId, subject, body, userId, recipients });
 
     return { statusCode: 200, body: JSON.stringify(result) };
   } catch (err) {

@@ -373,13 +373,19 @@ const InvoiceEditor = ({ invoiceId, clientId: initialClientId, clients, onClose,
     }
   };
 
-  const handleSend = async (id = invoiceId) => {
+  const handleSend = async (id = invoiceId, ccEmails = null) => {
     if (!id) {
       toast({ title: 'Save first before sending', status: 'warning' });
       return;
     }
     setSending(true);
     try {
+      // The extra addresses from the review gate ride on the invoice row, so
+      // send-invoice.js and every later resend and reminder see them.
+      if (Array.isArray(ccEmails)) {
+        const { error: ccErr } = await supabase.from('invoices').update({ cc_emails: ccEmails }).eq('id', id);
+        if (ccErr) throw new Error(ccErr.message || 'Could not save the extra addresses');
+      }
       const res = await fetch('/.netlify/functions/send-invoice', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -404,7 +410,7 @@ const InvoiceEditor = ({ invoiceId, clientId: initialClientId, clients, onClose,
     }
   };
 
-  const handleResend = async ({ to, forwarding } = {}) => {
+  const handleResend = async ({ recipients, forwarding } = {}) => {
     if (!invoiceId) return;
     setResending(true);
     try {
@@ -412,14 +418,14 @@ const InvoiceEditor = ({ invoiceId, clientId: initialClientId, clients, onClose,
       const res = await fetch('/.netlify/functions/resend-invoice', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ invoiceId, action: 'resend', userId: user?.id, toOverride: forwarding ? to : undefined }),
+        body: JSON.stringify({ invoiceId, action: 'resend', userId: user?.id, recipients }),
       });
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || 'Resend failed');
 
       toast({
         title: isPaid ? 'Receipt sent' : forwarding ? 'Copy sent' : 'Invoice resent',
-        description: `Delivered to ${result.recipient}`,
+        description: `Delivered to ${Array.isArray(result.recipients) ? result.recipients.join(', ') : result.recipient}`,
         status: 'success',
         duration: 3000,
       });
@@ -433,7 +439,7 @@ const InvoiceEditor = ({ invoiceId, clientId: initialClientId, clients, onClose,
     }
   };
 
-  const handleSendReminder = async ({ subject, body }) => {
+  const handleSendReminder = async ({ subject, body, recipients }) => {
     if (!invoiceId) return;
     setSendingReminder(true);
     try {
@@ -442,7 +448,7 @@ const InvoiceEditor = ({ invoiceId, clientId: initialClientId, clients, onClose,
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          invoiceId, action: 'reminder', subject, body, userId: user?.id,
+          invoiceId, action: 'reminder', subject, body, userId: user?.id, recipients,
         }),
       });
       const result = await res.json();
@@ -1239,7 +1245,7 @@ const InvoiceEditor = ({ invoiceId, clientId: initialClientId, clients, onClose,
         sprints={sprints}
         dueDate={dueDate}
         sending={sending}
-        onConfirm={() => handleSend(reviewInvoiceId)}
+        onConfirm={({ ccEmails } = {}) => handleSend(reviewInvoiceId, ccEmails)}
       />
     </Box>
   );
