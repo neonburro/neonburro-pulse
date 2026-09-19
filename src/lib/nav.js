@@ -16,6 +16,11 @@
 //    different name and then failed to highlight, because isActive checked a
 //    path the router had already thrown away.
 //
+// ORDERS SITS ABOVE FORMS ON PURPOSE. Forms is interest and can wait until
+// Thursday. Orders is money already taken and a confirmation email that told
+// somebody a person is on it, so it reads first. It is also inside the four
+// primary tabs on a phone, which is the whole point of putting it there.
+//
 // HOW TO ADD A PAGE
 // Add it to NAV once. It appears in the sidebar automatically. If it belongs on
 // a phone's primary bar, move it above the MOBILE_PRIMARY_COUNT line. Everything
@@ -26,13 +31,14 @@
 import {
   TbSunrise, TbUsers, TbFileInvoice, TbInbox,
   TbPencil, TbHorse, TbCoins, TbWallet, TbMessageCircle, TbCalendar, TbChartBar, TbSettings,
-  TbBroadcast,
+  TbBroadcast, TbCoin,
 } from 'react-icons/tb';
 
 export const NAV = [
   { path: '/today/',     label: 'Today',      icon: TbSunrise,       desc: 'What moved, and what needs you' },
   { path: '/clients/',   label: 'Clients',    icon: TbUsers,         desc: 'Everybody we build for' },
   { path: '/invoicing/', label: 'Invoicing',  icon: TbFileInvoice,   desc: 'Sprints, invoices and what is owed' },
+  { path: '/orders/',    label: 'Orders',     icon: TbCoin,          desc: 'Paid and waiting on somebody here' },
   { path: '/forms/',     label: 'Forms',      icon: TbInbox,         desc: 'Inbound submissions' },
   { path: '/blog/',      label: 'Blog',       icon: TbPencil,        desc: 'Posts and the social run' },
   { path: '/socials/',   label: 'Socials',    icon: TbBroadcast,     desc: 'Every voice, account and release' },

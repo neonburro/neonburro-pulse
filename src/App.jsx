@@ -38,6 +38,7 @@ const Dashboard     = lazy(() => import('./pages/Dashboard'));
 const Clients       = lazy(() => import('./pages/Clients'));
 const ClientDetail  = lazy(() => import('./pages/Clients/ClientDetail'));
 const Invoicing     = lazy(() => import('./pages/Invoicing'));
+const Orders        = lazy(() => import('./pages/Orders'));
 const Forms         = lazy(() => import('./pages/Forms'));
 const Blog          = lazy(() => import('./pages/Blog'));
 const PostEditor    = lazy(() => import('./pages/Blog/PostEditor'));
@@ -83,6 +84,7 @@ function App() {
               <Route path="clients/" element={<Clients />} />
               <Route path="clients/:clientId/" element={<ClientDetail />} />
               <Route path="invoicing/" element={<Invoicing />} />
+              <Route path="orders/" element={<Orders />} />
               <Route path="forms/" element={<Forms />} />
               <Route path="blog/" element={<Blog />} />
               <Route path="blog/new/" element={<PostEditor />} />
