@@ -1,5 +1,5 @@
 // src/pages/Releases/components/VoltDraft.jsx
-// SENTINEL: NB_PULSE_SOCIALS_VOLT_DRAFT_V1
+// SENTINEL: NB_PULSE_SOCIALS_VOLT_DRAFT_V2
 //
 // The draft door in the release drawer. One line from the operator about
 // what the post is for and one button. Volt writes a draft onto the row
@@ -12,6 +12,13 @@
 // the channel, the voice, the picked plate and its alt. That is why the
 // button asks for onBeforeDraft, a save that answers true or false.
 //
+// The intent line is capped at 500 characters here and sliced to the same
+// number on the other side, the cap is part of the worst case arithmetic
+// in the function header. The door carries the three interaction ceilings
+// and when it closes it says so in words. This box renders those words
+// verbatim and keeps no copy of the numbers, the copy that drifts is the
+// copy a person reads.
+//
 // No oxford commas, no em dashes.
 
 import { useState } from 'react';
@@ -21,6 +28,7 @@ import { P, inputProps, VoiceDisc } from './shared';
 import { draftRelease } from './connectors';
 import { TYPE, EASE, FAST } from '../../../theme/layout';
 
+const INTENT_CHARS = 500;
 const TONE = { lime: P.limeDeep, gold: P.gold, coral: P.coral };
 
 const VoltDraft = ({ releaseId, channel, voice, pictureUrl, alt, disabled, onBeforeDraft, onDrafted }) => {
@@ -50,7 +58,7 @@ const VoltDraft = ({ releaseId, channel, voice, pictureUrl, alt, disabled, onBef
     }
     const result = await draftRelease({
       release_id: releaseId,
-      intent: intent.trim(),
+      intent: intent.trim().slice(0, INTENT_CHARS),
       channel,
       voice: voice || null,
       picture_url: pictureUrl || null,
@@ -59,7 +67,7 @@ const VoltDraft = ({ releaseId, channel, voice, pictureUrl, alt, disabled, onBef
     setBusy(false);
     if (!result.ok) {
       const issues = result.data?.issues ? ` ${result.data.issues.join(', ')}.` : '';
-      say(`${result.error}${issues}`, 'coral');
+      say(`${result.error}${issues}`, result.status === 429 ? 'gold' : 'coral');
       return;
     }
     onDrafted(result.data);
@@ -83,6 +91,7 @@ const VoltDraft = ({ releaseId, channel, voice, pictureUrl, alt, disabled, onBef
             h="38px"
             fontSize={TYPE.small}
             value={intent}
+            maxLength={INTENT_CHARS}
             placeholder="what is this post for, one line"
             onChange={(event) => setIntent(event.target.value)}
             onKeyDown={(event) => event.key === 'Enter' && draft()}
@@ -115,7 +124,7 @@ const VoltDraft = ({ releaseId, channel, voice, pictureUrl, alt, disabled, onBef
           <Text fontFamily="mono" fontSize={TYPE.label} color={TONE[tone]} lineHeight="1.55">{note}</Text>
         )}
         <Text fontSize={TYPE.label} color={P.inkMuted} lineHeight="1.5">
-          {pictureUrl ? 'the picked plate and its alt line ride along.' : 'no plate is picked yet, the draft speaks without one.'} the draft lands below with approval off. it never stages.
+          {pictureUrl ? 'the picked plate and its alt line ride along.' : 'no plate is picked yet, the draft speaks without one.'} the draft lands below with approval off. it never stages and the door counts.
         </Text>
       </VStack>
     </Box>

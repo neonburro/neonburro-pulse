@@ -22,6 +22,16 @@
 --    same shape as the telegram check beside it. Rows the account panel may
 --    have added earlier with a guessed name are normalised first so the
 --    check lands on every row.
+-- 4. release_drafts, the trail and the count behind draft-release.js. One
+--    row per time an operator asks Volt for a draft, written before the
+--    model is called so a refused ask still holds what was typed, then
+--    filled with the tokens and the dollars the call spent. The three
+--    ceilings in docs/02-engineering/interaction-ceilings.md are counted
+--    off these rows, the session and the day by user_id, the life of a
+--    release by release_id, refused rows skipped. The service role writes,
+--    staff read. Until this table exists the drafter closes on every call,
+--    which is the honest state and the reason this file has to run before
+--    the draft button is worth pressing.
 --
 -- WHAT IT DOES NOT DO
 -- Nothing is enabled. No token is stored, the value lives on the Pulse
@@ -77,6 +87,59 @@ alter table public.social_accounts
     channel not in ('facebook', 'instagram')
     or token_env is null
     or token_env ~ '^META_[A-Z0-9_]+$'
+  );
+
+-- ── the trail and the count behind volt's draft door ────────────────────────
+
+create table if not exists public.release_drafts (
+  id uuid primary key default gen_random_uuid(),
+  release_id uuid references public.releases (id) on delete set null,
+  user_id uuid references auth.users (id) on delete set null,
+  channel text,
+  voice text,
+  intent text not null,
+  model text,
+  input_tokens integer not null default 0,
+  output_tokens integer not null default 0,
+  cost_usd numeric(12, 6),
+  rounds integer not null default 0,
+  request_id text,
+  refused boolean,
+  refusal text,
+  created_at timestamptz not null default now()
+);
+
+comment on table public.release_drafts is
+  'One row per ask of draft-release.js, written before the model is called. The three interaction ceilings count these rows, refused is null on a row that spent. cost_usd is the live price at the call, the daily report is the exact number.';
+
+comment on column public.release_drafts.refused is
+  'True when the ceiling or the count closed the door after the trail was written. Such a row spent nothing and the counts skip it. Null on a row that reached the model.';
+
+create index if not exists release_drafts_user_created_idx
+  on public.release_drafts (user_id, created_at desc)
+  where refused is null;
+
+create index if not exists release_drafts_release_idx
+  on public.release_drafts (release_id)
+  where refused is null;
+
+alter table public.release_drafts enable row level security;
+
+revoke all on table public.release_drafts from public, anon, authenticated;
+grant select on table public.release_drafts to authenticated;
+
+-- The service role writes and needs no policy, it bypasses RLS. A write on a
+-- lesser key is refused, which is the point. Staff read.
+drop policy if exists release_drafts_staff_read on public.release_drafts;
+create policy release_drafts_staff_read on public.release_drafts
+  for select to authenticated
+  using (
+    exists (
+      select 1
+      from public.profiles p
+      where p.id = (select auth.uid())
+        and p.role in ('super_admin', 'admin', 'manager', 'team')
+    )
   );
 
 -- Ledger row, so a hand applied run is visible to the connector's migration list.
