@@ -6,7 +6,17 @@
   publish = "dist"
 
 [build.environment]
-  NODE_VERSION = "20"
+  # 2026-09-25, 20 to 22. Volt added @netlify/blobs ^11.1.0 for the token
+  # room cache and it declares engines node >=22.12.0. YARN 1 HARD FAILS on
+  # an engine mismatch instead of warning, so the first production deploy of
+  # the social desk died at "Install dependencies" with nothing but exit code
+  # 1 to show for it, the same trap the studio hit on 2026-09-03 with
+  # machina@7. The studio has been on 22 since then and local dev runs 22.
+  #
+  # TWO PLACES. This value and .nvmrc beside it. The pulse site carries no
+  # NODE_VERSION variable of its own, checked through getEnvVar the same day,
+  # and if one is ever added it wins over this file, so keep it at 22 or off.
+  NODE_VERSION = "22"
 
 # Scheduled functions.
 #
