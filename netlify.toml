@@ -32,6 +32,16 @@
 #                        exactly one place. The Releases page here is the
 #                        desk, neonburro/netlify/functions/release-social.js
 #                        is the hand. Do not schedule a copy here again.
+# release-meta           every five minutes, the Meta posting hand for
+#                        facebook and instagram, added 2026-09-25. It lives
+#                        here and not on the studio for the same reason in
+#                        reverse, the plan sets the Meta values on the Pulse
+#                        site, META_PAGE_ACCESS_TOKEN, META_PAGE_ID and
+#                        META_IG_USER_ID, functions scope. Telegram stays on
+#                        the studio. Dark until the env exists, a staged and
+#                        approved row fails with the missing names spelled
+#                        out and the account rows stay off until an admin
+#                        flips them.
 
 [functions."keep-alive"]
   schedule = "0 8 */5 * *"
@@ -45,6 +55,19 @@
 #                        nothing, the draft sits in Invoicing for a person.
 [functions."draft-repeat-invoices"]
   schedule = "0 12 * * *"
+
+[functions."release-meta"]
+  schedule = "*/5 * * * *"
+
+# The studio library, proxied. neonburro.com sends no CORS header on
+# /library/index.json so the Socials picture picker cannot fetch it across
+# origins. This rewrite serves it from the Pulse origin, status 200 is a
+# proxy not a redirect. It sits above the SPA catch-all because the first
+# match wins. vite.config.js carries the same proxy for the dev server.
+[[redirects]]
+  from = "/studio-library/*"
+  to = "https://neonburro.com/library/:splat"
+  status = 200
 
 # SPA rewrite - all routes serve index.html
 [[redirects]]
