@@ -4,6 +4,10 @@
 // one page never busts the cached react or chakra chunk. recharts rides in
 // the Analytics route chunk on its own because only that page imports it.
 // Read the chunk table on every build.
+//
+// The dev proxy mirrors the /studio-library/* rewrite in netlify.toml, the
+// Socials picture picker reads the studio library index through it because
+// neonburro.com sends no CORS header. Change both or neither.
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
@@ -12,6 +16,13 @@ export default defineConfig({
   server: {
     port: 3000,
     open: true,
+    proxy: {
+      '/studio-library': {
+        target: 'https://neonburro.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/studio-library/, '/library'),
+      },
+    },
   },
   build: {
     outDir: 'dist',

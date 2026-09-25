@@ -1,5 +1,5 @@
 // src/pages/Releases/components/ReleaseDrawer.jsx
-// SENTINEL: NB_PULSE_SOCIALS_DRAWER_V2
+// SENTINEL: NB_PULSE_SOCIALS_DRAWER_V3
 //
 // One release, one shared record. The voice is the council member speaking.
 // The publishing account is a separate row in social_accounts. The creative
@@ -7,14 +7,34 @@
 // same room instead of hiding image work in a chat.
 //
 // The form follows the release id rather than every background refresh. Any
-// change to public words, the link, the picture, the creative brief or the
-// publishing identity drops approval. That is intentional. What was approved
-// must be exactly what leaves the yard.
+// change to public words, the link, the picture, its alt line, the creative
+// brief or the publishing identity drops approval. That is intentional. What
+// was approved must be exactly what leaves the yard.
 //
-// Telegram posts automatically when the row is staged, approved and due. The
-// other social channels remain manual until a real adapter exists. A Telegram
-// release cannot be approved without an enabled publishing account. When a
-// Telegram post has a picture its caption rail is 1024 characters.
+// ── THE PICTURE HAS TWO SHELVES ─────────────────────────────────────────────
+// The studio shelf (StudioShelf.jsx) sets asset_path to a public url on
+// neonburro.com with no bucket and asset_alt to the alt line. The bucket
+// picker (AssetPicker.jsx) sets a bucket and a path for a dropped file. A
+// telegram release only sees the bucket picker, the telegram hand on the
+// studio site reads the bucket and path pair and does not know a url yet.
+// asset_alt is written only once the row shows the column, so the page can
+// ship before the 2026-09-25 migration lands without breaking a save.
+//
+// ── THE RAILS ───────────────────────────────────────────────────────────────
+// Telegram, facebook and instagram post automatically when the row is
+// staged, approved and due, telegram through the studio hand and the Meta
+// pair through release-meta.js here. A release on an automatic channel
+// cannot be approved without an enabled publishing account, and a Meta
+// release cannot be approved while its connector is dark, the page asks the
+// door by env name. Facebook under 120 words and no hashtags, instagram no
+// more than three hashtags and a jpeg picture, the same numbers as
+// draft-release.js. A Telegram post with a picture holds its caption to
+// 1024 characters.
+//
+// ── POST NOW ────────────────────────────────────────────────────────────────
+// A Meta release that is staged, approved and saved shows a post now button
+// beside save. It is the five minute runner on a person's click, the same
+// gate, and it asks once before it goes. Nothing leaves on its own.
 //
 // No oxford commas, no em dashes.
 
@@ -43,19 +63,29 @@ import {
   VOICES,
   ASSET_STATUSES,
   LIMITS,
+  WORD_LIMITS,
+  HASHTAG_LIMITS,
   STATUS_TINT,
   Field,
   inputProps,
   VoiceDisc,
   isAutomatic,
   isSocial,
+  isMeta,
+  isPublicUrl,
   bucketFor,
   wordRail,
+  hashtags,
+  countWords,
+  formatVerdict,
   toLocalDate,
   toLocalTime,
   fromLocal,
 } from './shared';
 import AssetPicker from './AssetPicker';
+import StudioShelf from './StudioShelf';
+import VoltDraft from './VoltDraft';
+import { useConnectors, connectorLine, postNow } from './connectors';
 import { TYPE, EASE, FAST } from '../../../theme/layout';
 
 const APPROVAL_FIELDS = [
@@ -66,6 +96,7 @@ const APPROVAL_FIELDS = [
   'link',
   'asset_bucket',
   'asset_path',
+  'asset_alt',
   'social_account_id',
   'content_pillar',
   'creative_brief',
@@ -89,11 +120,12 @@ const fromRow = (release) => ({
   link: release.link || '',
   asset_bucket: release.asset_bucket || null,
   asset_path: release.asset_path || null,
+  asset_alt: release.asset_alt || '',
   approved: Boolean(release.approved),
   approved_at: release.approved_at || null,
 });
 
-const toPatch = (form) => ({
+const toPatch = (form, hasAlt) => ({
   title: form.title.trim(),
   channel: (form.channel || 'telegram').trim().toLowerCase(),
   voice: form.voice ? form.voice.trim().toLowerCase().replace(/\.$/, '') : null,
@@ -107,6 +139,7 @@ const toPatch = (form) => ({
   link: form.link || null,
   asset_bucket: form.asset_bucket || null,
   asset_path: form.asset_path || null,
+  ...(hasAlt ? { asset_alt: form.asset_alt?.trim() || null } : {}),
   approved: Boolean(form.approved),
   approved_at: form.approved ? form.approved_at : null,
   updated_at: new Date().toISOString(),
@@ -117,10 +150,13 @@ const ReleaseDrawer = ({ release, isOpen, onClose, onSaved, onAdvance }) => {
   const [accounts, setAccounts] = useState([]);
   const [dirty, setDirty] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [posting, setPosting] = useState(false);
   const [note, setNote] = useState('');
   const [noteTone, setNoteTone] = useState('lime');
+  const probes = useConnectors();
 
   const id = release ? release.id : null;
+  const hasAlt = release ? Object.prototype.hasOwnProperty.call(release, 'asset_alt') : false;
 
   useEffect(() => {
     if (!release) {
@@ -180,7 +216,7 @@ const ReleaseDrawer = ({ release, isOpen, onClose, onSaved, onAdvance }) => {
     setBusy(true);
     const { data, error } = await supabase
       .from('releases')
-      .update(toPatch(nextForm))
+      .update(toPatch(nextForm, hasAlt))
       .eq('id', id)
       .select('id')
       .maybeSingle();
@@ -199,16 +235,30 @@ const ReleaseDrawer = ({ release, isOpen, onClose, onSaved, onAdvance }) => {
     if (ok) say('saved.');
   };
 
-  const hasPicture = Boolean(form?.asset_bucket && form?.asset_path);
+  const hasPicture = Boolean(form?.asset_path);
+  const pictureUrl = !form?.asset_path
+    ? null
+    : isPublicUrl(form.asset_path)
+      ? form.asset_path
+      : form.asset_bucket
+        ? supabase.storage.from(form.asset_bucket).getPublicUrl(form.asset_path).data.publicUrl
+        : null;
   const baseLimit = form ? LIMITS[form.channel] : null;
   const limit = form?.channel === 'telegram' && hasPicture ? 1024 : baseLimit;
   const trimmedLink = form?.link?.trim() || '';
-  const linkSuffix = form && trimmedLink && !form.body.includes(trimmedLink)
+  const linkSuffix = form && trimmedLink && !form.body.includes(trimmedLink) && form.channel !== 'instagram'
     ? `\n\n${trimmedLink}`
     : '';
   const count = form ? form.body.length + linkSuffix.length : 0;
-  const over = Boolean(limit && count > limit);
+  const words = form ? countWords(form.body) : 0;
+  const tags = form ? hashtags(form.body).length : 0;
+  const wordLimit = form ? WORD_LIMITS[form.channel] : null;
+  const tagLimit = form ? HASHTAG_LIMITS[form.channel] : null;
+  const over = Boolean(limit && count > limit)
+    || Boolean(wordLimit && words > wordLimit)
+    || (tagLimit !== null && tagLimit !== undefined && tags > tagLimit);
   const selectedAccount = accounts.find((account) => account.id === form?.social_account_id) || null;
+  const probe = form && isMeta(form.channel) ? probes[form.channel] : null;
 
   const approve = async (on) => {
     if (!on) {
@@ -224,12 +274,31 @@ const ReleaseDrawer = ({ release, isOpen, onClose, onSaved, onAdvance }) => {
       say(`refused. the body reads as price talk because it contains ${bad}.`, 'coral');
       return;
     }
-    if (over) {
+    if (limit && count > limit) {
       say(`refused. ${count} characters do not fit the ${limit} character rail.`, 'coral');
+      return;
+    }
+    if (wordLimit && words > wordLimit) {
+      say(`refused. ${words} words, the ${form.channel} rail is ${wordLimit}.`, 'coral');
+      return;
+    }
+    if (tagLimit !== null && tagLimit !== undefined && tags > tagLimit) {
+      say(tagLimit === 0
+        ? `refused. ${form.channel} posts carry no hashtags.`
+        : `refused. ${tags} hashtags, the ${form.channel} rail is ${tagLimit}.`, 'coral');
       return;
     }
     if (['needs_lyra', 'generating'].includes(form.asset_status)) {
       say('refused. the creative queue still has work open.', 'coral');
+      return;
+    }
+    if (form.channel === 'instagram' && !hasPicture) {
+      say('refused. instagram needs a picture, there is no text only post.', 'coral');
+      return;
+    }
+    const formatNote = isMeta(form.channel) && pictureUrl ? formatVerdict(form.channel, pictureUrl) : null;
+    if (form.channel === 'instagram' && formatNote) {
+      say(`refused. ${formatNote}.`, 'coral');
       return;
     }
     if (isAutomatic(form.channel) && !selectedAccount) {
@@ -238,6 +307,10 @@ const ReleaseDrawer = ({ release, isOpen, onClose, onSaved, onAdvance }) => {
     }
     if (isAutomatic(form.channel) && !selectedAccount.enabled) {
       say('refused. the selected publishing account is switched off.', 'coral');
+      return;
+    }
+    if (probe && !probe.unknown && !probe.ready) {
+      say(`refused. the ${form.channel} connector is dark, ${probe.missing.join(' and ')} not set on the Pulse site.`, 'coral');
       return;
     }
 
@@ -253,14 +326,37 @@ const ReleaseDrawer = ({ release, isOpen, onClose, onSaved, onAdvance }) => {
     }
   };
 
+  const carryNow = async () => {
+    if (posting || !form || !release) return;
+    const sure = window.confirm(`Post this to ${form.channel} now through ${selectedAccount?.burro || 'the account'}?`);
+    if (!sure) return;
+    setPosting(true);
+    say(`carrying it to ${form.channel}.`);
+    const result = await postNow(form.channel, release.id);
+    setPosting(false);
+    if (!result.ok) {
+      say(`${result.error}${result.data?.error && result.data.error !== result.error ? ` ${result.data.error}` : ''}`, 'coral');
+      if (onSaved) onSaved();
+      return;
+    }
+    say(`posted. id ${result.data.externalId || 'unknown'}.`);
+    if (onSaved) onSaved();
+  };
+
   const status = release ? release.status : 'idea';
   const automatic = form ? isAutomatic(form.channel) : false;
   const social = form ? isSocial(form.channel) : false;
+  const meta = form ? isMeta(form.channel) : false;
+  const canPostNow = meta && status === 'staged' && form?.approved && !dirty && probe?.ready;
   const bodyHint = !form
     ? ''
     : form.channel === 'reddit'
       ? 'the body stays in the record'
-      : limit ? `${count} / ${limit}` : `${count} characters`;
+      : form.channel === 'facebook'
+        ? `${words} / ${wordLimit} words · ${tags} hashtags, none allowed`
+        : form.channel === 'instagram'
+          ? `${count} / ${limit} · ${tags} / ${tagLimit} hashtags · first 125 carry it`
+          : limit ? `${count} / ${limit}` : `${count} characters`;
   const toneColor = { lime: P.limeDeep, gold: P.gold, coral: P.coral }[noteTone];
 
   return (
@@ -388,7 +484,11 @@ const ReleaseDrawer = ({ release, isOpen, onClose, onSaved, onAdvance }) => {
                 </HStack>
 
                 {social && (
-                  <Field label="Publishes through" hint={automatic ? 'automatic' : 'manual'}>
+                  <Field
+                    label="Publishes through"
+                    hint={meta ? connectorLine(probe) : automatic ? 'automatic' : 'manual'}
+                    hintColor={meta ? (probe?.ready ? P.limeDeep : probe?.unknown ? P.inkFaint : P.gold) : undefined}
+                  >
                     <Select
                       {...inputProps}
                       fontFamily="mono"
@@ -442,6 +542,28 @@ const ReleaseDrawer = ({ release, isOpen, onClose, onSaved, onAdvance }) => {
                   />
                 </Field>
 
+                {social && status !== 'released' && (
+                  <VoltDraft
+                    releaseId={release.id}
+                    channel={form.channel}
+                    voice={form.voice}
+                    pictureUrl={pictureUrl}
+                    alt={form.asset_alt}
+                    disabled={busy}
+                    onBeforeDraft={() => write(form)}
+                    onDrafted={(data) => {
+                      setForm((current) => ({
+                        ...current,
+                        body: data.body || current.body,
+                        approved: false,
+                        approved_at: null,
+                      }));
+                      setDirty(false);
+                      if (onSaved) onSaved();
+                    }}
+                  />
+                )}
+
                 <Field label="Body" hint={bodyHint} hintColor={over ? P.coral : undefined}>
                   <Textarea
                     {...inputProps}
@@ -490,10 +612,40 @@ const ReleaseDrawer = ({ release, isOpen, onClose, onSaved, onAdvance }) => {
                       />
                     </Field>
 
+                    {form.channel !== 'telegram' ? (
+                      <StudioShelf
+                        channel={form.channel}
+                        selectedPath={isPublicUrl(form.asset_path) ? form.asset_path : null}
+                        onPick={({ url, alt }) => set({
+                          asset_bucket: null,
+                          asset_path: url,
+                          asset_alt: alt || '',
+                          asset_status: 'ready',
+                        })}
+                        onClear={() => set({ asset_bucket: null, asset_path: null, asset_alt: '' })}
+                      />
+                    ) : (
+                      <Text fontSize={TYPE.label} color={P.inkMuted} lineHeight="1.5">
+                        telegram reads the bucket shelf below. the studio hand carries a bucket and a path, not a url.
+                      </Text>
+                    )}
+
+                    {hasPicture && (
+                      <Field label="Alt line" hint={hasAlt ? 'carried to facebook' : 'saved after the migration'}>
+                        <Input
+                          {...inputProps}
+                          fontSize={TYPE.small}
+                          value={form.asset_alt}
+                          placeholder="what the picture shows, one line"
+                          onChange={(event) => set({ asset_alt: event.target.value })}
+                        />
+                      </Field>
+                    )}
+
                     <AssetPicker
                       bucket={bucketFor(form.channel)}
                       selectedBucket={form.asset_bucket}
-                      selectedPath={form.asset_path}
+                      selectedPath={isPublicUrl(form.asset_path) ? null : form.asset_path}
                       onPick={(bucket, path) => set({
                         asset_bucket: bucket,
                         asset_path: path,
@@ -503,7 +655,7 @@ const ReleaseDrawer = ({ release, isOpen, onClose, onSaved, onAdvance }) => {
                   </VStack>
                 </Box>
 
-                <Field label="Link">
+                <Field label="Link" hint={form.channel === 'instagram' ? 'instagram does not link captions' : undefined}>
                   <Input
                     {...inputProps}
                     fontFamily="mono"
@@ -582,6 +734,29 @@ const ReleaseDrawer = ({ release, isOpen, onClose, onSaved, onAdvance }) => {
                 >
                   <Text>close</Text>
                 </HStack>
+                {canPostNow && (
+                  <HStack
+                    as="button"
+                    type="button"
+                    onClick={carryNow}
+                    spacing={1.5}
+                    bg={P.sheet}
+                    border="1px solid"
+                    borderColor={P.limeDeep}
+                    color={P.limeDeep}
+                    borderRadius="full"
+                    px={4}
+                    h="38px"
+                    fontWeight="600"
+                    fontSize="sm"
+                    opacity={posting ? 0.6 : 1}
+                    pointerEvents={posting ? 'none' : 'auto'}
+                    _hover={{ bg: P.sunken }}
+                    transition={`all ${FAST} ${EASE}`}
+                  >
+                    <Text>{posting ? 'posting' : 'post now'}</Text>
+                  </HStack>
+                )}
                 <HStack
                   as="button"
                   type="button"

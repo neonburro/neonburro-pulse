@@ -1,5 +1,5 @@
 // src/pages/Releases/index.jsx
-// SENTINEL: NB_PULSE_SOCIALS_V3
+// SENTINEL: NB_PULSE_SOCIALS_V4
 //
 // Socials is the shared room for every public release. The calendar, council
 // voice, publishing account, Lyra brief, asset and human approval all live on
@@ -7,17 +7,26 @@
 // history stay legible. App.jsx makes /socials/ canonical and redirects the old
 // /releases/ route.
 //
-// The status pip remains the workflow. Telegram stops at staged and the studio
-// posting hand carries an approved row when its hour arrives. Instagram, X and
-// Reddit remain on the calendar but release by hand until their adapters are
-// real. Failed Telegram rows return to staged with one tap.
+// ── TWO CALENDARS, ONE RECORD ───────────────────────────────────────────────
+// The month grid (MonthCalendar.jsx) is the desk since 2026-09-25, releases
+// as pips tinted by channel with the status as the dot. The two week
+// Timeline stays one tap away under the same toggle, it is the closer view
+// for a busy fortnight. Both read the same rows. Click a day on the month
+// and the add bar takes that date, if a title is already typed the release
+// is added and its drawer opens, if not the title field takes focus and the
+// bar says which day it will land on. That is deliberate. There is no
+// delete on this page, a cancelled idea stays in the record, so a stray
+// click on a day must never create a row by itself.
 //
-// There is deliberately no delete. A cancelled idea stays in the record with
-// its notes updated. The page is a ledger as much as it is a queue.
+// The status pip remains the workflow. Telegram, facebook and instagram stop
+// at staged and a posting hand carries an approved row when its hour arrives,
+// telegram from the studio site and the Meta pair from release-meta.js here.
+// X and reddit remain on the calendar but release by hand. Failed rows return
+// to staged with one tap.
 //
 // No oxford commas, no em dashes.
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Box,
   VStack,
@@ -27,9 +36,10 @@ import {
   Spinner,
   Input,
   Select,
+  Icon,
   useToast,
 } from '@chakra-ui/react';
-import { TbPlus, TbBroadcast, TbSparkles } from 'react-icons/tb';
+import { TbPlus, TbBroadcast, TbSparkles, TbCalendarMonth, TbCalendarWeek } from 'react-icons/tb';
 import { supabase } from '../../lib/supabase';
 import { TYPE, EASE, FAST } from '../../theme/layout';
 import {
@@ -44,6 +54,7 @@ import {
   when,
 } from './components/shared';
 import Timeline from './components/Timeline';
+import MonthCalendar from './components/MonthCalendar';
 import ReleaseDrawer from './components/ReleaseDrawer';
 import Accounts from './components/Accounts';
 
@@ -69,6 +80,27 @@ const StatusPip = ({ status, onAdvance }) => (
     >
       {status}
     </Text>
+  </HStack>
+);
+
+const ViewButton = ({ on, icon, label, onClick }) => (
+  <HStack
+    as="button"
+    type="button"
+    onClick={onClick}
+    spacing={1}
+    h="30px"
+    px={2.5}
+    borderRadius="full"
+    border="1px solid"
+    borderColor={on ? P.ink : P.hair}
+    color={on ? P.ink : P.inkMuted}
+    bg={on ? P.sheet : 'transparent'}
+    _hover={{ color: P.ink, borderColor: P.inkFaint }}
+    transition={`all ${FAST} ${EASE}`}
+  >
+    <Icon as={icon} boxSize={3.5} />
+    <Text fontFamily="mono" fontSize={TYPE.micro}>{label}</Text>
   </HStack>
 );
 
@@ -158,13 +190,16 @@ const Row = ({ release, onAdvance, onOpen }) => {
 
 const Releases = () => {
   const toast = useToast();
+  const titleRef = useRef(null);
   const [rows, setRows] = useState(null);
   const [loadError, setLoadError] = useState('');
   const [title, setTitle] = useState('');
   const [channel, setChannel] = useState('telegram');
   const [date, setDate] = useState('');
+  const [dayHint, setDayHint] = useState('');
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [view, setView] = useState('month');
 
   const load = useCallback(async () => {
     const { data, error } = await supabase
@@ -184,7 +219,8 @@ const Releases = () => {
 
   useEffect(() => { load(); }, [load]);
 
-  const add = async () => {
+  const add = async (dateOverride) => {
+    const onDay = dateOverride || date;
     if (!title.trim() || saving) return;
     setSaving(true);
     const { data, error } = await supabase
@@ -192,7 +228,7 @@ const Releases = () => {
       .insert({
         title: title.trim(),
         channel,
-        release_at: date ? new Date(`${date}T12:00:00`).toISOString() : null,
+        release_at: onDay ? new Date(`${onDay}T12:00:00`).toISOString() : null,
       })
       .select('*')
       .single();
@@ -205,8 +241,23 @@ const Releases = () => {
 
     setTitle('');
     setDate('');
+    setDayHint('');
     await load();
     if (data?.id) setEditingId(data.id);
+  };
+
+  // A day click on the month. With a title typed the release lands on that
+  // day and opens. Without one the bar takes the date and asks for a title,
+  // because nothing on this page is ever deleted and a bare click must not
+  // write a row.
+  const onDay = (iso) => {
+    setDate(iso);
+    if (title.trim()) {
+      add(iso);
+      return;
+    }
+    setDayHint(`dated ${when(`${iso}T12:00:00`)}. give it a title and add.`);
+    if (titleRef.current) titleRef.current.focus();
   };
 
   const advance = async (release) => {
@@ -283,69 +334,75 @@ const Releases = () => {
           </Text>
         </Box>
 
-        <HStack spacing={2.5} flexWrap={{ base: 'wrap', md: 'nowrap' }} rowGap={2.5}>
-          <Input
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-            onKeyDown={(event) => event.key === 'Enter' && add()}
-            placeholder="what should go out"
-            bg={P.sheet}
-            borderColor={P.hair}
-            color={P.ink}
-            fontSize={TYPE.body}
-            _placeholder={{ color: P.inkFaint }}
-            _hover={{ borderColor: P.inkFaint }}
-            _focus={{ borderColor: P.inkMuted, boxShadow: 'none' }}
-            flex="1"
-            minW={{ base: '100%', md: '260px' }}
-          />
-          <Select
-            value={channel}
-            onChange={(event) => setChannel(event.target.value)}
-            bg={P.sheet}
-            borderColor={P.hair}
-            color={P.inkSec}
-            fontSize={TYPE.label}
-            fontFamily="mono"
-            w={{ base: '46%', md: '150px' }}
-            flexShrink={0}
-          >
-            {CHANNELS.map((value) => <option key={value} value={value}>{value}</option>)}
-          </Select>
-          <Input
-            type="date"
-            value={date}
-            onChange={(event) => setDate(event.target.value)}
-            bg={P.sheet}
-            borderColor={P.hair}
-            color={P.inkSec}
-            fontSize={TYPE.label}
-            fontFamily="mono"
-            w={{ base: '46%', md: '160px' }}
-            flexShrink={0}
-          />
-          <HStack
-            as="button"
-            type="button"
-            onClick={add}
-            spacing={1.5}
-            bg={P.lime}
-            color={P.limeInk}
-            borderRadius="10px"
-            px={4}
-            py={2}
-            fontSize={TYPE.label}
-            fontWeight="600"
-            cursor="pointer"
-            flexShrink={0}
-            opacity={saving ? 0.6 : 1}
-            _hover={{ opacity: 0.85 }}
-            transition={`opacity ${FAST} ${EASE}`}
-          >
-            <TbPlus size={15} />
-            <Text>add</Text>
+        <VStack align="stretch" spacing={1.5}>
+          <HStack spacing={2.5} flexWrap={{ base: 'wrap', md: 'nowrap' }} rowGap={2.5}>
+            <Input
+              ref={titleRef}
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              onKeyDown={(event) => event.key === 'Enter' && add()}
+              placeholder="what should go out"
+              bg={P.sheet}
+              borderColor={dayHint ? P.limeDeep : P.hair}
+              color={P.ink}
+              fontSize={TYPE.body}
+              _placeholder={{ color: P.inkFaint }}
+              _hover={{ borderColor: P.inkFaint }}
+              _focus={{ borderColor: P.inkMuted, boxShadow: 'none' }}
+              flex="1"
+              minW={{ base: '100%', md: '260px' }}
+            />
+            <Select
+              value={channel}
+              onChange={(event) => setChannel(event.target.value)}
+              bg={P.sheet}
+              borderColor={P.hair}
+              color={P.inkSec}
+              fontSize={TYPE.label}
+              fontFamily="mono"
+              w={{ base: '46%', md: '150px' }}
+              flexShrink={0}
+            >
+              {CHANNELS.map((value) => <option key={value} value={value}>{value}</option>)}
+            </Select>
+            <Input
+              type="date"
+              value={date}
+              onChange={(event) => { setDate(event.target.value); setDayHint(''); }}
+              bg={P.sheet}
+              borderColor={P.hair}
+              color={P.inkSec}
+              fontSize={TYPE.label}
+              fontFamily="mono"
+              w={{ base: '46%', md: '160px' }}
+              flexShrink={0}
+            />
+            <HStack
+              as="button"
+              type="button"
+              onClick={() => add()}
+              spacing={1.5}
+              bg={P.lime}
+              color={P.limeInk}
+              borderRadius="10px"
+              px={4}
+              py={2}
+              fontSize={TYPE.label}
+              fontWeight="600"
+              cursor="pointer"
+              flexShrink={0}
+              opacity={saving ? 0.6 : 1}
+              _hover={{ opacity: 0.85 }}
+              transition={`opacity ${FAST} ${EASE}`}
+            >
+              <TbPlus size={15} />
+              <Text>add</Text>
+            </HStack>
           </HStack>
-        </HStack>
+          {dayHint && (
+            <Text fontFamily="mono" fontSize={TYPE.label} color={P.limeDeep}>{dayHint}</Text>
+          )}
+        </VStack>
 
         {rows === null && (
           <HStack justify="center" py={16}>
@@ -364,7 +421,15 @@ const Releases = () => {
 
         {rows !== null && !loadError && (
           <>
-            <Timeline rows={rows} onOpen={open} />
+            <VStack align="stretch" spacing={3}>
+              <HStack spacing={1.5}>
+                <ViewButton on={view === 'month'} icon={TbCalendarMonth} label="month" onClick={() => setView('month')} />
+                <ViewButton on={view === 'fortnight'} icon={TbCalendarWeek} label="fortnight" onClick={() => setView('fortnight')} />
+              </HStack>
+              {view === 'month'
+                ? <MonthCalendar rows={rows} onOpen={open} onDay={onDay} />
+                : <Timeline rows={rows} onOpen={open} />}
+            </VStack>
 
             {lyraQueue.length > 0 && (
               <Box bg={P.sunken} border="1px solid" borderColor={P.hair} borderRadius="14px" p={4}>

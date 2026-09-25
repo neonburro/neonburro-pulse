@@ -1,16 +1,27 @@
 // src/pages/Releases/components/shared.jsx
-// SENTINEL: NB_PULSE_SOCIALS_SHARED_V2
+// SENTINEL: NB_PULSE_SOCIALS_SHARED_V3
 //
 // One registry for the Socials desk. A voice is the council member speaking.
 // An account owner is the identity that publishes. Those ideas used to be one
 // field which made it impossible for Lyra to speak through the studio account.
 // Keep SOCIAL_CHANNELS aligned with the account panel. Keep AUTOMATIC_CHANNELS
-// aligned with netlify/functions/release-social.js in the neonburro repo.
+// aligned with the two posting hands, netlify/functions/release-social.js in
+// the neonburro repo for telegram and netlify/functions/release-meta.js in
+// this repo for facebook and instagram.
 //
-// Telegram is the only automatic channel today. X, Instagram and Reddit stay
-// on the same calendar but release by hand until their own adapters are real.
-// The creative queue belongs to the release so Lyra and the writer see one
-// brief, one asset state and one approval record.
+// Telegram, facebook and instagram are the automatic channels. Facebook and
+// instagram are dark until META_PAGE_ACCESS_TOKEN, META_PAGE_ID and
+// META_IG_USER_ID exist on the Pulse site, the account rows stay off until
+// then and the drawer refuses approval on an account that is off. X and
+// reddit stay on the same calendar and release by hand.
+//
+// The channel tints are for the month calendar pips and nothing else. They
+// are quiet on cream, distinct from each other, from the voice tints and from
+// lime, which the page spends on the today disc and the add button. The
+// shapes and formats are what Meta actually renders and accepts, feed 1.91 to
+// 1 or square for a Page and square or four by five for Instagram. Instagram
+// takes jpeg only. The picker reads the real pixels of the picked plate and
+// says so, this file only holds the rules.
 //
 // No oxford commas, no em dashes.
 
@@ -21,8 +32,9 @@ import { TYPE } from '../../../theme/layout';
 export const P = colors.paper;
 
 export const STATUSES = ['idea', 'drafted', 'staged', 'released'];
-export const SOCIAL_CHANNELS = ['telegram', 'instagram', 'x', 'reddit'];
-export const AUTOMATIC_CHANNELS = ['telegram'];
+export const SOCIAL_CHANNELS = ['telegram', 'facebook', 'instagram', 'x', 'reddit'];
+export const AUTOMATIC_CHANNELS = ['telegram', 'facebook', 'instagram'];
+export const META_CHANNELS = ['facebook', 'instagram'];
 export const CHANNELS = [
   ...SOCIAL_CHANNELS,
   'site',
@@ -56,7 +68,13 @@ export const ASSET_STATUSES = [
   { value: 'ready', label: 'asset ready' },
 ];
 
-export const LIMITS = { x: 280, telegram: 4096, instagram: 2200 };
+// Character rails are the hard limits the channels enforce. The house rails
+// for facebook and instagram are words and hashtags, see below. The drawer
+// shows both. draft-release.js enforces the same numbers on its own
+// output, change them in both places.
+export const LIMITS = { x: 280, telegram: 4096, instagram: 2200, facebook: 63206 };
+export const WORD_LIMITS = { facebook: 120 };
+export const HASHTAG_LIMITS = { facebook: 0, instagram: 3 };
 
 export const STATUS_TINT = {
   idea: P.inkFaint,
@@ -82,14 +100,110 @@ export const VOICE_TINT = {
   phosphor: '#3C8A6B',
 };
 
+export const CHANNEL_TINT = {
+  telegram: { accent: '#2E6E6E', tint: 'rgba(46,110,110,0.11)' },
+  facebook: { accent: '#3A5A9A', tint: 'rgba(58,90,154,0.11)' },
+  instagram: { accent: '#9A4A7A', tint: 'rgba(154,74,122,0.11)' },
+  x: { accent: '#241A16', tint: 'rgba(36,26,22,0.09)' },
+  reddit: { accent: '#C2562F', tint: 'rgba(194,86,47,0.11)' },
+  site: { accent: '#6B5245', tint: 'rgba(107,82,69,0.10)' },
+  blog: { accent: '#6B5245', tint: 'rgba(107,82,69,0.10)' },
+  newsletter: { accent: '#9A7B00', tint: 'rgba(154,123,0,0.11)' },
+  phosphor: { accent: '#3C8A6B', tint: 'rgba(60,138,107,0.11)' },
+  shop: { accent: '#8F6A17', tint: 'rgba(143,106,23,0.11)' },
+  pulse: { accent: '#4A382F', tint: 'rgba(74,56,47,0.10)' },
+};
+
+// What Meta renders. w and h are the pixels the channel shows, the picker
+// draws a frame at that ratio and lays the real plate inside it with cover.
+export const SHAPES = {
+  facebook: [
+    { id: 'feed', label: 'feed 1200 by 630', w: 1200, h: 630 },
+    { id: 'square', label: 'square 1080', w: 1080, h: 1080 },
+  ],
+  instagram: [
+    { id: 'square', label: 'square 1080', w: 1080, h: 1080 },
+    { id: 'portrait', label: 'portrait 1080 by 1350', w: 1080, h: 1350 },
+    { id: 'landscape', label: 'landscape 1080 by 566', w: 1080, h: 566 },
+  ],
+};
+
+// What Meta accepts by url. Facebook lists jpg png gif bmp and tiff, webp is
+// not on the list. Instagram takes jpeg and nothing else.
+export const FORMATS = {
+  facebook: ['jpg', 'png', 'gif'],
+  instagram: ['jpg'],
+};
+
 export const voiceTint = (voice) => VOICE_TINT[voice] || P.inkMuted;
+export const channelTint = (channel) => CHANNEL_TINT[channel] || CHANNEL_TINT.site;
 export const isSocial = (channel) => SOCIAL_CHANNELS.includes(channel);
 export const isAutomatic = (channel) => AUTOMATIC_CHANNELS.includes(channel);
+export const isMeta = (channel) => META_CHANNELS.includes(channel);
 export const assetStatusLabel = (value) => (
   ASSET_STATUSES.find((item) => item.value === value)?.label || 'no asset needed'
 );
 
 export const bucketFor = (channel) => (isSocial(channel) ? `social-${channel}` : 'social-site');
+
+// A picked plate is either a public url on neonburro.com, stored whole in
+// asset_path with no bucket, or an object in a Pulse bucket. This tells the
+// two apart, the posting hands do the same in netlify/functions/_social.js.
+export const isPublicUrl = (path) => /^https?:\/\//i.test(String(path || ''));
+
+export const formatOf = (path) => {
+  const clean = String(path || '').split('?')[0].split('#')[0];
+  const ext = (clean.split('.').pop() || '').toLowerCase();
+  return ext === 'jpeg' ? 'jpg' : ext;
+};
+
+export const hashtags = (body) => (
+  String(body || '').match(/(^|\s)#[\p{L}\p{N}_]+/gu) || []
+).map((tag) => tag.trim());
+
+export const countWords = (body) => {
+  const text = String(body || '').trim();
+  return text ? text.split(/\s+/).length : 0;
+};
+
+// The picker's verdict on a plate for a channel, from the real pixels.
+// fit is exact, crop or wrong. Instagram accepts ratios from four by five up
+// to 1.91 to 1 and refuses wider. Facebook shows a feed photo at its own
+// ratio but a plate wider than 1.91 loses its sides in the feed crop.
+export const shapeVerdict = (channel, width, height) => {
+  if (!width || !height) return { fit: 'unknown', text: 'size not read yet' };
+  const ratio = width / height;
+  const near = (target) => Math.abs(ratio - target) < 0.025;
+  const size = `${width} by ${height}`;
+
+  if (channel === 'instagram') {
+    if (near(1)) return { fit: 'exact', text: `${size}, square, posts as is` };
+    if (near(0.8)) return { fit: 'exact', text: `${size}, four by five, posts as is` };
+    if (near(1.91)) return { fit: 'exact', text: `${size}, landscape 1.91 to 1, posts as is` };
+    if (ratio > 1.91) return { fit: 'wrong', text: `${size} is wider than 1.91 to 1, instagram refuses it. ask for a square or a 1200 by 630 cut` };
+    if (ratio < 0.8) return { fit: 'wrong', text: `${size} is taller than four by five, instagram refuses it` };
+    return { fit: 'crop', text: `${size} sits between the frames, instagram posts it at this ratio` };
+  }
+
+  if (channel === 'facebook') {
+    if (near(1.905)) return { fit: 'exact', text: `${size}, the feed frame, posts as is` };
+    if (near(1)) return { fit: 'exact', text: `${size}, square, posts as is` };
+    if (ratio > 1.95) return { fit: 'crop', text: `${size} is wider than the feed frame, the sides fall away in the feed` };
+    if (ratio < 0.8) return { fit: 'crop', text: `${size} is tall, the feed shows the middle` };
+    return { fit: 'crop', text: `${size}, facebook shows it at this ratio with a little crop in the feed` };
+  }
+
+  return { fit: 'exact', text: size };
+};
+
+export const formatVerdict = (channel, path) => {
+  const format = formatOf(path);
+  const allowed = FORMATS[channel];
+  if (!allowed || !format) return null;
+  if (allowed.includes(format)) return null;
+  if (channel === 'instagram') return `instagram takes jpeg only and this is ${format}. the share cards are jpg, or ask skye for a jpg cut`;
+  return `facebook lists jpg png and gif, this is ${format}. the first post will tell`;
+};
 
 const BANNED = [
   'pump',
