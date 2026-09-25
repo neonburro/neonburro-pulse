@@ -3,13 +3,21 @@
 // button, a live stats line, a rounded search and the filter tabs over the list.
 // Local Paper styles here rather than the shared dark uiConstants, since those
 // still drive the not yet converted pages. When selectedInvoiceId is set the
-// whole surface hands off to InvoiceEditor. No oxford commas, no dashes.
+// whole surface hands off to InvoiceEditor.
+//
+// Two ways a Volt draft arrives, 2026-09-25. The Draft with Volt door on
+// this page hands it through onDraft the way it always has. The desk in
+// src/components/Layout/VoltDesk.jsx, which sits on every page, navigates
+// here with the same draft shape in router state under voltDraft, and the
+// effect below opens the editor on it once and clears the state so a
+// refresh does not open it twice. The key is spelled in both files.
+// No oxford commas, no dashes.
 
 import { useState, useEffect } from 'react';
 import {
   Box, VStack, HStack, Text, Icon, Input, Container,
 } from '@chakra-ui/react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useLocation } from 'react-router-dom';
 import { TbPlus, TbSearch, TbSparkles } from 'react-icons/tb';
 import { supabase } from '../../lib/supabase';
 import { SENT_STATUSES, formatCurrencyCompact } from '../../lib/invoiceConstants';
@@ -22,6 +30,7 @@ const P = colors.paper;
 
 const Invoicing = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
   const [invoices, setInvoices] = useState([]);
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -38,6 +47,15 @@ const Invoicing = () => {
   }, [searchParams]);
 
   useEffect(() => { fetchData(); }, []);
+
+  // A draft handed over by the desk on another page.
+  useEffect(() => {
+    const handed = location.state?.voltDraft;
+    if (!handed) return;
+    setVoltDraft({ clientId: handed.client_id || '', notes: handed.notes || '', lines: handed.lines || [] });
+    setSelectedInvoiceId('new');
+    setSearchParams({ invoice: 'new' }, { replace: true, state: {} });
+  }, [location.state, setSearchParams]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -265,7 +283,7 @@ const Invoicing = () => {
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by number, client, or company"
+              placeholder="Search by number, client or company"
               variant="unstyled"
               color={P.ink}
               fontSize="sm"

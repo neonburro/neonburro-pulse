@@ -1,5 +1,5 @@
 // src/components/Layout/AppShell.jsx
-// SENTINEL: NB_PULSE_SHELL_V4
+// SENTINEL: NB_PULSE_SHELL_V5
 //
 // Two colors, cream everywhere and one dark. V3 inverted this: a dark ground with
 // a cream sheet floated on it. Tyler's call is the opposite and cleaner: the whole
@@ -11,7 +11,14 @@
 // column is pushed right by the sidebar width plus that inset plus a gap. The
 // content is plain cream, no sheet and no rounding, because it is the same cream as
 // the ground now. The window scrolls normally, the sidebar stays because it is
-// fixed. 100dvh so a phone's URL bar can never open a gap. No oxford commas, no dashes.
+// fixed. 100dvh so a phone's URL bar can never open a gap.
+//
+// V5, 2026-09-25. VoltDesk mounts here once, so Volt's bolt is in the bottom
+// right corner of every signed in page. It is fixed and lives outside the
+// content column, the same way MobileNav does, and it clears the pill on a
+// phone by reading TABBAR_H from the theme. See VoltDesk.jsx for the rest.
+//
+// No oxford commas, no dashes.
 
 import { useState, useEffect } from 'react';
 import { Box, Flex } from '@chakra-ui/react';
@@ -19,6 +26,7 @@ import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import MobileNav from './MobileNav';
+import VoltDesk from './VoltDesk';
 import { useAuth } from '../../hooks/useAuth';
 import { supabase } from '../../lib/supabase';
 import colors from '../../theme/colors';
@@ -82,6 +90,7 @@ const AppShell = ({ children }) => {
       </Box>
 
       <MobileNav />
+      <VoltDesk />
     </Flex>
   );
 };

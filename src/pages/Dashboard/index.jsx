@@ -1,10 +1,15 @@
 // src/pages/Dashboard/index.jsx
-// SENTINEL: NB_PULSE_TODAY_V2
+// SENTINEL: NB_PULSE_TODAY_V3
 //
-// Today, on Paper. What is waiting on you, then where things stand, then the
-// forms, then what happened. The route is /today/, the folder stays Dashboard.
-// One Promise.all feeds every count, FormInbox and ActivityStream fetch their
-// own rows below the fold. No oxford commas, no dashes.
+// Today, on Paper. What is waiting on you, then what was asked of volt for a
+// person, then where things stand, then the forms, then what happened. The
+// route is /today/, the folder stays Dashboard. One Promise.all feeds every
+// count, VoltAsks, FormInbox and ActivityStream fetch their own rows.
+//
+// V3, 2026-09-25. VoltAsks sits under NeedsYou because an ask of volt is a
+// thing waiting on a hand, the same emotional state as the queue above it.
+// It reads desk_asks itself and refetches on the nb:desk-ask event the desk
+// fires. No oxford commas, no dashes.
 
 import { useState, useEffect, useCallback } from 'react';
 import { Box, VStack, Container } from '@chakra-ui/react';
@@ -13,6 +18,7 @@ import { useAuth } from '../../hooks/useAuth';
 import colors from '../../theme/colors';
 import TodayHeader from './components/TodayHeader';
 import NeedsYou from './components/NeedsYou';
+import VoltAsks from './components/VoltAsks';
 import Numbers from './components/Numbers';
 import FormInbox from './components/FormInbox';
 import ActivityStream from './components/ActivityStream';
@@ -102,6 +108,7 @@ const Dashboard = () => {
             awaitingPayment={stats.awaitingPayment} awaitingTotal={stats.awaitingTotal}
             openSprints={stats.openSprints}
           />
+          <VoltAsks />
           <Numbers outstanding={stats.outstanding} collected={stats.collected} activeClients={stats.activeClients} totalClients={stats.totalClients} openSprints={stats.openSprints} />
           <FormInbox />
           <ActivityStream activities={activities} profileMap={profileMap} loading={loading} />
