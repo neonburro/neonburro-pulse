@@ -1,13 +1,29 @@
 // src/pages/Neonburro/index.jsx
-// SENTINEL: NB_PULSE_NEONBURRO_V1
+// SENTINEL: NB_PULSE_NEONBURRO_V2
 //
 // The private NEONBURRO operating room begins as an observation surface. It
-// reads the existing token_wallets book through staff RLS and asks the existing
+// reads the existing token_wallets book through staff RLS and asks the
 // registry-balances function for public chain balances. It does not build a
-// transaction, hold a key or imply that a council wallet is independent demand.
+// transaction, hold a key or imply that a council wallet is independent
+// demand. Every wallet in this room is the studio's own, and a number here
+// is what the studio holds, never what the market wants.
 //
-// The seven lanes are named now so the room grows in one stable shape. Only the
-// overview and wallet book have live data in V1. Empty operating states say
+// ── WHAT A FIGURE SAYS ABOUT ITSELF, 2026-09-25 ─────────────────────────────
+// The public node refused a batch of twenty wallets and the whole room said
+// not read. Now every figure carries the time it was true and where it came
+// from, live off the chain or cached from the last good read, and the row
+// says which in one word beside the time. The header says how many are
+// live and how many are cached. A total only adds the figures it has and
+// names how many wallets are in it, so a partial read is a partial total
+// and never pretends to be the whole book. The counts drawn in the header
+// and the metrics come off the same balances object as the rows, so they
+// cannot disagree with what is on the page.
+//
+// The reader is src/lib/registryBalances.js, shared with the Registry, in
+// chunks so one refused chunk does not blank the book.
+//
+// The seven lanes are named now so the room grows in one stable shape. Only
+// the overview and wallet book have live data. Empty operating states say
 // what still needs a shared migration instead of manufacturing a number.
 //
 // No oxford commas, no em dashes.
@@ -22,6 +38,7 @@ import {
 } from 'react-icons/tb';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
+import { readRegistryBalances, readTime, sourceLine } from '../../lib/registryBalances';
 import colors from '../../theme/colors';
 import { EASE, FAST, TYPE } from '../../theme/layout';
 
@@ -47,6 +64,13 @@ const sol = (value) => {
 };
 
 const short = (address) => (address ? `${address.slice(0, 5)}...${address.slice(-5)}` : '');
+
+const sourceColor = (balance) => {
+  if (!balance || !balance.source || balance.source === 'none') return P.inkFaint;
+  return balance.source === 'cache' ? P.gold : P.green;
+};
+
+const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
 const Metric = ({ label, value, note, icon }) => (
   <Box bg={P.sheet} border="1px solid" borderColor={P.hair} borderRadius="18px" p={{ base: 4, md: 5 }} minH="142px">
@@ -88,32 +112,23 @@ const Neonburro = () => {
   const [balances, setBalances] = useState({});
   const [loading, setLoading] = useState(true);
   const [reading, setReading] = useState(false);
+  const [progress, setProgress] = useState({ done: 0, of: 0 });
+  const [chainNotes, setChainNotes] = useState([]);
+  const [rpc, setRpc] = useState('');
   const [message, setMessage] = useState('');
-  const [asOf, setAsOf] = useState(null);
 
   const readChain = useCallback(async (rows) => {
     if (!rows.length) return;
     setReading(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const response = await fetch('/.netlify/functions/registry-balances', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${session?.access_token || ''}`,
-        },
-        body: JSON.stringify({ addresses: rows.map((row) => row.address) }),
-      });
-      const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || 'the chain read failed');
-      setBalances(payload.balances || {});
-      setAsOf(new Date());
-      setMessage(payload.note || '');
-    } catch (error) {
-      setMessage(error.message || 'the chain read failed');
-    } finally {
-      setReading(false);
-    }
+    setProgress({ done: 0, of: rows.length });
+    const answer = await readRegistryBalances(rows.map((row) => row.address), (partial) => {
+      setBalances((prev) => ({ ...prev, ...partial.balances }));
+      setProgress({ done: partial.done, of: partial.of });
+    });
+    setBalances(answer.balances);
+    setChainNotes(answer.notes);
+    if (answer.rpc) setRpc(answer.rpc);
+    setReading(false);
   }, []);
 
   const refresh = useCallback(async () => {
@@ -133,31 +148,49 @@ const Neonburro = () => {
     const rows = data || [];
     setWallets(rows);
     setLoading(false);
+    setMessage('');
     await readChain(rows);
   }, [readChain]);
 
   useEffect(() => { refresh(); }, [refresh]);
 
-  const totals = useMemo(() => wallets.reduce((sum, wallet) => {
-    const balance = balances[wallet.address] || {};
-    const hasNeonburro = Number.isFinite(balance.nb);
-    const hasSol = Number.isFinite(balance.sol);
+  // Everything the header and the metrics say comes off the same balances
+  // the rows draw. A figure is whole or absent, both numbers or neither,
+  // so one count serves NEONBURRO and SOL alike.
+  const summary = useMemo(() => wallets.reduce((sum, wallet) => {
+    const balance = balances[wallet.address];
+    const has = balance && Number.isFinite(balance.nb) && Number.isFinite(balance.sol);
+    if (!has) return { ...sum, none: sum.none + 1 };
+    const cached = balance.source === 'cache';
+    const latestLive = !cached && (!sum.latestLive || balance.at > sum.latestLive) ? balance.at : sum.latestLive;
     return {
-      neonburro: sum.neonburro + (hasNeonburro ? balance.nb : 0),
-      sol: sum.sol + (hasSol ? balance.sol : 0),
-      neonburroReads: sum.neonburroReads + (hasNeonburro ? 1 : 0),
-      solReads: sum.solReads + (hasSol ? 1 : 0),
+      neonburro: sum.neonburro + balance.nb,
+      sol: sum.sol + balance.sol,
+      counted: sum.counted + 1,
+      live: sum.live + (cached ? 0 : 1),
+      cached: sum.cached + (cached ? 1 : 0),
+      none: sum.none,
+      latestLive,
     };
   }, {
     neonburro: 0,
     sol: 0,
-    neonburroReads: 0,
-    solReads: 0,
+    counted: 0,
+    live: 0,
+    cached: 0,
+    none: 0,
+    latestLive: null,
   }), [wallets, balances]);
 
-  const share = totals.neonburroReads
-    ? `${((totals.neonburro / SUPPLY) * 100).toFixed(2)}% of supply`
+  const share = summary.counted
+    ? `${((summary.neonburro / SUPPLY) * 100).toFixed(2)}% of supply`
     : 'waiting for a chain read';
+  const inTotal = summary.counted
+    ? `across ${summary.counted} of ${plural(wallets.length, 'wallet')}${summary.cached ? `, ${summary.cached} cached` : ''}`
+    : '';
+  const nodeLine = rpc ? `mainnet, ${rpc} node` : 'mainnet observation';
+  const anyRead = summary.counted > 0 || summary.none > 0;
+  const needsAWord = !loading && anyRead && (summary.cached > 0 || summary.none > 0 || chainNotes.length > 0);
 
   return (
     <Box position="relative" minH="100vh" bg={P.mat}>
@@ -171,8 +204,8 @@ const Neonburro = () => {
                 <Text fontFamily="mono" fontSize={TYPE.micro} fontWeight="650" letterSpacing="0.22em" textTransform="uppercase" color={P.inkMuted}>
                   NEONBURRO operations
                 </Text>
-                <Box w="5px" h="5px" borderRadius="full" bg={P.green} />
-                <Text fontFamily="mono" fontSize={TYPE.micro} color={P.inkFaint}>mainnet observation</Text>
+                <Box w="5px" h="5px" borderRadius="full" bg={summary.live ? P.green : P.gold} />
+                <Text fontFamily="mono" fontSize={TYPE.micro} color={P.inkFaint}>{nodeLine}</Text>
               </HStack>
               <Text fontSize={TYPE.title} fontWeight="650" letterSpacing="-0.035em" lineHeight="1.08" color={P.ink}>
                 The token room.
@@ -182,17 +215,20 @@ const Neonburro = () => {
               </Text>
             </VStack>
 
-            <HStack spacing={3}>
-              {asOf && (
-                <Text display={{ base: 'none', md: 'block' }} fontFamily="mono" fontSize={TYPE.micro} color={P.inkFaint}>
-                  read {asOf.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
-                </Text>
-              )}
+            <VStack align={{ base: 'start', md: 'end' }} spacing={2}>
               <HStack as="button" onClick={refresh} disabled={reading || loading} spacing={2} px={4} h="38px" borderRadius="full" bg={P.lime} color={P.limeInk} fontSize={TYPE.small} fontWeight="700" transition={`all ${FAST} ${EASE}`} _hover={{ bg: '#D2E26B', transform: 'translateY(-1px)' }} _disabled={{ opacity: 0.6, cursor: 'wait' }}>
                 <Icon as={TbRefresh} boxSize={4} sx={reading ? { animation: 'spin 1s linear infinite', '@keyframes spin': { to: { transform: 'rotate(360deg)' } } } : undefined} />
-                <Text>read the chain</Text>
+                <Text>{reading && progress.of ? `reading ${progress.done} of ${progress.of}` : 'read the chain'}</Text>
               </HStack>
-            </HStack>
+              {anyRead && !reading && (
+                <Text fontFamily="mono" fontSize={TYPE.micro} color={P.inkFaint}>
+                  {summary.latestLive ? `read ${readTime(summary.latestLive)}` : 'nothing read live'}
+                  {`, ${summary.live} live`}
+                  {summary.cached ? `, ${summary.cached} cached` : ''}
+                  {summary.none ? `, ${summary.none} not read` : ''}
+                </Text>
+              )}
+            </VStack>
           </HStack>
 
           <HStack spacing={2} overflowX="auto" pb={1} sx={{ scrollbarWidth: 'none', '&::-webkit-scrollbar': { display: 'none' } }}>
@@ -209,10 +245,45 @@ const Neonburro = () => {
             </Box>
           )}
 
+          {needsAWord && (
+            <Box bg={P.sunken} border="1px solid" borderColor={P.hair} borderRadius="12px" px={4} py={3}>
+              <VStack align="start" spacing={1}>
+                {summary.cached > 0 && (
+                  <Text fontSize={TYPE.small} color={P.inkSec}>
+                    {summary.cached} of {plural(wallets.length, 'figure')} {summary.cached === 1 ? 'is' : 'are'} cached from an earlier read because the chain refused this time. A cached figure carries the time it was true and is not a live balance.
+                  </Text>
+                )}
+                {summary.none > 0 && (
+                  <Text fontSize={TYPE.small} color={P.inkSec}>
+                    {summary.none} {summary.none === 1 ? 'wallet was' : 'wallets were'} never read and nothing is cached for {summary.none === 1 ? 'it' : 'them'} yet. {summary.none === 1 ? 'It is' : 'They are'} left out of the totals.
+                  </Text>
+                )}
+                {chainNotes.map((line) => (
+                  <Text key={line} fontFamily="mono" fontSize={TYPE.micro} color={P.inkFaint}>{line}</Text>
+                ))}
+              </VStack>
+            </Box>
+          )}
+
           <Grid templateColumns={{ base: '1fr', md: 'repeat(3, minmax(0, 1fr))' }} gap={3}>
-            <Metric label="NEONBURRO in the book" value={loading ? 'reading' : totals.neonburroReads ? compact(totals.neonburro, 2) : 'not read'} note={share} icon={TbWallet} />
-            <Metric label="SOL in the book" value={loading ? 'reading' : totals.solReads ? sol(totals.sol) : 'not read'} note="held across named studio wallets" icon={TbArrowUpRight} />
-            <Metric label="wallets observed" value={loading ? 'reading' : String(wallets.length)} note="public addresses only" icon={TbLock} />
+            <Metric
+              label="NEONBURRO in the book"
+              value={loading ? 'reading' : summary.counted ? compact(summary.neonburro, 2) : 'not read'}
+              note={summary.counted ? `${share}, ${inTotal}` : share}
+              icon={TbWallet}
+            />
+            <Metric
+              label="SOL in the book"
+              value={loading ? 'reading' : summary.counted ? sol(summary.sol) : 'not read'}
+              note={summary.counted ? `studio held, ${inTotal}` : 'held across named studio wallets'}
+              icon={TbArrowUpRight}
+            />
+            <Metric
+              label="wallets observed"
+              value={loading ? 'reading' : String(wallets.length)}
+              note={anyRead ? `${summary.live} live, ${summary.cached} cached, ${summary.none} not read` : 'public addresses only'}
+              icon={TbLock}
+            />
           </Grid>
 
           <Grid templateColumns={{ base: '1fr', xl: '1.35fr 0.65fr' }} gap={4} alignItems="start">
@@ -220,7 +291,7 @@ const Neonburro = () => {
               <HStack justify="space-between" px={{ base: 4, md: 5 }} py={4} borderBottom="1px solid" borderColor={P.hair}>
                 <VStack align="start" spacing={0.5}>
                   <Text fontSize={TYPE.section} fontWeight="650" color={P.ink}>The wallet field</Text>
-                  <Text fontSize={TYPE.small} color={P.inkMuted}>Named studio addresses with live public balances.</Text>
+                  <Text fontSize={TYPE.small} color={P.inkMuted}>Named studio addresses with public balances. Studio held, none of it is outside demand.</Text>
                 </VStack>
                 <HStack as="button" onClick={() => navigate('/registry/')} spacing={1.5} color={P.inkMuted} _hover={{ color: P.ink }}>
                   <Text fontFamily="mono" fontSize={TYPE.micro}>open registry</Text>
@@ -235,7 +306,8 @@ const Neonburro = () => {
               ) : (
                 <VStack align="stretch" spacing={0}>
                   {wallets.map((wallet) => {
-                    const balance = balances[wallet.address] || {};
+                    const balance = balances[wallet.address];
+                    const pending = reading && !balance;
                     return (
                       <HStack key={wallet.id} px={{ base: 4, md: 5 }} py={3.5} spacing={4} borderBottom="1px solid" borderColor={P.hairSoft} _last={{ borderBottom: 0 }} flexWrap={{ base: 'wrap', md: 'nowrap' }}>
                         <VStack align="start" spacing={0.5} flex="1 1 180px" minW={0}>
@@ -252,12 +324,18 @@ const Neonburro = () => {
                         </VStack>
                         <HStack spacing={{ base: 4, md: 7 }} flexShrink={0}>
                           <VStack align="end" spacing={0} minW="92px">
-                            <Text fontFamily="mono" fontSize={TYPE.small} fontWeight="650" color={P.ink} sx={{ fontVariantNumeric: 'tabular-nums' }}>{compact(balance.nb, 2)}</Text>
+                            <Text fontFamily="mono" fontSize={TYPE.small} fontWeight="650" color={P.ink} sx={{ fontVariantNumeric: 'tabular-nums' }}>{pending ? 'reading' : compact(balance?.nb, 2)}</Text>
                             <Text fontFamily="mono" fontSize={TYPE.micro} color={P.inkFaint}>NEONBURRO</Text>
                           </VStack>
                           <VStack align="end" spacing={0} minW="64px">
-                            <Text fontFamily="mono" fontSize={TYPE.small} color={P.inkSec} sx={{ fontVariantNumeric: 'tabular-nums' }}>{sol(balance.sol)}</Text>
+                            <Text fontFamily="mono" fontSize={TYPE.small} color={P.inkSec} sx={{ fontVariantNumeric: 'tabular-nums' }}>{pending ? 'reading' : sol(balance?.sol)}</Text>
                             <Text fontFamily="mono" fontSize={TYPE.micro} color={P.inkFaint}>SOL</Text>
+                          </VStack>
+                          <VStack align="end" spacing={0} minW="104px">
+                            <Text fontFamily="mono" fontSize={TYPE.micro} color={pending ? P.inkFaint : sourceColor(balance)} sx={{ fontVariantNumeric: 'tabular-nums' }}>
+                              {pending ? 'on the wire' : sourceLine(balance)}
+                            </Text>
+                            <Text fontFamily="mono" fontSize={TYPE.micro} color={P.inkFaint}>as of</Text>
                           </VStack>
                         </HStack>
                       </HStack>
@@ -269,7 +347,7 @@ const Neonburro = () => {
 
             <VStack align="stretch" spacing={4}>
               <Box bg={P.sheet} border="1px solid" borderColor={P.hair} borderRadius="18px" px={{ base: 4, md: 5 }} py={2}>
-                <StatusRow icon={TbCheck} title="Wallet observation" copy="Existing Registry and chain feed." state="live" live />
+                <StatusRow icon={TbCheck} title="Wallet observation" copy="Existing Registry and chain feed, cached when the chain refuses." state="live" live />
                 <StatusRow icon={TbClock} title="Service ledger" copy="Shared tables and holder policies." state="next" />
                 <StatusRow icon={TbFlame} title="Furnace close" copy="Ten percent after confirmed service receipts." state="migration" />
               </Box>
