@@ -45,6 +45,7 @@ const PostEditor    = lazy(() => import('./pages/Blog/PostEditor'));
 const Yard          = lazy(() => import('./pages/Yard'));
 const Neonburro     = lazy(() => import('./pages/Neonburro'));
 const Registry      = lazy(() => import('./pages/Registry'));
+const Wallets       = lazy(() => import('./pages/Wallets'));
 const Messages      = lazy(() => import('./pages/Messages'));
 const Calendar      = lazy(() => import('./pages/Calendar'));
 const Socials       = lazy(() => import('./pages/Releases'));
@@ -92,6 +93,7 @@ function App() {
               <Route path="yard/" element={<Yard />} />
               <Route path="neonburro/" element={<Neonburro />} />
               <Route path="registry/" element={<Registry />} />
+              <Route path="wallets/" element={<Wallets />} />
               <Route path="messages/" element={<Messages />} />
               <Route path="calendar/" element={<Calendar />} />
               <Route path="socials/" element={<Socials />} />

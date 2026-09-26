@@ -31,7 +31,7 @@
 import {
   TbSunrise, TbUsers, TbFileInvoice, TbInbox,
   TbPencil, TbHorse, TbCoins, TbWallet, TbMessageCircle, TbCalendar, TbChartBar, TbSettings,
-  TbBroadcast, TbCoin,
+  TbBroadcast, TbCoin, TbMap2,
 } from 'react-icons/tb';
 
 export const NAV = [
@@ -45,6 +45,7 @@ export const NAV = [
   { path: '/yard/',      label: 'Yard',       icon: TbHorse,         desc: 'The send a burro call' },
   { path: '/neonburro/', label: 'NEONBURRO',  icon: TbCoins,         desc: 'Services, reserves and receipts' },
   { path: '/registry/',  label: 'Registry',   icon: TbWallet,        desc: 'The book of our own wallets' },
+  { path: '/wallets/',   label: 'Wallets',    icon: TbMap2,          desc: 'The public map, before it is published' },
   { path: '/messages/',  label: 'Messages',   icon: TbMessageCircle, desc: 'Threads with clients' },
   { path: '/calendar/',  label: 'Calendar',   icon: TbCalendar,      desc: 'Scheduling and sprints' },
   { path: '/analytics/', label: 'Analytics',  icon: TbChartBar,      desc: 'Traffic and trends' },

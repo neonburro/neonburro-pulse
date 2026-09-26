@@ -1,5 +1,5 @@
 // src/pages/Registry/index.jsx
-// SENTINEL: NB_PULSE_REGISTRY_V3
+// SENTINEL: NB_PULSE_REGISTRY_V4
 //
 // The Registry, the private book of the studio's own labeled wallets. Every
 // wallet Tyler mints gets a row the moment it exists, ion and the vaults and
@@ -10,8 +10,17 @@
 // Not public, not the token page's wallet map. That one is editorial and
 // deliberate, this one is operational and complete. Public addresses and
 // labels only, NEVER keys, NEVER seeds and nothing here ships to a public
-// surface. If a row needs to become public it goes through wallets.js in
-// the studio repo by hand.
+// surface. A row that should become public goes through the wallets room at
+// /wallets/, which reads this same table, adds the six facts the public map
+// needs and produces the text for neonburro/src/data/wallets.js. That room
+// does not publish anything either, a hue man pastes and commits.
+//
+// ── V4, 2026-09-26. THE PARSER MOVED OUT ────────────────────────────────────
+// The base58 test, the csv splitter, the paste parser, the short form of an
+// address and the solscan link now live in src/lib/walletParse.js, because
+// two pages read wallets and two copies of a base58 regex is two answers to
+// the question is this an address. Nothing about the behaviour changed, the
+// functions there are the ones that were here.
 //
 // ── TWO DOORS INTO THE BOOK, 2026-09-25 ─────────────────────────────────────
 // The one row form, and beside it a paste. The studio keeps its wallet map
@@ -30,7 +39,8 @@
 // here adds it, prepared and not applied. Until it lands, the page sees no
 // burro key on the rows it reads and folds the burro name into the note as
 // "burro name" so nothing typed is lost. Once the column exists the same
-// paste writes it straight. Either order works.
+// paste writes it straight. Either order works. The wallets room reads that
+// same column as the holder key, so a burro typed here groups there.
 //
 // ── BALANCES ────────────────────────────────────────────────────────────────
 // Through src/lib/registryBalances.js and registry-balances.js, in chunks,
@@ -39,7 +49,7 @@
 // with the time it was read and the row says cached. Not read means neither
 // the chain nor the cache had it.
 //
-// V3 sits on the house column with the house head, stats, fields and
+// V4 sits on the house column with the house head, stats, fields and
 // buttons. No oxford commas, no em dashes.
 
 import { useState, useEffect, useCallback } from 'react';
@@ -51,6 +61,7 @@ import {
 } from 'react-icons/tb';
 import { supabase } from '../../lib/supabase';
 import { readRegistryBalances, readTime, EMPTY_COUNTS } from '../../lib/registryBalances';
+import { isAddress, isDuplicate, shortAddr, parsePaste, explorerUrl } from '../../lib/walletParse';
 import colors from '../../theme/colors';
 import { TYPE, INSET, EASE, FAST } from '../../theme/layout';
 import { Page, PageHead, Stats, Plate, Empty, Loading } from '../../components/common/Page';
@@ -58,10 +69,6 @@ import { Page, PageHead, Stats, Plate, Empty, Loading } from '../../components/c
 const P = colors.paper;
 const SUPPLY = 1_000_000_000;
 
-const isAddress = (s) => /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(String(s || ''));
-const isDuplicate = (error) => error?.code === '23505' || /duplicate/i.test(error?.message || '');
-
-const shortAddr = (a) => (a ? `${a.slice(0, 4)}…${a.slice(-4)}` : '');
 // A missing figure says not read in words. The old dash glyph was an en
 // dash, which the house does not write, and a hyphen reads as a minus in
 // a column of numbers.
@@ -72,55 +79,6 @@ const fmtM = (n) => {
   return n.toFixed(n < 10 ? 2 : 0);
 };
 const fmtSol = (n) => (n === null || n === undefined ? 'not read' : n.toFixed(n < 1 ? 3 : 2));
-
-// One csv line into fields. Quoted fields may hold commas and doubled
-// quotes. A line with tabs and no commas came from a spreadsheet.
-const splitLine = (line) => {
-  if (!line.includes(',') && line.includes('\t')) return line.split('\t').map((s) => s.trim());
-  const out = [];
-  let cur = '';
-  let quoted = false;
-  for (let i = 0; i < line.length; i += 1) {
-    const c = line[i];
-    if (quoted) {
-      if (c === '"') {
-        if (line[i + 1] === '"') { cur += '"'; i += 1; } else quoted = false;
-      } else cur += c;
-    } else if (c === '"') quoted = true;
-    else if (c === ',') { out.push(cur); cur = ''; }
-    else cur += c;
-  }
-  out.push(cur);
-  return out.map((s) => s.trim());
-};
-
-const isHeader = (f) => /^label$/i.test(f[0] || '') || /^address$/i.test(f[1] || '');
-
-// label,address,app,burro,note. Only the address is required. A line with
-// one field that reads as an address is taken as an address alone. A note
-// typed with commas and no quotes spills into extra fields, so the tail is
-// joined back with the commas it lost.
-const parsePaste = (text) => {
-  const lines = String(text || '').split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-  const rows = [];
-  let invalid = 0;
-  lines.forEach((line, i) => {
-    const f = splitLine(line);
-    if (i === 0 && isHeader(f)) return;
-    let label = f[0] || '';
-    let address = f[1] || '';
-    if (f.length === 1) { address = f[0]; label = ''; }
-    if (!isAddress(address)) { invalid += 1; return; }
-    rows.push({
-      label: (label || 'unlabelled').toLowerCase(),
-      address,
-      app: f[2] || '',
-      burro: (f[3] || '').toLowerCase(),
-      note: f.slice(4).filter(Boolean).join(', '),
-    });
-  });
-  return { rows, invalid };
-};
 
 // The row the table takes. burro rides its own column when the table has
 // one and folds into the note when it does not, see the header.
@@ -369,7 +327,7 @@ const Registry = () => {
                     <HStack as="button" type="button" onClick={() => copy(r)} color={copied === r.id ? P.limeDeep : P.inkFaint} _hover={{ color: P.limeDeep }} transition={`color ${FAST} ${EASE}`}>
                       <Icon as={copied === r.id ? TbCheck : TbCopy} boxSize={3.5} />
                     </HStack>
-                    <Box as="a" href={`https://solscan.io/account/${r.address}`} target="_blank" rel="noopener noreferrer" color={P.inkFaint} _hover={{ color: P.limeDeep }} transition={`color ${FAST} ${EASE}`}>
+                    <Box as="a" href={explorerUrl(r.address)} target="_blank" rel="noopener noreferrer" color={P.inkFaint} _hover={{ color: P.limeDeep }} transition={`color ${FAST} ${EASE}`}>
                       <Icon as={TbExternalLink} boxSize={3.5} display="block" />
                     </Box>
                     {b.source === 'cache' && (
