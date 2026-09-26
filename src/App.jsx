@@ -14,6 +14,11 @@
 // jank, an empty mat reads as the page settling. Vendor chunks are grouped
 // in vite.config.js, read the chunk table on every build.
 //
+// A route here and an entry in src/lib/nav.js are two edits for one page and
+// they have to match. The nav file is the list people see, this file is the
+// list the router honours, and a page in one and not the other is either
+// unreachable or invisible.
+//
 // No oxford commas, no em dashes.
 
 import { lazy, Suspense } from 'react';
@@ -39,6 +44,7 @@ const Clients       = lazy(() => import('./pages/Clients'));
 const ClientDetail  = lazy(() => import('./pages/Clients/ClientDetail'));
 const Invoicing     = lazy(() => import('./pages/Invoicing'));
 const Orders        = lazy(() => import('./pages/Orders'));
+const Payouts       = lazy(() => import('./pages/Payouts'));
 const Forms         = lazy(() => import('./pages/Forms'));
 const Blog          = lazy(() => import('./pages/Blog'));
 const PostEditor    = lazy(() => import('./pages/Blog/PostEditor'));
@@ -86,6 +92,7 @@ function App() {
               <Route path="clients/:clientId/" element={<ClientDetail />} />
               <Route path="invoicing/" element={<Invoicing />} />
               <Route path="orders/" element={<Orders />} />
+              <Route path="payouts/" element={<Payouts />} />
               <Route path="forms/" element={<Forms />} />
               <Route path="blog/" element={<Blog />} />
               <Route path="blog/new/" element={<PostEditor />} />

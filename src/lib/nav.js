@@ -21,6 +21,13 @@
 // somebody a person is on it, so it reads first. It is also inside the four
 // primary tabs on a phone, which is the whole point of putting it there.
 //
+// PAYOUTS SITS UNDER ORDERS, 2026-09-26. It is the other half of the money
+// on this tool, what the studio owes out of what came in, so it reads beside
+// invoicing and orders rather than down with the token rooms it shares a
+// table with. It is deliberately the fifth item and not the fourth, because
+// moving it above the line would push Orders off a phone's primary bar and
+// money already taken outranks money not yet sent.
+//
 // HOW TO ADD A PAGE
 // Add it to NAV once. It appears in the sidebar automatically. If it belongs on
 // a phone's primary bar, move it above the MOBILE_PRIMARY_COUNT line. Everything
@@ -31,7 +38,7 @@
 import {
   TbSunrise, TbUsers, TbFileInvoice, TbInbox,
   TbPencil, TbHorse, TbCoins, TbWallet, TbMessageCircle, TbCalendar, TbChartBar, TbSettings,
-  TbBroadcast, TbCoin, TbMap2,
+  TbBroadcast, TbCoin, TbMap2, TbArrowsSplit2,
 } from 'react-icons/tb';
 
 export const NAV = [
@@ -39,6 +46,7 @@ export const NAV = [
   { path: '/clients/',   label: 'Clients',    icon: TbUsers,         desc: 'Everybody we build for' },
   { path: '/invoicing/', label: 'Invoicing',  icon: TbFileInvoice,   desc: 'Sprints, invoices and what is owed' },
   { path: '/orders/',    label: 'Orders',     icon: TbCoin,          desc: 'Paid and waiting on somebody here' },
+  { path: '/payouts/',   label: 'Payouts',    icon: TbArrowsSplit2,  desc: 'What is owed out, and what can be checked' },
   { path: '/forms/',     label: 'Forms',      icon: TbInbox,         desc: 'Inbound submissions' },
   { path: '/blog/',      label: 'Blog',       icon: TbPencil,        desc: 'Posts and the social run' },
   { path: '/socials/',   label: 'Socials',    icon: TbBroadcast,     desc: 'Every voice, account and release' },

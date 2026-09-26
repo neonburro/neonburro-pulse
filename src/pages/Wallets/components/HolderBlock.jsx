@@ -9,9 +9,12 @@
 // holder is not a burro, has no face on purpose and gets a plain disc with
 // its initial so the row still has something to aim at.
 //
-// The avatar is served from neonburro.com and a cold load can fail. It is an
-// img with a fallback to the same disc rather than a broken picture icon,
-// because a burro with a broken face is worse than a burro with a plain one.
+// The face itself lives in src/components/common/HolderFace.jsx now, with the
+// img and the fallback disc and the reason a cold load from neonburro.com
+// must not draw a broken picture icon. It was written here first and moved
+// when the payouts room needed the same face beside the same names, because
+// two copies of that fallback is two answers to what happens when the studio
+// site is slow. Do not write a third.
 //
 // ── IT SHOWS WHAT IS MISSING ────────────────────────────────────────────────
 // Three ways, all in words, none of them a coloured dot:
@@ -35,53 +38,16 @@
 // No width, no gutter, no inset and no font size in this file, they come from
 // the page kit. No oxford commas, no em dashes.
 
-import { useState } from 'react';
-import { Box, VStack, HStack, Text, Icon, Button, Switch, Image } from '@chakra-ui/react';
+import { Box, VStack, HStack, Text, Icon, Button, Switch } from '@chakra-ui/react';
 import { TbPlus, TbPencil, TbTrash, TbCopy, TbCheck, TbExternalLink } from 'react-icons/tb';
 import colors from '../../../theme/colors';
 import { TYPE, INSET, EASE, FAST } from '../../../theme/layout';
 import { Plate, Kicker } from '../../../components/common/Page';
+import HolderFace from '../../../components/common/HolderFace';
 import { shortAddr, explorerUrl, isAddress } from '../../../lib/walletParse';
 import { shortfalls } from '../../../lib/walletExport';
 
 const P = colors.paper;
-
-const Disc = ({ name }) => (
-  <Box
-    w="28px"
-    h="28px"
-    borderRadius="full"
-    bg={P.sunken}
-    border="1px solid"
-    borderColor={P.hair}
-    display="flex"
-    alignItems="center"
-    justifyContent="center"
-    flexShrink={0}
-  >
-    <Text fontFamily="mono" fontSize={TYPE.micro} color={P.inkMuted}>
-      {String(name || '?').replace(/^the\s+/i, '').slice(0, 1).toLowerCase()}
-    </Text>
-  </Box>
-);
-
-const Face = ({ holder }) => {
-  const [broke, setBroke] = useState(false);
-  if (!holder.avatar || broke) return <Disc name={holder.name} />;
-  return (
-    <Image
-      src={holder.avatar}
-      alt={holder.name}
-      w="28px"
-      h="28px"
-      borderRadius="full"
-      objectFit="cover"
-      flexShrink={0}
-      bg={P.sunken}
-      onError={() => setBroke(true)}
-    />
-  );
-};
 
 const WalletRow = ({ row, canWrite, onEdit, onRemove, onPublish, onCopy, copied }) => {
   const gaps = row.published ? shortfalls(row) : [];
@@ -196,7 +162,7 @@ const HolderBlock = ({
 }) => (
   <VStack align="stretch" spacing={3}>
     <HStack spacing={3} align="center" flexWrap="wrap" rowGap={2}>
-      <Face holder={holder} />
+      <HolderFace holder={holder} />
       <VStack align="start" spacing={0} minW={0} flex="1 1 240px">
         <HStack spacing={2} align="baseline">
           <Text fontSize={TYPE.section} fontWeight="600" color={P.ink} letterSpacing="-0.01em">
