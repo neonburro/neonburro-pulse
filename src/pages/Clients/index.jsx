@@ -1,12 +1,7 @@
 // src/pages/Clients/index.jsx
-// SENTINEL: NB_PULSE_CLIENTS_V2
+// SENTINEL: NB_PULSE_CLIENTS_V3
 //
 // ── WHAT CHANGED ────────────────────────────────────────────────────────────
-//
-// THE AMBIENT GLOW IS GONE. PAGE_AMBIENT_GLOW_PROPS painted a 500px lime
-// radial across the top of every page. On Today it was atmosphere. On a list
-// you scan for one name it is a wash sitting behind the first six rows, and it
-// lowered the contrast of exactly the rows you look at most.
 //
 // SUBSCRIPTIONS ARE JOINED IN. The table has existed since the August migration
 // and nothing in the app ever read it, so a client on a live monthly and a
@@ -20,18 +15,17 @@
 // MONEY MOVED OFF THIS PAGE. MTD revenue and outstanding belong on Today. The
 // strip here counts clients, because that is what the page is a list of.
 //
-// No oxford commas, no em dashes.
+// V3, 2026-09-25. The house column. No oxford commas, no em dashes.
 
 import { useState, useEffect, useCallback } from 'react';
-import { Box, VStack, Container, useDisclosure } from '@chakra-ui/react';
+import { useDisclosure } from '@chakra-ui/react';
 import { supabase } from '../../lib/supabase';
-import colors from '../../theme/colors';
+import { Page } from '../../components/common/Page';
 import ClientsHeader from './components/ClientsHeader';
 import ClientFilters from './components/ClientFilters';
 import ClientGrid from './components/ClientGrid';
 import ClientModal from './components/ClientModal';
 
-const P = colors.paper;
 const LIVE_SUB_STATUSES = ['active', 'past_due', 'paused', 'pending'];
 
 const Clients = () => {
@@ -138,40 +132,34 @@ const Clients = () => {
   const subscribed = clients.filter((c) => c.subscription).length;
 
   return (
-    <Box position="relative" minH="100vh" bg={P.mat}>
-      <Box position="absolute" top={0} left={0} right={0} h="320px" bg={`radial-gradient(ellipse at top center, ${P.lime}12, transparent 70%)`} pointerEvents="none" />
+    <Page>
+      <ClientsHeader
+        counts={counts}
+        subscribed={subscribed}
+        onAdd={handleAdd}
+        onShowLeads={() => setFilterStatus('lead')}
+      />
 
-      <Container maxW="1500px" mx={0} px={{ base: 5, md: 8 }} py={{ base: 6, md: 10 }} position="relative">
-        <VStack spacing={{ base: 7, md: 9 }} align="stretch">
-          <ClientsHeader
-            counts={counts}
-            subscribed={subscribed}
-            onAdd={handleAdd}
-            onShowLeads={() => setFilterStatus('lead')}
-          />
+      <ClientFilters
+        search={search}
+        onSearch={setSearch}
+        filterStatus={filterStatus}
+        onFilterStatus={setFilterStatus}
+        sortBy={sortBy}
+        onSortBy={setSortBy}
+        counts={counts}
+      />
 
-          <ClientFilters
-            search={search}
-            onSearch={setSearch}
-            filterStatus={filterStatus}
-            onFilterStatus={setFilterStatus}
-            sortBy={sortBy}
-            onSortBy={setSortBy}
-            counts={counts}
-          />
-
-          <ClientGrid
-            clients={sorted}
-            loading={loading}
-            onEdit={handleEdit}
-            onAdd={handleAdd}
-            isEmpty={clients.length === 0}
-          />
-        </VStack>
-      </Container>
+      <ClientGrid
+        clients={sorted}
+        loading={loading}
+        onEdit={handleEdit}
+        onAdd={handleAdd}
+        isEmpty={clients.length === 0}
+      />
 
       <ClientModal isOpen={isOpen} onClose={onClose} client={editingClient} onSave={fetchData} />
-    </Box>
+    </Page>
   );
 };
 

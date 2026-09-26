@@ -1,5 +1,5 @@
 // src/pages/Releases/components/MonthCalendar.jsx
-// SENTINEL: NB_PULSE_SOCIALS_MONTH_V1
+// SENTINEL: NB_PULSE_SOCIALS_MONTH_V2
 //
 // The month, for the Socials desk. The same grid the Calendar page draws
 // for appointments, six week rows on one cream sheet with hairline rules,
@@ -21,12 +21,12 @@
 // reach here, they live on the ramp below.
 //
 // Lime is spent once on this sheet, the today disc. Channel tints are in
-// shared.jsx and are deliberately not lime and not the voice tints.
-//
-// No oxford commas, no em dashes.
+// shared.jsx and are deliberately not lime and not the voice tints. V2 puts
+// every size on the house scale and the empty line on the left. No oxford
+// commas, no em dashes.
 
 import { useMemo, useState } from 'react';
-import { Box, VStack, HStack, Text, Icon, Divider } from '@chakra-ui/react';
+import { Box, VStack, HStack, Text, Icon, Divider, Button } from '@chakra-ui/react';
 import { TbChevronLeft, TbChevronRight, TbPlus, TbCalendarDot } from 'react-icons/tb';
 import {
   MONTH_NAMES,
@@ -36,7 +36,8 @@ import {
   fmtDayLong,
 } from '../../Calendar/calendarConstants';
 import { P, STATUS_TINT, channelTint, VoiceDisc, Kicker } from './shared';
-import { TYPE, EASE, FAST } from '../../../theme/layout';
+import { TYPE, EASE, FAST, PLATE_RADIUS } from '../../../theme/layout';
+import { Empty } from '../../../components/common/Page';
 
 const MAX_PIPS = 3;
 
@@ -46,24 +47,9 @@ const hourLabel = (iso) => new Date(iso)
   .replace(' ', '');
 
 const StepButton = ({ label, icon, onClick }) => (
-  <HStack
-    as="button"
-    type="button"
-    onClick={onClick}
-    spacing={1}
-    h="30px"
-    px={2.5}
-    borderRadius="full"
-    border="1px solid"
-    borderColor={P.hair}
-    color={P.inkMuted}
-    bg={P.sheet}
-    _hover={{ color: P.ink, borderColor: P.inkFaint }}
-    transition={`all ${FAST} ${EASE}`}
-  >
-    <Icon as={icon} boxSize={3.5} />
-    <Text fontFamily="mono" fontSize={TYPE.micro}>{label}</Text>
-  </HStack>
+  <Button size="xs" variant="outline" leftIcon={<Icon as={icon} boxSize={3.5} />} onClick={onClick}>
+    {label}
+  </Button>
 );
 
 const Pip = ({ release, onOpen }) => {
@@ -89,10 +75,10 @@ const Pip = ({ release, onOpen }) => {
       _hover={{ filter: 'brightness(0.97)', transform: 'translateX(1px)' }}
     >
       <HStack spacing={1} align="center">
-        <Text fontFamily="mono" fontSize="10px" color={tint.accent} flexShrink={0} lineHeight="1.3">
+        <Text fontFamily="mono" fontSize={TYPE.label} color={tint.accent} flexShrink={0} lineHeight="1.3">
           {hourLabel(release.release_at)}
         </Text>
-        <Text fontSize="10px" fontWeight="600" color={P.ink} noOfLines={1} flex="1" minW={0} lineHeight="1.3">
+        <Text fontSize={TYPE.label} fontWeight="600" color={P.ink} noOfLines={1} flex="1" minW={0} lineHeight="1.3">
           {release.title}
         </Text>
         <Box boxSize="5px" borderRadius="full" bg={STATUS_TINT[release.status] || P.inkFaint} flexShrink={0} />
@@ -121,12 +107,12 @@ const DayCell = ({ cell, list, isToday, onDay, onOpen }) => {
       <HStack justify="space-between" align="center" mb={1}>
         {isToday ? (
           <Box w="22px" h="22px" borderRadius="full" bg={P.lime} display="flex" alignItems="center" justifyContent="center">
-            <Text fontFamily="display" fontSize="13px" fontWeight="700" color={P.limeInk} lineHeight="1">
+            <Text fontFamily="display" fontSize={TYPE.small} fontWeight="700" color={P.limeInk} lineHeight="1">
               {cell.date.getDate()}
             </Text>
           </Box>
         ) : (
-          <Text fontFamily="display" fontSize="15px" fontWeight="600" lineHeight="1" color={cell.inMonth ? P.inkSec : P.inkFaint} pl={0.5}>
+          <Text fontFamily="display" fontSize={TYPE.body} fontWeight="600" lineHeight="1" color={cell.inMonth ? P.inkSec : P.inkFaint} pl={0.5}>
             {cell.date.getDate()}
           </Text>
         )}
@@ -137,7 +123,7 @@ const DayCell = ({ cell, list, isToday, onDay, onOpen }) => {
           <Pip key={release.id} release={release} onOpen={onOpen} />
         ))}
         {extra > 0 && (
-          <Text fontSize="10px" fontFamily="mono" color={P.inkMuted} pl={1} _groupHover={{ color: P.limeDeep }}>
+          <Text fontSize={TYPE.label} fontFamily="mono" color={P.inkMuted} pl={1} _groupHover={{ color: P.limeDeep }}>
             +{extra} more
           </Text>
         )}
@@ -244,9 +230,9 @@ const MonthCalendar = ({ rows, onOpen, onDay }) => {
 
   return (
     <Box>
-      <HStack justify="space-between" align="center" mb={2} flexWrap="wrap" rowGap={2}>
+      <HStack justify="space-between" align="center" mb={3} flexWrap="wrap" rowGap={2}>
         <HStack spacing={2} align="baseline">
-          <Text fontFamily="display" fontSize={TYPE.title} fontWeight="600" color={P.ink} letterSpacing="-0.02em" lineHeight="1">
+          <Text fontFamily="display" fontSize={TYPE.section} fontWeight="600" color={P.ink} letterSpacing="-0.02em" lineHeight="1">
             {MONTH_NAMES[view.m]}
           </Text>
           <Text fontFamily="mono" fontSize={TYPE.body} color={P.inkFaint}>{view.y}</Text>
@@ -260,10 +246,10 @@ const MonthCalendar = ({ rows, onOpen, onDay }) => {
       </HStack>
 
       <Box display={{ base: 'none', md: 'block' }}>
-        <Box bg={P.sheet} border="1px solid" borderColor={P.hair} borderRadius="20px" overflow="hidden">
+        <Box bg={P.sheet} border="1px solid" borderColor={P.hair} borderRadius={PLATE_RADIUS} overflow="hidden">
           <Box display="grid" gridTemplateColumns="repeat(7, 1fr)" bg={P.sunken} borderBottom="1px solid" borderColor={P.hair}>
             {WEEKDAY_SHORT.map((day) => (
-              <Text key={day} py={2} textAlign="center" fontFamily="mono" fontSize="10px" fontWeight="600" letterSpacing="0.14em" textTransform="uppercase" color={P.inkMuted}>
+              <Text key={day} py={2} pl={2} fontFamily="mono" fontSize={TYPE.kicker} fontWeight="500" letterSpacing="0.14em" textTransform="uppercase" color={P.inkMuted}>
                 {day}
               </Text>
             ))}
@@ -285,7 +271,7 @@ const MonthCalendar = ({ rows, onOpen, onDay }) => {
         </Box>
 
         {channels.length > 0 && (
-          <HStack spacing={3} mt={2} px={1} flexWrap="wrap" rowGap={1}>
+          <HStack spacing={3} mt={2} flexWrap="wrap" rowGap={1}>
             {channels.map((channel) => (
               <HStack key={channel} spacing={1.5}>
                 <Box w="10px" h="6px" borderRadius="2px" bg={channelTint(channel).accent} />
@@ -299,19 +285,15 @@ const MonthCalendar = ({ rows, onOpen, onDay }) => {
 
       <Box display={{ base: 'block', md: 'none' }}>
         {agenda.length === 0 ? (
-          <Box bg={P.sheet} border="1px dashed" borderColor={P.hair} borderRadius="16px" p={5}>
-            <Text fontSize={TYPE.small} color={P.inkMuted} textAlign="center">
-              Nothing dated this month. Add one above with a date.
-            </Text>
-          </Box>
+          <Empty>Nothing dated this month. Add one above with a date.</Empty>
         ) : (
           <VStack spacing={4} align="stretch">
             {agenda.map((group) => (
               <Box key={group.key}>
                 <HStack mb={2} spacing={2} align="center">
-                  <Text fontFamily="mono" fontSize={TYPE.label} fontWeight="700" letterSpacing="0.08em" textTransform="uppercase" color={group.key === todayIso ? P.limeDeep : P.inkSec}>
+                  <Kicker color={group.key === todayIso ? P.limeDeep : P.inkSec}>
                     {group.key === todayIso ? 'Today' : fmtDayLong(group.items[0].release_at)}
-                  </Text>
+                  </Kicker>
                   <Divider borderColor={P.hair} flex={1} />
                 </HStack>
                 <VStack spacing={2} align="stretch">

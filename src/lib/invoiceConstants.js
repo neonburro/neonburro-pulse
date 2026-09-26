@@ -1,8 +1,15 @@
 // src/lib/invoiceConstants.js
-// Shared constants for the invoicing surface (admin UI, dark).
+// Shared constants for the invoicing surface.
 // Repainted to brand tokens: Topo Lime signal, softer off-white ink.
+//
+// 2026-09-25. FIELD_LABEL and NAKED_INPUT now come from src/theme/layout.js
+// so the invoice modals carry the same inset and label as every other field
+// in Pulse. NAKED_INPUT keeps its name for the two modals that still import
+// it and is the house field, not an underline any more. No oxford commas,
+// no em dashes.
 
 import colors from '../theme/colors';
+import { FIELD_LABEL as HOUSE_LABEL, INPUT } from '../theme/layout';
 
 export const SENT_STATUSES = ['sent', 'viewed', 'partial', 'overdue'];
 
@@ -40,9 +47,7 @@ export const PAYMENT_METHODS = [
   { value: 'other',         label: 'Other',         referenceLabel: 'Reference or note' },
 ];
 
-// Repainted to Paper. A dark ink tooltip pill reads clean on cream, and the field
-// label and naked input are ink on cream now, so the invoice modals that share
-// these come out on Paper with no per modal work.
+// A dark ink tooltip pill reads clean on cream.
 export const TOOLTIP_PROPS = {
   placement: 'top',
   hasArrow: true,
@@ -57,30 +62,9 @@ export const TOOLTIP_PROPS = {
   borderColor: 'chrome.line',
 };
 
-export const FIELD_LABEL = {
-  fontSize: '2xs',
-  fontWeight: '700',
-  color: 'paper.inkMuted',
-  textTransform: 'uppercase',
-  letterSpacing: '0.1em',
-  fontFamily: 'mono',
-  mb: 2,
-  display: 'block',
-};
+export const FIELD_LABEL = HOUSE_LABEL;
 
-export const NAKED_INPUT = {
-  bg: 'transparent',
-  border: 'none',
-  borderBottom: '1px solid',
-  borderColor: 'paper.hair',
-  borderRadius: 0,
-  color: 'paper.ink',
-  fontSize: 'sm',
-  h: '40px',
-  px: 0,
-  _focus: { borderColor: 'paper.lime', boxShadow: 'none' },
-  _placeholder: { color: 'paper.inkFaint' },
-};
+export const NAKED_INPUT = INPUT;
 
 export const formatCurrency = (val) => {
   const num = parseFloat(val || 0);

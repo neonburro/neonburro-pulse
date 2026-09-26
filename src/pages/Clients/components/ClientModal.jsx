@@ -15,13 +15,14 @@
 // (SimpleGrid base 1 md 2). Toggles are plain pills, no floating badges, nothing
 // overlaps. The cream is the frame.
 //
-// Preserves the PIN, the portal invite and the projects logic. No oxford commas,
-// no dashes.
+// 2026-09-25. House fields, house labels, house tabs. Nothing centred.
+// Preserves the PIN, the portal invite and the projects logic. No oxford
+// commas, no dashes.
 
 import { useState, useEffect } from 'react';
 import {
   Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalFooter,
-  ModalCloseButton, VStack, HStack, Text, Input, Select, Button, Textarea,
+  ModalCloseButton, VStack, HStack, Text, Input, Button, Textarea,
   Box, Wrap, WrapItem, Icon, useToast, InputGroup, InputRightElement, SimpleGrid,
 } from '@chakra-ui/react';
 import {
@@ -30,26 +31,15 @@ import {
 } from 'react-icons/tb';
 import { supabase } from '../../../lib/supabase';
 import colors from '../../../theme/colors';
+import { TYPE, INSET, EASE, FAST } from '../../../theme/layout';
 import DotSelect from '../../../components/common/DotSelect';
+import { Field, FieldLabel, Kicker, Tabs, Empty } from '../../../components/common/Page';
 import {
   formatPhoneDisplay, formatPhoneStorage, isValidEmail, isValidPhone,
   generatePortalPin, getInitials, getAvatarColor,
 } from '../../../utils/phone';
 
 const P = colors.paper;
-
-const FIELD = {
-  bg: P.sheet, border: '1px solid', borderColor: P.hair, borderRadius: 'lg',
-  color: P.ink, fontSize: 'sm', h: '46px', px: 3.5,
-  _hover: { borderColor: P.inkFaint },
-  _focus: { borderColor: P.lime, boxShadow: `0 0 0 3px ${P.lime}33`, outline: 'none' },
-  _placeholder: { color: P.inkFaint },
-};
-
-const LABEL = {
-  fontSize: '2xs', fontWeight: '600', color: P.inkMuted,
-  textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'mono', mb: 1.5,
-};
 
 const PRESET_TAGS = [
   { value: 'local',        label: 'Local' },
@@ -72,14 +62,6 @@ const TIMEZONES = [
   'America/Los_Angeles', 'America/Anchorage', 'Pacific/Honolulu', 'UTC',
 ];
 
-// A field wrapper with a label above it.
-const Field = ({ label, children }) => (
-  <Box>
-    <Text {...LABEL}>{label}</Text>
-    {children}
-  </Box>
-);
-
 // A small pill toggle, filled lime when on.
 const PillToggle = ({ on, onClick, children }) => (
   <Box
@@ -87,15 +69,15 @@ const PillToggle = ({ on, onClick, children }) => (
     type="button"
     onClick={onClick}
     px={3}
-    py={1.5}
+    h="30px"
     borderRadius="full"
     border="1px solid"
     borderColor={on ? 'transparent' : P.hair}
     bg={on ? P.lime : 'transparent'}
-    transition="all 0.15s"
+    transition={`all ${FAST} ${EASE}`}
     _hover={{ borderColor: on ? 'transparent' : P.inkFaint }}
   >
-    <Text fontSize="2xs" fontWeight="700" fontFamily="mono" letterSpacing="0.04em" textTransform="uppercase" color={on ? P.limeInk : P.inkMuted}>
+    <Text fontSize={TYPE.kicker} fontWeight="500" fontFamily="mono" letterSpacing="0.1em" textTransform="uppercase" color={on ? P.limeInk : P.inkMuted}>
       {children}
     </Text>
   </Box>
@@ -156,49 +138,49 @@ const ProjectsSection = ({ clientId, toast }) => {
   };
 
   if (!clientId) {
-    return <Text fontSize="xs" color={P.inkMuted}>Save this client first to add projects</Text>;
+    return <Empty py={2}>Save this client first to add projects.</Empty>;
   }
 
   return (
     <VStack align="stretch" spacing={2}>
       {loading ? (
-        <Text fontSize="xs" color={P.inkMuted} fontFamily="mono">Loading projects</Text>
+        <Text fontSize={TYPE.small} color={P.inkMuted} fontFamily="mono">loading projects</Text>
       ) : (
         <>
           {projects.length === 0 && !showAdd && (
-            <Text fontSize="xs" color={P.inkMuted}>No projects yet</Text>
+            <Empty py={2}>No projects yet.</Empty>
           )}
           {projects.map((project) => (
-            <HStack key={project.id} py={2.5} px={3} spacing={3} bg={P.sheet} border="1px solid" borderColor={P.hairSoft} borderRadius="lg" role="group">
+            <HStack key={project.id} py={2.5} px={INSET} spacing={3} bg={P.sheet} border="1px solid" borderColor={P.hairSoft} borderRadius="lg" role="group">
               <Icon as={TbFolder} boxSize={3.5} color={P.inkFaint} />
               <Box flex={1} minW={0}>
-                <Text color={P.ink} fontSize="sm" fontWeight="600" noOfLines={1}>{project.name}</Text>
+                <Text color={P.ink} fontSize={TYPE.body} fontWeight="600" noOfLines={1}>{project.name}</Text>
                 {project.project_number && (
-                  <Text color={P.inkFaint} fontSize="2xs" fontFamily="mono">{project.project_number}</Text>
+                  <Text color={P.inkFaint} fontSize={TYPE.label} fontFamily="mono">{project.project_number}</Text>
                 )}
               </Box>
-              <Text fontSize="2xs" color={project.status === 'active' ? P.limeDeep : P.inkFaint} fontFamily="mono" fontWeight="700" textTransform="uppercase">
+              <Text fontSize={TYPE.kicker} color={project.status === 'active' ? P.limeDeep : P.inkFaint} fontFamily="mono" fontWeight="500" letterSpacing="0.1em" textTransform="uppercase">
                 {project.status}
               </Text>
-              <Box as="button" onClick={() => handleDelete(project.id)} opacity={0} transition="opacity 0.15s" _groupHover={{ opacity: 0.6 }} _hover={{ opacity: '1 !important', color: P.coral }} color={P.inkFaint}>
+              <Box as="button" type="button" onClick={() => handleDelete(project.id)} opacity={0} transition="opacity 0.15s" _groupHover={{ opacity: 0.6 }} _hover={{ opacity: '1 !important', color: P.coral }} color={P.inkFaint}>
                 <Icon as={TbTrash} boxSize={3.5} />
               </Box>
             </HStack>
           ))}
           {showAdd ? (
             <HStack spacing={2} pt={1}>
-              <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Project name" {...FIELD} autoFocus
+              <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Project name" autoFocus
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') { e.preventDefault(); handleAdd(); }
                   else if (e.key === 'Escape') { setShowAdd(false); setNewName(''); }
                 }} />
-              <Button size="sm" bg={P.lime} color={P.limeInk} fontWeight="700" borderRadius="full" onClick={handleAdd} isLoading={adding} isDisabled={!newName.trim()} _hover={{ bg: '#D2E26B' }}>Add</Button>
-              <Box as="button" onClick={() => { setShowAdd(false); setNewName(''); }} color={P.inkMuted} _hover={{ color: P.ink }}><Icon as={TbX} boxSize={4} /></Box>
+              <Button size="md" onClick={handleAdd} isLoading={adding} isDisabled={!newName.trim()}>Add</Button>
+              <Box as="button" type="button" onClick={() => { setShowAdd(false); setNewName(''); }} color={P.inkMuted} _hover={{ color: P.ink }}><Icon as={TbX} boxSize={4} /></Box>
             </HStack>
           ) : (
-            <HStack spacing={1.5} cursor="pointer" onClick={() => setShowAdd(true)} color={P.limeDeep} _hover={{ color: P.ink }} pt={1} userSelect="none">
+            <HStack as="button" type="button" spacing={1.5} onClick={() => setShowAdd(true)} color={P.limeDeep} _hover={{ color: P.ink }} pt={1} userSelect="none">
               <Icon as={TbPlus} boxSize={3} />
-              <Text fontSize="2xs" fontFamily="mono" fontWeight="700" textTransform="uppercase" letterSpacing="0.05em">Add project</Text>
+              <Kicker color="inherit">Add project</Kicker>
             </HStack>
           )}
         </>
@@ -415,10 +397,10 @@ const ClientModal = ({ isOpen, onClose, client, onSave }) => {
   const avatarColor = getAvatarColor(name);
 
   const TABS = [
-    { value: 'profile', label: 'Profile' },
-    { value: 'billing', label: 'Billing' },
-    { value: 'portal', label: 'Portal' },
-    ...(isEditing ? [{ value: 'projects', label: 'Projects' }] : []),
+    { key: 'profile', label: 'Profile' },
+    { key: 'billing', label: 'Billing' },
+    { key: 'portal', label: 'Portal' },
+    ...(isEditing ? [{ key: 'projects', label: 'Projects' }] : []),
   ];
 
   return (
@@ -436,32 +418,21 @@ const ClientModal = ({ isOpen, onClose, client, onSave }) => {
         <ModalHeader pb={3} pt={6} px={{ base: 5, md: 7 }}>
           <HStack spacing={3}>
             <Box w="42px" h="42px" borderRadius="12px" bg={name ? avatarColor : P.sunken} display="flex" alignItems="center" justifyContent="center" flexShrink={0}>
-              <Text color={name ? '#fff' : P.inkFaint} fontSize="sm" fontWeight="800" letterSpacing="-0.02em">{initials || '··'}</Text>
+              <Text color={name ? P.sheet : P.inkFaint} fontSize={TYPE.body} fontWeight="800" letterSpacing="-0.02em">{initials || '··'}</Text>
             </Box>
             <VStack align="start" spacing={0}>
-              <Text color={P.ink} fontSize="lg" fontWeight="600" lineHeight="1.2">{isEditing ? 'Edit client' : 'New client'}</Text>
-              {name && <Text fontSize="2xs" color={P.inkMuted} fontFamily="mono">{company || (isBusiness ? 'Business' : 'Individual')}</Text>}
+              <Text color={P.ink} fontSize={TYPE.section} fontWeight="600" lineHeight="1.2">{isEditing ? 'Edit client' : 'New client'}</Text>
+              {name && <Text fontSize={TYPE.label} color={P.inkMuted} fontFamily="mono">{company || (isBusiness ? 'Business' : 'Individual')}</Text>}
             </VStack>
           </HStack>
         </ModalHeader>
         <ModalCloseButton color={P.inkMuted} top={5} right={5} />
 
-        <HStack spacing={{ base: 4, md: 6 }} px={{ base: 5, md: 7 }} borderBottom="1px solid" borderColor={P.hair} flexWrap="wrap">
-          {TABS.map((tab) => {
-            const active = activeTab === tab.value;
-            return (
-              <Box key={tab.value} pb={2.5} cursor="pointer" position="relative" onClick={() => setActiveTab(tab.value)}>
-                <Text fontSize="xs" fontWeight="700" color={active ? P.ink : P.inkMuted} letterSpacing="0.05em" textTransform="uppercase" _hover={!active ? { color: P.inkSec } : {}}>
-                  {tab.label}
-                </Text>
-                {active && <Box position="absolute" bottom="-1px" left={0} right={0} h="2px" bg={P.lime} borderRadius="full" />}
-              </Box>
-            );
-          })}
-        </HStack>
+        <Box px={{ base: 5, md: 7 }}>
+          <Tabs items={TABS} value={activeTab} onChange={setActiveTab} />
+        </Box>
 
         <ModalBody px={{ base: 5, md: 7 }} py={6} bg={P.mat}>
-          {/* ===================== PROFILE ===================== */}
           {activeTab === 'profile' && (
             <VStack spacing={5} align="stretch">
               <Field label="Type">
@@ -476,30 +447,30 @@ const ClientModal = ({ isOpen, onClose, client, onSave }) => {
               </Field>
 
               <Field label={isBusiness ? 'Contact name' : 'Name'}>
-                <Input value={name} onChange={(e) => setName(e.target.value)} placeholder={isBusiness ? 'Primary contact' : 'Full name'} {...FIELD} autoFocus={!isEditing} />
+                <Input value={name} onChange={(e) => setName(e.target.value)} placeholder={isBusiness ? 'Primary contact' : 'Full name'} autoFocus={!isEditing} />
               </Field>
 
               <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
                 {isBusiness && (
-                  <Field label="Company"><Input value={company} onChange={(e) => setCompany(e.target.value)} placeholder="Company name" {...FIELD} /></Field>
+                  <Field label="Company"><Input value={company} onChange={(e) => setCompany(e.target.value)} placeholder="Company name" /></Field>
                 )}
-                <Field label="Website"><Input value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="example.com" {...FIELD} /></Field>
+                <Field label="Website"><Input value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="example.com" /></Field>
               </SimpleGrid>
 
               <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
                 <Field label="Email">
                   <InputGroup>
-                    <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email@company.com" {...FIELD} />
+                    <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email@company.com" />
                     {emailValid !== null && (
-                      <InputRightElement h="46px"><Icon as={emailValid ? TbCheck : TbAlertTriangle} color={emailValid ? P.green : P.gold} boxSize={3.5} /></InputRightElement>
+                      <InputRightElement pr={INSET} w="auto"><Icon as={emailValid ? TbCheck : TbAlertTriangle} color={emailValid ? P.green : P.gold} boxSize={3.5} /></InputRightElement>
                     )}
                   </InputGroup>
                 </Field>
                 <Field label="Phone">
                   <InputGroup>
-                    <Input type="tel" value={phone} onChange={(e) => setPhone(formatPhoneDisplay(e.target.value))} placeholder="(970) 555-1234" {...FIELD} />
+                    <Input type="tel" value={phone} onChange={(e) => setPhone(formatPhoneDisplay(e.target.value))} placeholder="(970) 555-1234" />
                     {phoneValid !== null && (
-                      <InputRightElement h="46px"><Icon as={phoneValid ? TbCheck : TbAlertTriangle} color={phoneValid ? P.green : P.gold} boxSize={3.5} /></InputRightElement>
+                      <InputRightElement pr={INSET} w="auto"><Icon as={phoneValid ? TbCheck : TbAlertTriangle} color={phoneValid ? P.green : P.gold} boxSize={3.5} /></InputRightElement>
                     )}
                   </InputGroup>
                 </Field>
@@ -508,10 +479,10 @@ const ClientModal = ({ isOpen, onClose, client, onSave }) => {
               <Field label="Status">
                 <HStack spacing={2} flexWrap="wrap" rowGap={2}>
                   {STATUS_OPTIONS.map((s) => (
-                    <Box key={s.value} as="button" type="button" onClick={() => setStatus(s.value)} px={3} py={1.5} borderRadius="full" border="1px solid" borderColor={status === s.value ? s.color : P.hair} bg={status === s.value ? `${s.color}1A` : 'transparent'} transition="all 0.15s">
+                    <Box key={s.value} as="button" type="button" onClick={() => setStatus(s.value)} px={3} h="30px" borderRadius="full" border="1px solid" borderColor={status === s.value ? s.color : P.hair} bg={status === s.value ? `${s.color}1A` : 'transparent'} transition={`all ${FAST} ${EASE}`}>
                       <HStack spacing={1.5}>
                         <Box w="6px" h="6px" borderRadius="full" bg={s.color} opacity={status === s.value ? 1 : 0.5} />
-                        <Text fontSize="2xs" fontWeight="700" fontFamily="mono" textTransform="uppercase" color={status === s.value ? P.ink : P.inkMuted}>{s.label}</Text>
+                        <Text fontSize={TYPE.kicker} fontWeight="500" fontFamily="mono" letterSpacing="0.1em" textTransform="uppercase" color={status === s.value ? P.ink : P.inkMuted}>{s.label}</Text>
                       </HStack>
                     </Box>
                   ))}
@@ -527,65 +498,60 @@ const ClientModal = ({ isOpen, onClose, client, onSave }) => {
               </Field>
 
               <Field label="Notes">
-                <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Internal notes" bg={P.sheet} border="1px solid" borderColor={P.hair} borderRadius="lg" color={P.ink} fontSize="sm" rows={3} _focus={{ borderColor: P.lime, boxShadow: `0 0 0 3px ${P.lime}33` }} _placeholder={{ color: P.inkFaint }} />
+                <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Internal notes" rows={3} />
               </Field>
             </VStack>
           )}
 
-          {/* ===================== BILLING ===================== */}
           {activeTab === 'billing' && (
             <VStack spacing={6} align="stretch">
-              <Box>
-                <Text fontFamily="mono" fontSize="2xs" fontWeight="600" letterSpacing="0.16em" textTransform="uppercase" color={P.inkMuted} mb={4}>
-                  Bill to address
-                </Text>
-                <VStack spacing={4} align="stretch">
-                  <Field label="Street"><Input value={addr1} onChange={(e) => setAddr1(e.target.value)} placeholder="210 Sherman St" {...FIELD} /></Field>
-                  <Field label="Suite or unit"><Input value={addr2} onChange={(e) => setAddr2(e.target.value)} placeholder="Optional" {...FIELD} /></Field>
-                  <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
-                    <Field label="City"><Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Ridgway" {...FIELD} /></Field>
-                    <Field label="State or region"><Input value={region} onChange={(e) => setRegion(e.target.value)} placeholder="CO" {...FIELD} /></Field>
-                  </SimpleGrid>
-                  <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
-                    <Field label="Postal code"><Input value={postal} onChange={(e) => setPostal(e.target.value)} placeholder="81432" {...FIELD} /></Field>
-                    <Field label="Country"><Input value={country} onChange={(e) => setCountry(e.target.value)} placeholder="US" {...FIELD} /></Field>
-                  </SimpleGrid>
-                </VStack>
-              </Box>
+              <VStack spacing={4} align="stretch">
+                <Kicker>Bill to address</Kicker>
+                <Field label="Street"><Input value={addr1} onChange={(e) => setAddr1(e.target.value)} placeholder="210 Sherman St" /></Field>
+                <Field label="Suite or unit"><Input value={addr2} onChange={(e) => setAddr2(e.target.value)} placeholder="Optional" /></Field>
+                <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
+                  <Field label="City"><Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Ridgway" /></Field>
+                  <Field label="State or region"><Input value={region} onChange={(e) => setRegion(e.target.value)} placeholder="CO" /></Field>
+                </SimpleGrid>
+                <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
+                  <Field label="Postal code"><Input value={postal} onChange={(e) => setPostal(e.target.value)} placeholder="81432" /></Field>
+                  <Field label="Country"><Input value={country} onChange={(e) => setCountry(e.target.value)} placeholder="US" /></Field>
+                </SimpleGrid>
+              </VStack>
 
               <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
                 {isBusiness && (
-                  <Field label="EIN or tax id"><Input value={taxId} onChange={(e) => setTaxId(e.target.value)} placeholder="00-0000000" {...FIELD} /></Field>
+                  <Field label="EIN or tax id"><Input value={taxId} onChange={(e) => setTaxId(e.target.value)} placeholder="00-0000000" /></Field>
                 )}
                 <Field label="Timezone">
                   <DotSelect value={timezone} onChange={setTimezone} placeholder="Select timezone" options={TIMEZONES.map((tz) => ({ value: tz, label: tz.replace('_', ' ') }))} />
                 </Field>
               </SimpleGrid>
 
-              <Box>
-                <HStack justify="space-between" align="center" mb={3}>
-                  <Text fontFamily="mono" fontSize="2xs" fontWeight="600" letterSpacing="0.16em" textTransform="uppercase" color={P.inkMuted}>Contacts</Text>
-                  <HStack spacing={1.5} cursor="pointer" onClick={addContact} color={P.limeDeep} _hover={{ color: P.ink }} userSelect="none">
+              <VStack spacing={3} align="stretch">
+                <HStack justify="space-between" align="center">
+                  <Kicker>Contacts</Kicker>
+                  <HStack as="button" type="button" spacing={1.5} onClick={addContact} color={P.limeDeep} _hover={{ color: P.ink }} userSelect="none">
                     <Icon as={TbPlus} boxSize={3} />
-                    <Text fontSize="2xs" fontFamily="mono" fontWeight="700" textTransform="uppercase" letterSpacing="0.05em">Add contact</Text>
+                    <Kicker color="inherit">Add contact</Kicker>
                   </HStack>
                 </HStack>
 
                 {contacts.length === 0 ? (
-                  <Text fontSize="xs" color={P.inkMuted}>No extra contacts. Add anyone who should be copied on invoices.</Text>
+                  <Empty py={2}>No extra contacts. Add anyone who should be copied on invoices.</Empty>
                 ) : (
                   <VStack spacing={3} align="stretch">
                     {contacts.map((c, idx) => (
                       <Box key={c.id || c._key || idx} bg={P.sheet} border="1px solid" borderColor={P.hair} borderRadius="xl" p={4}>
                         <HStack justify="space-between" mb={3}>
-                          <Text fontSize="2xs" fontFamily="mono" color={P.inkFaint} letterSpacing="0.06em">CONTACT {idx + 1}</Text>
-                          <Box as="button" onClick={() => removeContact(idx)} color={P.inkFaint} _hover={{ color: P.coral }}><Icon as={TbTrash} boxSize={3.5} /></Box>
+                          <Kicker color={P.inkFaint}>Contact {idx + 1}</Kicker>
+                          <Box as="button" type="button" onClick={() => removeContact(idx)} color={P.inkFaint} _hover={{ color: P.coral }}><Icon as={TbTrash} boxSize={3.5} /></Box>
                         </HStack>
                         <SimpleGrid columns={{ base: 1, md: 2 }} spacing={3}>
-                          <Input value={c.name || ''} onChange={(e) => updateContact(idx, { name: e.target.value })} placeholder="Name" {...FIELD} h="42px" />
-                          <Input value={c.role || ''} onChange={(e) => updateContact(idx, { role: e.target.value })} placeholder="Role, eg Accounts payable" {...FIELD} h="42px" />
-                          <Input value={c.email || ''} onChange={(e) => updateContact(idx, { email: e.target.value })} placeholder="Email" {...FIELD} h="42px" />
-                          <Input value={c.phone || ''} onChange={(e) => updateContact(idx, { phone: formatPhoneDisplay(e.target.value) })} placeholder="Phone" {...FIELD} h="42px" />
+                          <Input value={c.name || ''} onChange={(e) => updateContact(idx, { name: e.target.value })} placeholder="Name" />
+                          <Input value={c.role || ''} onChange={(e) => updateContact(idx, { role: e.target.value })} placeholder="Role, eg Accounts payable" />
+                          <Input value={c.email || ''} onChange={(e) => updateContact(idx, { email: e.target.value })} placeholder="Email" />
+                          <Input value={c.phone || ''} onChange={(e) => updateContact(idx, { phone: formatPhoneDisplay(e.target.value) })} placeholder="Phone" />
                         </SimpleGrid>
                         <HStack spacing={2} mt={3}>
                           <PillToggle on={!!c.is_primary} onClick={() => updateContact(idx, { is_primary: !c.is_primary })}>Primary</PillToggle>
@@ -595,35 +561,33 @@ const ClientModal = ({ isOpen, onClose, client, onSave }) => {
                     ))}
                   </VStack>
                 )}
-              </Box>
+              </VStack>
             </VStack>
           )}
 
-          {/* ===================== PORTAL ===================== */}
           {activeTab === 'portal' && (
             <VStack spacing={6} align="stretch">
-              <Field label="Lookup PIN">
+              <Field label="Lookup PIN" hint="the client uses this PIN plus their email to look up invoices">
                 <HStack spacing={3} pt={1}>
-                  <Text flex={1} fontFamily="mono" fontSize="2xl" fontWeight="700" color={P.ink} letterSpacing="0.15em">{portalPin || '——————'}</Text>
-                  <Box as="button" onClick={regeneratePin} color={P.inkMuted} _hover={{ color: P.limeDeep, transform: 'rotate(180deg)' }} transition="all 0.3s" p={2}><Icon as={TbRefresh} boxSize={4} /></Box>
+                  <Text flex={1} fontFamily="mono" fontSize={TYPE.figure} fontWeight="700" color={P.ink} letterSpacing="0.15em">{portalPin || 'no pin yet'}</Text>
+                  <Box as="button" type="button" onClick={regeneratePin} color={P.inkMuted} _hover={{ color: P.limeDeep, transform: 'rotate(180deg)' }} transition="all 0.3s" p={2} aria-label="Regenerate PIN"><Icon as={TbRefresh} boxSize={4} /></Box>
                 </HStack>
-                <Text fontSize="2xs" color={P.inkMuted} mt={2}>Client uses this PIN plus their email to look up invoices</Text>
               </Field>
 
               {isEditing && client?.email && (
                 <Box pt={4} borderTop="1px solid" borderColor={P.hair}>
                   <HStack justify="space-between" align="start">
                     <Box flex={1}>
-                      <Text {...LABEL}>Portal account</Text>
-                      <Text color={P.ink} fontSize="sm" fontWeight="600" mt={1}>
+                      <FieldLabel>Portal account</FieldLabel>
+                      <Text color={P.ink} fontSize={TYPE.body} fontWeight="600">
                         {client.portal_account_created_at ? 'Active' : client.portal_invite_sent_at ? 'Invite sent' : 'Not activated'}
                       </Text>
-                      <Text color={P.inkMuted} fontSize="2xs" fontFamily="mono" mt={0.5}>
+                      <Text color={P.inkMuted} fontSize={TYPE.label} fontFamily="mono" mt={0.5}>
                         {client.portal_account_created_at ? `Joined ${new Date(client.portal_account_created_at).toLocaleDateString()}` : client.portal_invite_sent_at ? `Sent ${new Date(client.portal_invite_sent_at).toLocaleDateString()}` : 'No invite sent'}
                       </Text>
                     </Box>
                     {!client.portal_account_created_at && (
-                      <Button size="sm" variant="outline" borderColor={P.hair} color={P.ink} fontWeight="600" borderRadius="full" leftIcon={<TbMail size={13} />} onClick={handleSendPortalInvite} isLoading={sendingInvite} loadingText="Sending" _hover={{ bg: P.sheet, borderColor: P.inkFaint }}>
+                      <Button size="sm" variant="outline" leftIcon={<TbMail size={13} />} onClick={handleSendPortalInvite} isLoading={sendingInvite} loadingText="Sending">
                         {client.portal_invite_sent_at ? 'Resend' : 'Send invite'}
                       </Button>
                     )}
@@ -631,36 +595,30 @@ const ClientModal = ({ isOpen, onClose, client, onSave }) => {
                 </Box>
               )}
 
-              {!isEditing && <Text fontSize="xs" color={P.inkMuted} textAlign="center" py={4}>Save this client first to send a portal invite</Text>}
+              {!isEditing && <Empty py={2}>Save this client first to send a portal invite.</Empty>}
             </VStack>
           )}
 
-          {/* ===================== PROJECTS ===================== */}
           {activeTab === 'projects' && (
             <VStack spacing={4} align="stretch">
-              <Box>
-                <Text {...LABEL}>Projects</Text>
-                <Text color={P.inkMuted} fontSize="2xs" mt={0.5}>Websites, apps and other work for this client</Text>
-              </Box>
+              <Field label="Projects" hint="websites, apps and other work for this client" />
               <ProjectsSection clientId={client?.id} toast={toast} />
             </VStack>
           )}
         </ModalBody>
 
-        <ModalFooter borderTop="1px solid" borderColor={P.hair} pt={4} pb={{ base: 8, md: 6 }} px={{ base: 5, md: 7 }} bg={P.sheet}>
-          <VStack w="100%" spacing={3}>
-            <Button w="100%" h="50px" borderRadius="full" bg={P.lime} color={P.limeInk} fontWeight="700" fontSize="sm" onClick={handleSave} isLoading={saving} loadingText="Saving..." _hover={{ bg: '#D2E26B', transform: 'translateY(-1px)' }} _active={{ transform: 'translateY(0)' }}>
-              {isEditing ? 'Save changes' : 'Add client'}
-            </Button>
-            {isEditing && (
-              <HStack spacing={1.5} cursor="pointer" onClick={handleDelete} color={confirmDelete ? P.coral : P.inkFaint} _hover={{ color: P.coral }} transition="all 0.15s" userSelect="none">
-                <Icon as={confirmDelete ? TbAlertTriangle : TbTrash} boxSize={3} />
-                <Text fontSize="2xs" fontFamily="mono" fontWeight="700" textTransform="uppercase" letterSpacing="0.05em">
-                  {deleting ? 'Removing...' : confirmDelete ? 'Click again to confirm' : 'Remove client'}
-                </Text>
-              </HStack>
-            )}
-          </VStack>
+        <ModalFooter borderTop="1px solid" borderColor={P.hair} pt={4} pb={{ base: 8, md: 6 }} px={{ base: 5, md: 7 }} bg={P.sheet} justifyContent="space-between" flexWrap="wrap" gap={3}>
+          {isEditing ? (
+            <HStack as="button" type="button" spacing={1.5} onClick={handleDelete} color={confirmDelete ? P.coral : P.inkFaint} _hover={{ color: P.coral }} transition={`all ${FAST} ${EASE}`} userSelect="none">
+              <Icon as={confirmDelete ? TbAlertTriangle : TbTrash} boxSize={3} />
+              <Kicker color="inherit">
+                {deleting ? 'Removing' : confirmDelete ? 'Click again to confirm' : 'Remove client'}
+              </Kicker>
+            </HStack>
+          ) : <Box />}
+          <Button size="md" onClick={handleSave} isLoading={saving} loadingText="Saving">
+            {isEditing ? 'Save changes' : 'Add client'}
+          </Button>
         </ModalFooter>
       </ModalContent>
     </Modal>

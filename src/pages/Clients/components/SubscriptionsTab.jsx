@@ -1,5 +1,5 @@
 // src/pages/Clients/components/SubscriptionsTab.jsx
-// SENTINEL: NB_PULSE_SUBS_TAB_V2
+// SENTINEL: NB_PULSE_SUBS_TAB_V3
 //
 // Every recurring arrangement this client is on, and what happens next on each,
 // on Paper. The column that matters is not the amount, it is what happens on the
@@ -7,16 +7,17 @@
 // subscription raises an invoice that then sits until a hueman chases it. So each
 // row carries its rail as a word and a push rail past its date gets an explicit
 // Raise the invoice action rather than a red dot. Rail tones keep their meaning.
-// No oxford commas, no dashes.
+// House section, house empty line. No oxford commas, no dashes.
 
 import { useState, useEffect, useCallback } from 'react';
-import { Box, VStack, HStack, Text, Icon, Center, Spinner, Button, useDisclosure, useToast } from '@chakra-ui/react';
-import { TbRepeat, TbPlus, TbCreditCard, TbCoins, TbAlertTriangle, TbEdit, TbBolt } from 'react-icons/tb';
+import { Box, VStack, HStack, Text, Icon, Button, useDisclosure, useToast } from '@chakra-ui/react';
+import { TbPlus, TbCreditCard, TbCoins, TbAlertTriangle, TbEdit, TbBolt } from 'react-icons/tb';
 import { supabase } from '../../../lib/supabase';
 import { RAILS, railOf, renewalAction, cadenceLabel, renewalLabel, subscriptionHealth, HEALTH_TONE, daysToRenewal } from '../../../lib/billing';
 import { formatCurrency } from '../../../lib/uiConstants';
 import { TYPE, EASE, FAST } from '../../../theme/layout';
 import colors from '../../../theme/colors';
+import { Section, Empty, Loading } from '../../../components/common/Page';
 import SubscriptionModal from './SubscriptionModal';
 
 const P = colors.paper;
@@ -35,7 +36,7 @@ const Row = ({ sub, onEdit, onRaise, raising }) => {
 
   return (
     <VStack align="stretch" spacing={0} borderBottom="1px solid" borderColor={P.hairSoft}>
-      <HStack align="flex-start" spacing={{ base: 3, md: 4 }} py={{ base: 4, md: 5 }} px={{ base: 1, md: 2 }}>
+      <HStack align="flex-start" spacing={{ base: 3, md: 4 }} py={{ base: 4, md: 5 }}>
         <Box w="34px" h="34px" borderRadius="10px" bg={P.sunken} flexShrink={0} display="flex" alignItems="center" justifyContent="center">
           <Icon as={rail.id === 'card' ? TbCreditCard : TbCoins} boxSize="16px" color={rail.tone} />
         </Box>
@@ -44,7 +45,7 @@ const Row = ({ sub, onEdit, onRaise, raising }) => {
           <HStack spacing={2.5} flexWrap="wrap" rowGap={1}>
             <Text fontSize={TYPE.body} fontWeight="600" color={P.ink} letterSpacing="-0.01em">{sub.name}</Text>
             <Box w="5px" h="5px" borderRadius="full" bg={HEALTH_TONE[health]} />
-            <Text fontFamily="mono" fontSize={TYPE.micro} letterSpacing="0.14em" textTransform="uppercase" color={P.inkMuted}>{STATUS_LABEL[sub.status] || sub.status}</Text>
+            <Text fontFamily="mono" fontSize={TYPE.kicker} letterSpacing="0.14em" textTransform="uppercase" color={P.inkMuted}>{STATUS_LABEL[sub.status] || sub.status}</Text>
           </HStack>
 
           <HStack spacing={2} fontFamily="mono" fontSize={TYPE.small} color={P.inkMuted} flexWrap="wrap" rowGap={1}>
@@ -65,16 +66,16 @@ const Row = ({ sub, onEdit, onRaise, raising }) => {
           {sub.subscription_number && <Text fontFamily="mono" fontSize={TYPE.micro} color={P.inkFaint}>{sub.subscription_number}</Text>}
         </VStack>
 
-        <Box as="button" onClick={() => onEdit(sub)} p={1.5} borderRadius="8px" color={P.inkFaint} flexShrink={0} transition={`all ${FAST} ${EASE}`} _hover={{ color: P.limeDeep, bg: P.sunken }} aria-label="Edit subscription">
+        <Box as="button" type="button" onClick={() => onEdit(sub)} p={1.5} borderRadius="8px" color={P.inkFaint} flexShrink={0} transition={`all ${FAST} ${EASE}`} _hover={{ color: P.limeDeep, bg: P.sunken }} aria-label="Edit subscription">
           <Icon as={TbEdit} boxSize="15px" />
         </Box>
       </HStack>
 
       {needsRaising && (
-        <HStack spacing={3} px={{ base: 1, md: 2 }} pb={4} align="center" flexWrap="wrap" rowGap={2}>
+        <HStack spacing={3} pb={4} align="center" flexWrap="wrap" rowGap={2}>
           <Icon as={TbAlertTriangle} boxSize="14px" color={P.coral} />
           <Text fontSize={TYPE.small} color={P.inkSec} flex={1} minW="200px">This one bills on a push rail and its period has closed. Nothing has been sent.</Text>
-          <Button size="xs" h="30px" px={4} borderRadius="full" bg={P.lime} color={P.limeInk} fontWeight="700" isLoading={raising === sub.id} leftIcon={<Icon as={TbBolt} boxSize="12px" />} onClick={() => onRaise(sub)} _hover={{ bg: '#D2E26B' }}>Raise the invoice</Button>
+          <Button size="xs" isLoading={raising === sub.id} leftIcon={<Icon as={TbBolt} boxSize="12px" />} onClick={() => onRaise(sub)}>Raise the invoice</Button>
         </HStack>
       )}
     </VStack>
@@ -127,39 +128,26 @@ const SubscriptionsTab = ({ clientId, clientName }) => {
     }
   };
 
-  if (loading) {
-    return (
-      <Center py={14}><VStack spacing={3}><Spinner size="md" color={P.limeDeep} thickness="2px" /><Text fontFamily="mono" fontSize={TYPE.micro} color={P.inkMuted}>Loading subscriptions</Text></VStack></Center>
-    );
-  }
+  if (loading) return <Loading label="loading subscriptions" />;
 
   if (missing) {
     return (
-      <VStack py={12} spacing={3} align="start">
-        <Text fontSize={TYPE.body} fontWeight="600" color={P.ink}>The subscriptions table is not in this project yet.</Text>
-        <Text fontSize={TYPE.small} color={P.inkMuted} maxW="52ch" lineHeight="1.7">Run supabase/migrations/2026080601_subscriptions.sql and then 2026081001_billing_rails.sql in the SQL editor. Both are additive and safe to run twice.</Text>
-      </VStack>
+      <Empty hint="Run supabase/migrations/2026080601_subscriptions.sql and then 2026081001_billing_rails.sql in the SQL editor. Both are additive and safe to run twice.">
+        The subscriptions table is not in this project yet.
+      </Empty>
     );
   }
 
   return (
     <>
-      <VStack align="stretch" spacing={6}>
-        <HStack justify="space-between" align="center" flexWrap="wrap" gap={3}>
-          <HStack spacing={2.5}>
-            <Icon as={TbRepeat} boxSize="15px" color={P.inkMuted} />
-            <Text fontFamily="mono" fontSize={TYPE.micro} fontWeight="500" letterSpacing="0.2em" textTransform="uppercase" color={P.inkMuted}>
-              {subs.length} {subs.length === 1 ? 'subscription' : 'subscriptions'}
-            </Text>
-          </HStack>
-          <Button size="sm" h="36px" px={4} borderRadius="full" bg={P.lime} color={P.limeInk} fontWeight="700" fontSize={TYPE.small} leftIcon={<Icon as={TbPlus} boxSize="13px" />} onClick={openNew} _hover={{ bg: '#D2E26B' }}>Subscription</Button>
-        </HStack>
-
+      <Section
+        kicker={`${subs.length} ${subs.length === 1 ? 'subscription' : 'subscriptions'}`}
+        action={<Button size="xs" variant="outline" leftIcon={<Icon as={TbPlus} boxSize="13px" />} onClick={openNew}>Subscription</Button>}
+      >
         {!subs.length ? (
-          <VStack py={10} spacing={2} align="start">
-            <Text fontSize={TYPE.body} fontWeight="600" color={P.ink}>{clientName} is not on a subscription.</Text>
-            <Text fontSize={TYPE.small} color={P.inkMuted} maxW="52ch" lineHeight="1.7">Everything they have bought so far was a one off. A subscription raises its own invoices on a schedule you set, on either rail.</Text>
-          </VStack>
+          <Empty hint="Everything they have bought so far was a one off. A subscription raises its own invoices on a schedule you set, on either rail.">
+            {clientName} is not on a subscription.
+          </Empty>
         ) : (
           <Box borderTop="1px solid" borderColor={P.hair}>
             {subs.map((s) => <Row key={s.id} sub={s} onEdit={openEdit} onRaise={raise} raising={raising} />)}
@@ -172,12 +160,12 @@ const SubscriptionsTab = ({ clientId, clientName }) => {
               <Icon as={r.id === 'card' ? TbCreditCard : TbCoins} boxSize="13px" color={r.tone} mt="3px" />
               <Box>
                 <Text fontSize={TYPE.small} color={P.inkSec} fontWeight="500">{r.label} · {r.settles}</Text>
-                <Text fontSize={TYPE.micro} color={P.inkMuted} lineHeight="1.6">{r.note}</Text>
+                <Text fontSize={TYPE.label} color={P.inkMuted} lineHeight="1.6">{r.note}</Text>
               </Box>
             </HStack>
           ))}
         </HStack>
-      </VStack>
+      </Section>
 
       <SubscriptionModal isOpen={isOpen} onClose={onClose} clientId={clientId} clientName={clientName} subscription={editing} onSaved={fetch} />
     </>

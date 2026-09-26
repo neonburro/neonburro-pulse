@@ -1,5 +1,5 @@
 // src/pages/Orders/index.jsx
-// SENTINEL: NB_PULSE_ORDERS_V1
+// SENTINEL: NB_PULSE_ORDERS_V2
 //
 // THE QUEUE. WHAT SOMEBODY PAID FOR AND NOBODY HAS MADE YET.
 //
@@ -42,20 +42,22 @@
 // change, never a send. Nothing on this page emails anybody, which is the same
 // rule the whole of Pulse follows.
 //
-// No oxford commas, no em dashes.
+// V2, 2026-09-25. The house column, head, search, tabs and empty lines. No
+// oxford commas, no em dashes.
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
-  Box, VStack, HStack, Text, Icon, Center, Spinner, Input, useToast, Tooltip,
+  Box, VStack, HStack, Text, Icon, useToast, Tooltip, Button,
 } from '@chakra-ui/react';
 import {
-  TbCoin, TbSearch, TbCircleCheck, TbClock, TbAlertTriangle, TbExternalLink,
+  TbCircleCheck, TbClock, TbAlertTriangle, TbExternalLink,
   TbArrowLeft, TbRefresh, TbMailForward, TbUserCircle,
 } from 'react-icons/tb';
 import { formatDistanceToNow, format } from 'date-fns';
 import { supabase } from '../../lib/supabase';
 import colors from '../../theme/colors';
-import { TYPE, EASE } from '../../theme/layout';
+import { TYPE, INSET, EASE, FAST, PLATE_PAD } from '../../theme/layout';
+import { Page, PageHead, SearchBox, Tabs, Plate, Empty, Loading, Kicker } from '../../components/common/Page';
 
 const P = colors.paper;
 
@@ -86,19 +88,6 @@ const FILTERS = [
   { key: 'abandoned', label: 'Never paid', match: (r) => r.status === 'ordered' },
 ];
 
-const Pill = ({ active, children, ...rest }) => (
-  <Box
-    as="button" type="button" px={3.5} h="32px" borderRadius="full"
-    border="1px solid" borderColor={active ? P.ink : P.hair}
-    bg={active ? P.ink : 'transparent'} color={active ? P.sheet : P.inkMuted}
-    fontSize={TYPE.label} fontWeight="600" whiteSpace="nowrap"
-    transition={`all 160ms ${EASE}`} _hover={active ? {} : { borderColor: P.inkMuted, color: P.ink }}
-    {...rest}
-  >
-    {children}
-  </Box>
-);
-
 const Row = ({ row, selected, onSelect }) => {
   const kind = kindOf(row);
   const s = statusOf(row);
@@ -106,16 +95,16 @@ const Row = ({ row, selected, onSelect }) => {
   return (
     <Box
       as="button" type="button" onClick={() => onSelect(row.id)} textAlign="left" w="100%"
-      px={4} py={3.5} borderBottom="1px solid" borderColor={P.hairSoft}
-      borderLeft="3px solid" borderLeftColor={selected ? P.lime : 'transparent'}
-      bg={selected ? P.sheet : 'transparent'}
-      transition={`all 140ms ${EASE}`} _hover={{ bg: P.sheet }}
+      px={INSET} py={3.5} borderBottom="1px solid" borderColor={P.hairSoft}
+      borderLeft="3px solid" borderLeftColor={selected ? P.ink : 'transparent'}
+      bg={selected ? P.sunken : 'transparent'}
+      transition={`all ${FAST} ${EASE}`} _hover={{ bg: P.sunken }}
     >
       <HStack spacing={3} align="start">
         <VStack align="start" spacing={0} flex={1} minW={0}>
           <HStack spacing={2} flexWrap="wrap" rowGap={1}>
             <Text fontSize={TYPE.body} fontWeight="700" color={P.ink} noOfLines={1}>{row.business || 'No business'}</Text>
-            <Text fontSize={TYPE.micro} fontFamily="mono" fontWeight="700" letterSpacing="0.08em" textTransform="uppercase" color={s.color}>{s.label}</Text>
+            <Kicker color={s.color}>{s.label}</Kicker>
           </HStack>
           <Text fontSize={TYPE.small} color={P.inkMuted} noOfLines={1}>
             {kind.label}{row.first_name ? ` · ${row.first_name}` : ''}
@@ -137,7 +126,7 @@ const Row = ({ row, selected, onSelect }) => {
 
 const Field = ({ label, children }) => (
   <Box py={3} borderBottom="1px solid" borderColor={P.hairSoft}>
-    <Text fontSize={TYPE.micro} fontFamily="mono" fontWeight="600" letterSpacing="0.16em" textTransform="uppercase" color={P.inkMuted}>{label}</Text>
+    <Kicker>{label}</Kicker>
     <Box mt={1.5} fontSize={TYPE.body} color={P.ink} lineHeight="1.6" wordBreak="break-word">{children || <Text color={P.inkFaint}>none</Text>}</Box>
   </Box>
 );
@@ -146,18 +135,16 @@ const Detail = ({ row, onMarkReady, working }) => {
   const kind = kindOf(row);
   const s = statusOf(row);
   return (
-    <Box p={{ base: 5, md: 7 }}>
+    <Box p={PLATE_PAD}>
       <HStack justify="space-between" align="start" spacing={4} flexWrap="wrap" rowGap={3}>
         <Box minW={0}>
-          <Text fontSize={TYPE.micro} fontFamily="mono" fontWeight="600" letterSpacing="0.16em" textTransform="uppercase" color={s.color}>
-            {kind.label} · {s.label}
-          </Text>
-          <Text mt={2} fontSize={TYPE.title} fontWeight="700" color={P.ink} letterSpacing="-0.02em" lineHeight="1.15">
+          <Kicker color={s.color}>{kind.label} · {s.label}</Kicker>
+          <Text mt={2} fontSize={TYPE.title} fontWeight="600" color={P.ink} letterSpacing="-0.02em" lineHeight="1.15">
             {row.business || 'No business'}
           </Text>
         </Box>
         <VStack align="end" spacing={0}>
-          <Text fontSize={TYPE.hero} fontFamily="mono" fontWeight="700" color={row.status === 'ordered' ? P.inkFaint : P.limeDeep} lineHeight="1">
+          <Text fontSize={TYPE.figure} fontFamily="mono" fontWeight="700" color={row.status === 'ordered' ? P.inkFaint : P.limeDeep} lineHeight="1" sx={{ fontVariantNumeric: 'tabular-nums' }}>
             {money(row.amount_cents)}
           </Text>
           <Text fontSize={TYPE.micro} fontFamily="mono" color={P.inkFaint}>
@@ -167,7 +154,7 @@ const Detail = ({ row, onMarkReady, working }) => {
       </HStack>
 
       {kind.hint && (
-        <Box mt={5} p={3.5} borderRadius="10px" bg={P.sunken} borderLeft="3px solid" borderColor={P.lime}>
+        <Box mt={5} p={INSET} borderRadius="10px" bg={P.sunken} borderLeft="3px solid" borderColor={P.lime}>
           <Text fontSize={TYPE.small} color={P.inkSec} lineHeight="1.6">{kind.hint}</Text>
         </Box>
       )}
@@ -206,15 +193,9 @@ const Detail = ({ row, onMarkReady, working }) => {
 
       {row.status === 'paid' && (
         <HStack mt={6} spacing={3} flexWrap="wrap" rowGap={3}>
-          <Box
-            as="button" type="button" onClick={() => onMarkReady(row)} disabled={working}
-            h="44px" px={6} borderRadius="10px" bg={P.ink} color={P.sheet}
-            fontSize={TYPE.body} fontWeight="700" opacity={working ? 0.5 : 1}
-            cursor={working ? 'wait' : 'pointer'}
-            transition={`all 160ms ${EASE}`} _hover={working ? {} : { bg: P.limeDeep }}
-          >
-            {working ? 'Marking' : 'Mark delivered'}
-          </Box>
+          <Button size="md" onClick={() => onMarkReady(row)} isDisabled={working} isLoading={working} loadingText="Marking">
+            Mark delivered
+          </Button>
           <Tooltip label="Nothing on this page emails anybody. Send from your own mail, the way the two live clients were sent." placement="top">
             <HStack spacing={1.5} color={P.inkFaint}>
               <Icon as={TbMailForward} boxSize={4} />
@@ -285,80 +266,55 @@ const Orders = () => {
   };
 
   return (
-    <Box minH="100vh" bg={P.mat}>
-      <Box px={{ base: 4, md: 8 }} pt={{ base: 5, md: 8 }} pb={4}>
-        <HStack justify="space-between" align="end" flexWrap="wrap" rowGap={3}>
-          <Box>
-            <HStack spacing={2.5}>
-              <Icon as={TbCoin} boxSize={5} color={P.limeDeep} />
-              <Text fontSize={TYPE.title} fontWeight="700" color={P.ink} letterSpacing="-0.02em">Orders</Text>
-            </HStack>
-            <Text mt={1} fontSize={TYPE.small} color={P.inkMuted}>
-              {counts.queue > 0
-                ? `${counts.queue} paid and waiting on somebody here, ${money(counts.owed)} taken.`
-                : 'Nothing is waiting. Everything paid has been delivered.'}
-            </Text>
-          </Box>
-          <HStack spacing={2}>
-            <Icon as={TbSearch} boxSize={4} color={P.inkFaint} />
-            <Input
-              value={search} onChange={(e) => setSearch(e.target.value)}
-              placeholder="Business, name or email" aria-label="Search orders"
-              size="sm" w={{ base: '160px', md: '240px' }} bg={P.sheet}
-              border="1px solid" borderColor={P.hair} borderRadius="10px" color={P.ink}
-              _placeholder={{ color: P.inkFaint }} _focus={{ borderColor: P.lime, boxShadow: 'none' }}
-            />
-          </HStack>
-        </HStack>
-        <HStack mt={4} spacing={2} flexWrap="wrap" rowGap={2}>
-          {FILTERS.map((f) => (
-            <Pill key={f.key} active={filter === f.key} onClick={() => { setFilter(f.key); setSelectedId(null); }}>
-              {f.label}
-              {f.key === 'queue' && counts.queue > 0 ? ` ${counts.queue}` : ''}
-            </Pill>
-          ))}
-        </HStack>
-      </Box>
+    <Page>
+      <PageHead
+        kicker="Orders"
+        title="Paid and waiting on somebody here."
+        lede={counts.queue > 0
+          ? `${counts.queue} paid and waiting on somebody here, ${money(counts.owed)} taken.`
+          : 'Nothing is waiting. Everything paid has been delivered.'}
+      />
+
+      <VStack align="stretch" spacing={5}>
+        <SearchBox value={search} onChange={setSearch} placeholder="Business, name or email" inputProps={{ 'aria-label': 'Search orders' }} />
+        <Tabs
+          items={FILTERS.map((f) => ({ key: f.key, label: f.label, count: f.key === 'queue' && counts.queue > 0 ? counts.queue : undefined }))}
+          value={filter}
+          onChange={(key) => { setFilter(key); setSelectedId(null); }}
+        />
+      </VStack>
 
       <Box
-        px={{ base: 0, md: 8 }} pb={{ base: 24, md: 10 }}
         display={{ base: 'block', lg: 'grid' }}
         gridTemplateColumns={{ lg: 'minmax(320px, 420px) minmax(0, 1fr)' }}
         gap={{ lg: 6 }}
       >
-        <Box bg={P.sheet} borderRadius={{ base: 0, md: '14px' }} border="1px solid" borderColor={P.hair} overflow="hidden" alignSelf="start">
+        <Plate pad={false} alignSelf="start">
           {loading ? (
-            <Center py={16}><Spinner size="md" color={P.limeDeep} thickness="2px" /></Center>
+            <Loading label="loading orders" px={INSET} />
           ) : shown.length === 0 ? (
-            <Center py={16} px={6}>
-              <Text fontSize={TYPE.small} color={P.inkMuted} textAlign="center">
-                Nothing here. Try another filter.
-              </Text>
-            </Center>
+            <Empty px={INSET}>Nothing here. Try another filter.</Empty>
           ) : (
             shown.map((r) => (
               <Row key={r.id} row={r} selected={r.id === selectedId} onSelect={setSelectedId} />
             ))
           )}
-        </Box>
+        </Plate>
 
-        <Box
+        <Plate
+          pad={false}
           display={{ base: selected ? 'block' : 'none', lg: 'block' }}
-          mt={{ base: 4, lg: 0 }} mx={{ base: 4, md: 0 }}
-          bg={P.sheet} borderRadius="14px" border="1px solid" borderColor={P.hair} alignSelf="start"
+          mt={{ base: 4, lg: 0 }}
+          alignSelf="start"
         >
           {selected ? (
             <Detail row={selected} onMarkReady={markReady} working={working} />
           ) : (
-            <Center py={20} px={8}>
-              <Text fontSize={TYPE.small} color={P.inkMuted} textAlign="center" maxW="34ch" lineHeight="1.7">
-                Pick an order to see the brief, what they paid and everything they told us.
-              </Text>
-            </Center>
+            <Empty px={INSET}>Pick an order to see the brief, what they paid and everything they told us.</Empty>
           )}
-        </Box>
+        </Plate>
       </Box>
-    </Box>
+    </Page>
   );
 };
 

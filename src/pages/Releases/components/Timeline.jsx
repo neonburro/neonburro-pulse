@@ -1,5 +1,5 @@
 // src/pages/Releases/components/Timeline.jsx
-// SENTINEL: NB_PULSE_SOCIALS_TIMELINE_V2
+// SENTINEL: NB_PULSE_SOCIALS_TIMELINE_V3
 //
 // The Socials calendar keeps the compact two week field but it is no longer
 // trapped on today. Previous, today and next move in fourteen day steps. The
@@ -9,12 +9,11 @@
 //
 // Cards show the hour, channel and council voice. A small Lyra mark appears
 // while an asset is waiting or generating. The release drawer holds the full
-// creative brief and publishing account.
-//
-// No oxford commas, no em dashes.
+// creative brief and publishing account. V3 puts the step buttons and the
+// sizes on the house scale. No oxford commas, no em dashes.
 
 import { useMemo, useState } from 'react';
-import { Box, VStack, HStack, Text, SimpleGrid, Icon } from '@chakra-ui/react';
+import { Box, VStack, HStack, Text, SimpleGrid, Icon, Button } from '@chakra-ui/react';
 import { TbChevronLeft, TbChevronRight, TbCalendarDot } from 'react-icons/tb';
 import {
   P,
@@ -24,7 +23,7 @@ import {
   dayKey,
   Kicker,
 } from './shared';
-import { TYPE, EASE, FAST } from '../../../theme/layout';
+import { TYPE, EASE, FAST, RAIL } from '../../../theme/layout';
 
 const DAYS = 14;
 
@@ -34,24 +33,9 @@ const hourLabel = (iso) => new Date(iso)
   .replace(' ', '');
 
 const StepButton = ({ label, icon, onClick }) => (
-  <HStack
-    as="button"
-    type="button"
-    onClick={onClick}
-    spacing={1}
-    h="30px"
-    px={2.5}
-    borderRadius="full"
-    border="1px solid"
-    borderColor={P.hair}
-    color={P.inkMuted}
-    bg={P.sheet}
-    _hover={{ color: P.ink, borderColor: P.inkFaint }}
-    transition={`all ${FAST} ${EASE}`}
-  >
-    <Icon as={icon} boxSize={3.5} />
-    <Text fontFamily="mono" fontSize={TYPE.micro}>{label}</Text>
-  </HStack>
+  <Button size="xs" variant="outline" leftIcon={<Icon as={icon} boxSize={3.5} />} onClick={onClick}>
+    {label}
+  </Button>
 );
 
 const Card = ({ release, onOpen }) => {
@@ -91,7 +75,7 @@ const Card = ({ release, onOpen }) => {
         </Text>
       </VStack>
       {waitingOnArt && (
-        <Text fontFamily="mono" fontSize="8px" color={P.gold} lineHeight="1">
+        <Text fontFamily="mono" fontSize={TYPE.micro} color={P.gold} lineHeight="1">
           lyra
         </Text>
       )}
@@ -138,7 +122,7 @@ const Timeline = ({ rows, onOpen }) => {
 
   return (
     <Box>
-      <HStack justify="space-between" align="center" mb={2} flexWrap="wrap" rowGap={2}>
+      <HStack justify="space-between" align="center" mb={3} flexWrap="wrap" rowGap={2}>
         <Kicker>{startLabel} to {endLabel} · {inWindow}</Kicker>
         <HStack spacing={1.5}>
           <StepButton label="back" icon={TbChevronLeft} onClick={() => setWindowOffset((value) => value - 1)} />
@@ -147,7 +131,7 @@ const Timeline = ({ rows, onOpen }) => {
         </HStack>
       </HStack>
 
-      <Box overflowX="auto" mx={{ base: -4, md: 0 }} px={{ base: 4, md: 0 }}>
+      <Box overflowX="auto" mx={{ base: -RAIL.base, md: 0 }} px={{ base: RAIL.base, md: 0 }}>
         <VStack align="stretch" spacing={1.5} minW="784px">
           {weeks.map((week, weekIndex) => (
             <SimpleGrid key={weekIndex} columns={7} spacing={1.5}>

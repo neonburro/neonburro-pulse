@@ -1,5 +1,5 @@
 // src/pages/Invoicing/components/VoltComposer.jsx
-// SENTINEL: NB_VOLT_COMPOSER_V1
+// SENTINEL: NB_VOLT_COMPOSER_V2
 //
 // Talk or type an invoice into existence. This is the first place Volt, Pulse's
 // own assistant, is wired into the system. You describe the month (or attach a
@@ -13,19 +13,22 @@
 // /.netlify/functions/draft-invoice which needs ANTHROPIC_API_KEY on the Pulse
 // site, until that is set it returns a clear "not connected yet" note.
 //
-// No oxford commas, no em dashes.
+// V2, house fields and buttons, nothing centred but the mic. No oxford
+// commas, no em dashes.
 
 import { useState, useRef } from 'react';
 import {
   Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalFooter,
   ModalCloseButton, Box, VStack, HStack, Text, Textarea, Button, Icon, Image,
-  Spinner, Wrap, WrapItem, Input,
+  Wrap, WrapItem, Input,
 } from '@chakra-ui/react';
 import {
   TbKeyboard, TbMicrophone, TbPaperclip, TbSparkles, TbX, TbFileText, TbPhoto, TbArrowRight, TbRefresh,
 } from 'react-icons/tb';
 import colors from '../../../theme/colors';
 import { supabase } from '../../../lib/supabase';
+import { TYPE, INSET, EASE, FAST } from '../../../theme/layout';
+import { Kicker, Plate } from '../../../components/common/Page';
 
 const P = colors.paper;
 const VOLT_AVATAR = 'https://neonburro.com/burros/volt/volt-avatar.webp';
@@ -123,10 +126,10 @@ const VoltComposer = ({ isOpen, onClose, clients = [], onDraft }) => {
             <Image src={VOLT_AVATAR} alt="Volt" w="40px" h="40px" borderRadius="full" border="2px solid" borderColor={P.lime} bg={P.sunken} objectFit="cover" />
             <Box>
               <HStack spacing={1.5}>
-                <Text color={P.ink} fontSize="md" fontWeight="800">Volt</Text>
+                <Text color={P.ink} fontSize={TYPE.section} fontWeight="700">Volt</Text>
                 <Box w="6px" h="6px" borderRadius="full" bg={P.lime} sx={{ animation: 'voltP 2.2s ease-in-out infinite', '@keyframes voltP': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.5 } } }} />
               </HStack>
-              <Text color={P.inkMuted} fontSize="2xs" fontFamily="mono" letterSpacing="0.06em">Invoice assistant</Text>
+              <Kicker>Invoice assistant</Kicker>
             </Box>
           </HStack>
         </ModalHeader>
@@ -135,48 +138,49 @@ const VoltComposer = ({ isOpen, onClose, clients = [], onDraft }) => {
         <ModalBody px={6} py={3}>
           {!draft ? (
             <VStack align="stretch" spacing={4}>
-              <Text color={P.inkSec} fontSize="sm" lineHeight="1.6">
+              <Text color={P.inkSec} fontSize={TYPE.body} lineHeight="1.6">
                 Tell me what to invoice. The month, any calls, anything you paid for with a receipt. I will structure it and you preview before it sends.
               </Text>
 
               <HStack spacing={2}>
-                <ModeBtn active={mode === 'type'} icon={TbKeyboard} onClick={() => setMode('type')}>Type</ModeBtn>
-                <ModeBtn active={mode === 'talk'} icon={TbMicrophone} onClick={() => setMode('talk')}>Talk</ModeBtn>
+                <Button size="sm" variant={mode === 'type' ? 'outline' : 'ghost'} leftIcon={<Icon as={TbKeyboard} boxSize={4} />} onClick={() => setMode('type')}>Type</Button>
+                <Button size="sm" variant={mode === 'talk' ? 'outline' : 'ghost'} leftIcon={<Icon as={TbMicrophone} boxSize={4} />} onClick={() => setMode('talk')}>Talk</Button>
               </HStack>
 
               {mode === 'talk' ? (
-                <VStack spacing={3} py={2}>
+                <HStack spacing={4} py={2}>
                   <Box
-                    as="button" onClick={toggleListen} w="72px" h="72px" borderRadius="full"
+                    as="button" type="button" onClick={toggleListen} w="72px" h="72px" borderRadius="full"
                     bg={listening ? P.lime : P.sheet} border="2px solid" borderColor={listening ? P.lime : P.hair}
-                    display="flex" alignItems="center" justifyContent="center" transition="all 0.2s"
+                    display="flex" alignItems="center" justifyContent="center" transition={`all ${FAST} ${EASE}`}
                     boxShadow={listening ? `0 0 0 6px ${P.lime}33` : 'none'}
                     sx={listening ? { animation: 'voltMic 1.4s ease-in-out infinite', '@keyframes voltMic': { '0%,100%': { boxShadow: `0 0 0 4px ${P.lime}33` }, '50%': { boxShadow: `0 0 0 10px ${P.lime}00` } } } : {}}
+                    flexShrink={0}
                   >
                     <Icon as={TbMicrophone} boxSize={7} color={listening ? P.limeInk : P.inkSec} />
                   </Box>
-                  <Text color={P.inkMuted} fontSize="xs">{listening ? 'Listening, tap to stop' : 'Tap to talk'}</Text>
-                  {speechUnsupported && <Text color={P.gold} fontSize="2xs" textAlign="center">This browser has no built-in mic. Type below, or dictate into it with Wispr Flow.</Text>}
-                </VStack>
+                  <VStack align="start" spacing={1}>
+                    <Text color={P.inkMuted} fontSize={TYPE.small}>{listening ? 'Listening, tap to stop' : 'Tap to talk'}</Text>
+                    {speechUnsupported && <Text color={P.gold} fontSize={TYPE.label}>This browser has no built in mic. Type below, or dictate into it with Wispr Flow.</Text>}
+                  </VStack>
+                </HStack>
               ) : null}
 
               <Textarea
                 value={text}
                 onChange={(e) => setText(e.target.value)}
-                placeholder="Digital management for Summit this month, one on-site call, and I paid 40 dollars for their domain, receipt attached."
-                bg={P.sheet} border="1px solid" borderColor={P.hair} color={P.ink} borderRadius="lg"
-                minH="120px" fontSize="sm" lineHeight="1.6"
-                _focus={{ borderColor: P.lime, boxShadow: 'none' }} _placeholder={{ color: P.inkFaint }}
+                placeholder="Digital management for Summit this month, one on site call, and I paid 40 dollars for their domain, receipt attached."
+                minH="120px"
               />
 
               {attachments.length > 0 && (
                 <Wrap spacing={2}>
                   {attachments.map((a, i) => (
                     <WrapItem key={i}>
-                      <HStack spacing={2} bg={P.sheet} border="1px solid" borderColor={P.hair} borderRadius="full" pl={3} pr={2} py={1}>
+                      <HStack spacing={2} bg={P.sheet} border="1px solid" borderColor={P.hair} borderRadius="full" pl={INSET} pr={2} h="30px">
                         <Icon as={a.media_type === 'application/pdf' ? TbFileText : TbPhoto} boxSize={3.5} color={P.limeDeep} />
-                        <Text fontSize="2xs" color={P.inkSec} maxW="140px" noOfLines={1}>{a.name}</Text>
-                        <Box as="button" onClick={() => setAttachments((p) => p.filter((_, j) => j !== i))} color={P.inkFaint} _hover={{ color: P.coral }}><Icon as={TbX} boxSize={3} /></Box>
+                        <Text fontSize={TYPE.label} color={P.inkSec} maxW="140px" noOfLines={1}>{a.name}</Text>
+                        <Box as="button" type="button" onClick={() => setAttachments((p) => p.filter((_, j) => j !== i))} color={P.inkFaint} _hover={{ color: P.coral }}><Icon as={TbX} boxSize={3} /></Box>
                       </HStack>
                     </WrapItem>
                   ))}
@@ -185,18 +189,18 @@ const VoltComposer = ({ isOpen, onClose, clients = [], onDraft }) => {
 
               <Input ref={fileRef} type="file" accept="application/pdf,image/*" multiple display="none" onChange={onFiles} />
               <HStack justify="space-between">
-                <Button variant="ghost" size="sm" color={P.inkMuted} leftIcon={<TbPaperclip size={15} />} onClick={() => fileRef.current?.click()} _hover={{ bg: P.sunken, color: P.ink }}>
+                <Button variant="ghost" size="sm" leftIcon={<TbPaperclip size={15} />} onClick={() => fileRef.current?.click()}>
                   Attach a receipt
                 </Button>
-                {error && <Text color={P.coral} fontSize="2xs" textAlign="right" maxW="60%">{error}</Text>}
+                {error && <Text color={P.coral} fontSize={TYPE.label} maxW="60%">{error}</Text>}
               </HStack>
             </VStack>
           ) : (
             <VStack align="stretch" spacing={3}>
-              {draft.summary && <Text color={P.inkSec} fontSize="sm" lineHeight="1.6">{draft.summary}</Text>}
+              {draft.summary && <Text color={P.inkSec} fontSize={TYPE.body} lineHeight="1.6">{draft.summary}</Text>}
               <HStack spacing={2}>
-                <Text fontSize="2xs" fontFamily="mono" textTransform="uppercase" letterSpacing="0.1em" color={P.inkMuted}>Client</Text>
-                <Text fontSize="sm" fontWeight="700" color={matchedClient ? P.ink : P.gold}>
+                <Kicker>Client</Kicker>
+                <Text fontSize={TYPE.body} fontWeight="700" color={matchedClient ? P.ink : P.gold}>
                   {matchedClient ? matchedClient.name : (draft.client_name || 'Pick in the editor')}
                 </Text>
               </HStack>
@@ -204,22 +208,22 @@ const VoltComposer = ({ isOpen, onClose, clients = [], onDraft }) => {
                 {draft.lines.map((l, i) => {
                   const m = MODE_META[l.payment_mode] || MODE_META.pay_full;
                   return (
-                    <Box key={i} bg={P.sheet} border="1px solid" borderColor={P.hair} borderRadius="12px" p={3}>
+                    <Plate key={i} p={3}>
                       <HStack justify="space-between" align="start" spacing={3}>
                         <Box minW={0}>
-                          <Text fontSize="sm" fontWeight="700" color={P.ink} noOfLines={1}>{l.title}</Text>
-                          {l.description && <Text fontSize="xs" color={P.inkMuted} noOfLines={2} mt={0.5}>{l.description}</Text>}
-                          <Text fontSize="2xs" fontFamily="mono" fontWeight="700" color={m.color} mt={1}>{m.label}</Text>
+                          <Text fontSize={TYPE.body} fontWeight="700" color={P.ink} noOfLines={1}>{l.title}</Text>
+                          {l.description && <Text fontSize={TYPE.small} color={P.inkMuted} noOfLines={2} mt={0.5}>{l.description}</Text>}
+                          <Kicker color={m.color} mt={1}>{m.label}</Kicker>
                         </Box>
-                        <Text fontFamily="display" fontSize="lg" fontWeight="700" color={P.ink} flexShrink={0}>{money(l.amount)}</Text>
+                        <Text fontFamily="mono" fontSize={TYPE.section} fontWeight="700" color={P.ink} flexShrink={0} sx={{ fontVariantNumeric: 'tabular-nums' }}>{money(l.amount)}</Text>
                       </HStack>
-                    </Box>
+                    </Plate>
                   );
                 })}
               </VStack>
               <HStack justify="space-between" pt={1}>
-                <Text fontSize="2xs" fontFamily="mono" textTransform="uppercase" letterSpacing="0.1em" color={P.inkMuted}>Total</Text>
-                <Text fontFamily="display" fontSize="2xl" fontWeight="700" color={P.ink}>{money(total)}</Text>
+                <Kicker>Total</Kicker>
+                <Text fontFamily="mono" fontSize={TYPE.figure} fontWeight="700" color={P.ink} sx={{ fontVariantNumeric: 'tabular-nums' }}>{money(total)}</Text>
               </HStack>
             </VStack>
           )}
@@ -228,15 +232,15 @@ const VoltComposer = ({ isOpen, onClose, clients = [], onDraft }) => {
         <ModalFooter borderTop="1px solid" borderColor={P.hair} pt={4} pb={5} px={6}>
           {!draft ? (
             <HStack w="100%" justify="flex-end" spacing={2}>
-              <Button variant="ghost" color={P.inkMuted} onClick={close} _hover={{ bg: P.sunken, color: P.ink }}>Close</Button>
-              <Button bg={P.lime} color={P.limeInk} fontWeight="700" leftIcon={<TbSparkles size={16} />} onClick={runDraft} isLoading={drafting} loadingText="Volt is drafting" isDisabled={!canDraft} _hover={{ bg: '#B8CC4A' }}>
+              <Button variant="ghost" size="sm" onClick={close}>Close</Button>
+              <Button size="sm" leftIcon={<TbSparkles size={16} />} onClick={runDraft} isLoading={drafting} loadingText="Volt is drafting" isDisabled={!canDraft}>
                 Draft the invoice
               </Button>
             </HStack>
           ) : (
             <HStack w="100%" justify="space-between" spacing={2}>
-              <Button variant="ghost" size="sm" color={P.inkMuted} leftIcon={<TbRefresh size={15} />} onClick={() => setDraft(null)} _hover={{ bg: P.sunken, color: P.ink }}>Start over</Button>
-              <Button bg={P.lime} color={P.limeInk} fontWeight="700" rightIcon={<TbArrowRight size={16} />} onClick={() => { onDraft(draft); close(); }} _hover={{ bg: '#B8CC4A' }}>
+              <Button variant="ghost" size="sm" leftIcon={<TbRefresh size={15} />} onClick={() => setDraft(null)}>Start over</Button>
+              <Button size="sm" rightIcon={<TbArrowRight size={16} />} onClick={() => { onDraft(draft); close(); }}>
                 Open in editor
               </Button>
             </HStack>
@@ -246,16 +250,5 @@ const VoltComposer = ({ isOpen, onClose, clients = [], onDraft }) => {
     </Modal>
   );
 };
-
-const ModeBtn = ({ active, icon, onClick, children }) => (
-  <Box as="button" onClick={onClick} px={3.5} py={2} borderRadius="lg" border="1px solid"
-    borderColor={active ? P.lime : P.hair} bg={active ? `${P.lime}22` : 'transparent'} transition="all 0.15s"
-    _hover={{ borderColor: active ? P.lime : P.inkFaint }}>
-    <HStack spacing={2}>
-      <Icon as={icon} boxSize={4} color={active ? P.limeDeep : P.inkMuted} />
-      <Text fontSize="sm" fontWeight="600" color={active ? P.ink : P.inkMuted}>{children}</Text>
-    </HStack>
-  </Box>
-);
 
 export default VoltComposer;

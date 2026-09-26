@@ -1,14 +1,17 @@
 // src/pages/Invoicing/components/InvoicePreview.jsx
-// Pixel-exact preview of the client document, the SAME buildInvoiceEmailHTML the
+// Pixel exact preview of the client document, the SAME buildInvoiceEmailHTML the
 // send function uses, so this is literally what lands in their inbox. The frame
-// is Paper now, a cream mat holding the warm document. No dashes, no oxford.
+// is Paper, a cream mat holding the warm document, the kicker on the left like
+// every kicker. No dashes, no oxford.
 
 import { useMemo } from 'react';
-import { Box, VStack, HStack, Text, Icon } from '@chakra-ui/react';
-import { TbClock, TbMailFast } from 'react-icons/tb';
+import { Box, VStack, HStack, Icon } from '@chakra-ui/react';
+import { TbMailFast } from 'react-icons/tb';
 import { buildInvoiceEmailHTML } from '../../../lib/invoiceEmailTemplate';
 import { useInvoiceAttachments } from '../../../lib/useInvoiceAttachments';
 import colors from '../../../theme/colors';
+import { PLATE_RADIUS } from '../../../theme/layout';
+import { Empty, Kicker } from '../../../components/common/Page';
 
 const P = colors.paper;
 
@@ -34,30 +37,20 @@ const InvoicePreview = ({ invoice, client, sprints }) => {
 
   if (!html) {
     return (
-      <Box py={20} textAlign="center" border="1px dashed" borderColor={P.hair} borderRadius="2xl" bg={P.sheet}>
-        <VStack spacing={3}>
-          <Icon as={TbClock} boxSize={10} color={P.inkFaint} />
-          <Text color={P.inkMuted} fontSize="sm">
-            {!client ? 'Select a client to see the preview' : 'Add at least one billable sprint to see the preview'}
-          </Text>
-          <Text color={P.inkFaint} fontSize="2xs" fontFamily="mono">
-            WIP sprints are hidden from the client
-          </Text>
-        </VStack>
-      </Box>
+      <Empty hint="WIP sprints are hidden from the client.">
+        {!client ? 'Select a client to see the preview.' : 'Add at least one billable sprint to see the preview.'}
+      </Empty>
     );
   }
 
   return (
     <VStack spacing={4} align="stretch">
-      <HStack spacing={2} justify="center" pb={1}>
+      <HStack spacing={2}>
         <Icon as={TbMailFast} boxSize={3.5} color={P.limeDeep} />
-        <Text fontSize="2xs" color={P.inkMuted} fontWeight="600" letterSpacing="0.16em" textTransform="uppercase" fontFamily="mono">
-          Exact client preview
-        </Text>
+        <Kicker>Exact client preview</Kicker>
       </HStack>
 
-      <Box borderRadius="2xl" overflow="hidden" border="1px solid" borderColor={P.hair} bg={P.mat}>
+      <Box borderRadius={PLATE_RADIUS} overflow="hidden" border="1px solid" borderColor={P.hair} bg={P.mat}>
         <Box
           as="iframe"
           srcDoc={html}

@@ -1,5 +1,5 @@
 // src/pages/Dashboard/components/VoltAsks.jsx
-// SENTINEL: NB_PULSE_VOLT_ASKS_V1
+// SENTINEL: NB_PULSE_VOLT_ASKS_V2
 //
 // The last five asks of volt, on Today. When a thing is outside what Volt
 // can draft he writes an ask for a person through his write_ask tool in
@@ -21,15 +21,17 @@
 // screen. The name is spelled in both files. A burro is never named
 // without a face, the kicker carries volt's.
 //
-// No oxford commas, no em dashes.
+// V2 sits in the house section format, kicker with the face, count on the
+// right, rows bleeding the inset. No oxford commas, no em dashes.
 
 import { useState, useEffect, useCallback } from 'react';
 import { Box, VStack, HStack, Text, Button, Image } from '@chakra-ui/react';
 import { supabase } from '../../../lib/supabase';
 import { useAuth } from '../../../hooks/useAuth';
 import { formatRelative } from '../../../lib/time';
-import { TYPE, EASE, FAST } from '../../../theme/layout';
+import { TYPE, EASE, FAST, INSET } from '../../../theme/layout';
 import colors from '../../../theme/colors';
+import { Section, Empty, Kicker } from '../../../components/common/Page';
 
 const P = colors.paper;
 const VOLT_AVATAR = 'https://neonburro.com/burros/volt/volt-avatar.webp';
@@ -45,7 +47,7 @@ const Face = ({ size = 18 }) => (
 const Row = ({ ask, who, canDo, onDone, doing }) => {
   const done = ask.status === 'done';
   return (
-    <HStack align="flex-start" spacing={{ base: 3.5, md: 5 }} py={{ base: 3.5, md: 4 }} px={{ base: 3, md: 4 }} borderRadius="14px" transition={`background ${FAST} ${EASE}`} _hover={{ bg: P.sheet }}>
+    <HStack align="flex-start" spacing={{ base: 3.5, md: 5 }} py={3.5} px={INSET} borderRadius="14px" transition={`background ${FAST} ${EASE}`} _hover={{ bg: P.sheet }}>
       <Box w="8px" h="8px" mt="7px" borderRadius="full" bg={done ? P.hair : P.gold} flexShrink={0} />
       <VStack align="stretch" spacing={1} flex={1} minW={0}>
         <Text fontSize={TYPE.body} color={done ? P.inkMuted : P.ink} lineHeight="1.55" whiteSpace="pre-wrap" textDecoration={done ? 'line-through' : 'none'} sx={{ textDecorationColor: P.hair }}>
@@ -56,7 +58,7 @@ const Row = ({ ask, who, canDo, onDone, doing }) => {
         </Text>
       </VStack>
       {canDo && !done && (
-        <Button size="xs" variant="outline" borderColor={P.hair} color={P.inkSec} borderRadius="full" px={3} flexShrink={0} isLoading={doing} _hover={{ borderColor: P.ink, color: P.ink, bg: P.sheet }} onClick={() => onDone(ask.id)}>
+        <Button size="xs" variant="outline" flexShrink={0} isLoading={doing} onClick={() => onDone(ask.id)}>
           done
         </Button>
       )}
@@ -123,28 +125,27 @@ const VoltAsks = () => {
   const open = asks.filter((a) => a.status !== 'done').length;
 
   return (
-    <VStack align="stretch" spacing={4}>
-      <HStack spacing={3} px={{ base: 3, md: 4 }}>
+    <Section
+      kicker={(
         <HStack spacing={2}>
           <Face size={18} />
-          <Text fontFamily="mono" fontSize={TYPE.micro} fontWeight="500" letterSpacing="0.22em" textTransform="uppercase" color={P.inkMuted}>asked of {VOLT_NAME}</Text>
+          <Kicker>asked of {VOLT_NAME}</Kicker>
         </HStack>
-        <Box flex={1} h="1px" bg={P.hair} />
-        <Text fontFamily="mono" fontSize={TYPE.micro} color={P.inkFaint}>{open}</Text>
-      </HStack>
-
+      )}
+      count={open}
+    >
       {missing ? (
-        <Text px={{ base: 3, md: 4 }} fontSize={TYPE.small} color={P.inkMuted}>the desk_asks table is not on the project yet. the 2026-09-25 desk migration puts it there.</Text>
+        <Empty>the desk_asks table is not on the project yet. the 2026-09-25 desk migration puts it there.</Empty>
       ) : !asks.length ? (
-        <Text px={{ base: 3, md: 4 }} fontSize={TYPE.small} color={P.inkMuted}>nothing has been asked of {VOLT_NAME} for a person yet.</Text>
+        <Empty>nothing has been asked of {VOLT_NAME} for a person yet.</Empty>
       ) : (
-        <VStack align="stretch" spacing={0.5}>
+        <VStack align="stretch" spacing={0.5} mx={-INSET}>
           {asks.map((ask) => (
             <Row key={ask.id} ask={ask} who={names[ask.user_id] || 'somebody'} canDo={canDo} onDone={markDone} doing={doing === ask.id} />
           ))}
         </VStack>
       )}
-    </VStack>
+    </Section>
   );
 };
 

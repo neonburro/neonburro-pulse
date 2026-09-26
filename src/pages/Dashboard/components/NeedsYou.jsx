@@ -1,16 +1,19 @@
 // src/pages/Dashboard/components/NeedsYou.jsx
-// SENTINEL: NB_PULSE_NEEDS_YOU_V2
+// SENTINEL: NB_PULSE_NEEDS_YOU_V3
 // The queue, on Paper. A list of things waiting on a hueman, sorted by the cost
 // of ignoring them. Rows only appear when they are non zero, so the presence of
-// the list is itself the signal. The empty state is the point, not an apology.
-// Tones carry meaning and are kept, deepened for cream. No oxford, no dashes.
+// the list is itself the signal. The empty state is the house one line, not
+// an apology. Tones carry meaning and are kept, deepened for cream. Rows bleed
+// the inset so the text sits on the column edge under the kicker. No oxford,
+// no dashes.
 
 import { Box, VStack, HStack, Text, Icon } from '@chakra-ui/react';
 import { useNavigate } from 'react-router-dom';
-import { TbAlertTriangle, TbClockDollar, TbInbox, TbMessageCircle, TbProgressCheck, TbCheck, TbArrowRight } from 'react-icons/tb';
-import { TYPE, EASE, FAST } from '../../../theme/layout';
+import { TbAlertTriangle, TbClockDollar, TbInbox, TbMessageCircle, TbProgressCheck, TbArrowRight } from 'react-icons/tb';
+import { TYPE, EASE, FAST, INSET } from '../../../theme/layout';
 import { formatCurrency } from '../../../lib/uiConstants';
 import colors from '../../../theme/colors';
+import { Section, Empty } from '../../../components/common/Page';
 
 const P = colors.paper;
 
@@ -23,12 +26,12 @@ const build = ({ overdueCount, overdueTotal, unreadForms, unreadMessages, awaiti
 ].filter(Boolean);
 
 const Row = ({ item, onClick }) => (
-  <HStack as="button" onClick={onClick} w="100%" spacing={{ base: 3.5, md: 5 }} align="center" textAlign="left" py={{ base: 4, md: 5 }} px={{ base: 3, md: 4 }} borderRadius="14px" role="group" transition={`background ${FAST} ${EASE}, transform ${FAST} ${EASE}`} _hover={{ bg: P.sheet }} _active={{ transform: 'scale(0.995)' }}>
-    <Box w={{ base: '34px', md: '38px' }} h={{ base: '34px', md: '38px' }} borderRadius="11px" bg={P.sheet} border="1px solid" borderColor={P.hair} display="flex" alignItems="center" justifyContent="center" flexShrink={0}>
-      <Icon as={item.icon} boxSize={{ base: '17px', md: '18px' }} color={item.tone} />
+  <HStack as="button" type="button" onClick={onClick} w="100%" spacing={{ base: 3.5, md: 5 }} align="center" textAlign="left" py={4} px={INSET} borderRadius="14px" role="group" transition={`background ${FAST} ${EASE}, transform ${FAST} ${EASE}`} _hover={{ bg: P.sheet }} _active={{ transform: 'scale(0.995)' }}>
+    <Box w="36px" h="36px" borderRadius="11px" bg={P.sheet} border="1px solid" borderColor={P.hair} display="flex" alignItems="center" justifyContent="center" flexShrink={0}>
+      <Icon as={item.icon} boxSize="17px" color={item.tone} />
     </Box>
     <HStack spacing={2.5} align="baseline" flex={1} minW={0} flexWrap="wrap" rowGap={0}>
-      <Text fontFamily="mono" fontSize={{ base: '20px', md: '24px' }} fontWeight="600" lineHeight="1" color={P.ink} sx={{ fontVariantNumeric: 'tabular-nums' }}>{item.count}</Text>
+      <Text fontFamily="mono" fontSize={TYPE.figure} fontWeight="600" lineHeight="1" color={P.ink} sx={{ fontVariantNumeric: 'tabular-nums' }}>{item.count}</Text>
       <Text fontSize={TYPE.body} fontWeight="500" color={P.ink} letterSpacing="-0.01em">{item.label}</Text>
       <Text fontSize={TYPE.small} color={P.inkMuted} noOfLines={1}>{item.detail}</Text>
     </HStack>
@@ -40,31 +43,16 @@ const NeedsYou = (props) => {
   const navigate = useNavigate();
   const items = build(props);
 
-  if (!items.length) {
-    return (
-      <HStack spacing={3} py={5} px={{ base: 3, md: 4 }} align="center">
-        <Box w="34px" h="34px" borderRadius="11px" bg={P.sheet} border="1px solid" borderColor={P.hair} display="flex" alignItems="center" justifyContent="center" flexShrink={0}>
-          <Icon as={TbCheck} boxSize="17px" color={P.limeDeep} />
-        </Box>
-        <Box>
-          <Text fontSize={TYPE.body} fontWeight="500" color={P.ink}>Nothing is waiting on you.</Text>
-          <Text fontSize={TYPE.small} color={P.inkMuted}>Everything sent, read and locked. Go outside.</Text>
-        </Box>
-      </HStack>
-    );
-  }
-
   return (
-    <VStack align="stretch" spacing={4}>
-      <HStack spacing={3} px={{ base: 3, md: 4 }}>
-        <Text fontFamily="mono" fontSize={TYPE.micro} fontWeight="500" letterSpacing="0.22em" textTransform="uppercase" color={P.inkMuted}>Needs you</Text>
-        <Box flex={1} h="1px" bg={P.hair} />
-        <Text fontFamily="mono" fontSize={TYPE.micro} color={P.inkFaint}>{items.length}</Text>
-      </HStack>
-      <VStack align="stretch" spacing={0.5}>
-        {items.map((item) => <Row key={item.key} item={item} onClick={() => navigate(item.to)} />)}
-      </VStack>
-    </VStack>
+    <Section kicker="Needs you" count={items.length || undefined}>
+      {!items.length ? (
+        <Empty hint="Everything sent, read and locked. Go outside.">Nothing is waiting on you.</Empty>
+      ) : (
+        <VStack align="stretch" spacing={0.5} mx={-INSET}>
+          {items.map((item) => <Row key={item.key} item={item} onClick={() => navigate(item.to)} />)}
+        </VStack>
+      )}
+    </Section>
   );
 };
 

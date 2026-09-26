@@ -1,5 +1,5 @@
 // src/pages/Registry/index.jsx
-// SENTINEL: NB_PULSE_REGISTRY_V2
+// SENTINEL: NB_PULSE_REGISTRY_V3
 //
 // The Registry, the private book of the studio's own labeled wallets. Every
 // wallet Tyler mints gets a row the moment it exists, ion and the vaults and
@@ -39,11 +39,12 @@
 // with the time it was read and the row says cached. Not read means neither
 // the chain nor the cache had it.
 //
-// Paper system page. No oxford commas, no em dashes.
+// V3 sits on the house column with the house head, stats, fields and
+// buttons. No oxford commas, no em dashes.
 
 import { useState, useEffect, useCallback } from 'react';
 import {
-  Box, VStack, HStack, Text, Icon, Container, Spinner, Input, Textarea,
+  Box, VStack, HStack, Text, Icon, Input, Textarea, Button,
 } from '@chakra-ui/react';
 import {
   TbPlus, TbCopy, TbCheck, TbExternalLink, TbRefresh, TbTrash, TbClipboardText,
@@ -51,7 +52,8 @@ import {
 import { supabase } from '../../lib/supabase';
 import { readRegistryBalances, readTime, EMPTY_COUNTS } from '../../lib/registryBalances';
 import colors from '../../theme/colors';
-import { TYPE, EASE, FAST } from '../../theme/layout';
+import { TYPE, INSET, EASE, FAST } from '../../theme/layout';
+import { Page, PageHead, Stats, Plate, Empty, Loading } from '../../components/common/Page';
 
 const P = colors.paper;
 const SUPPLY = 1_000_000_000;
@@ -127,35 +129,6 @@ const toPayload = ({ label, address, app, burro, note }, hasBurro) => {
   if (hasBurro) payload.burro = burro || '';
   else if (burro) payload.note = note ? `burro ${burro}, ${note}` : `burro ${burro}`;
   return payload;
-};
-
-const inputProps = {
-  bg: P.sheet,
-  border: '1px solid',
-  borderColor: P.hair,
-  borderRadius: '10px',
-  color: P.ink,
-  fontSize: TYPE.small,
-  h: '38px',
-  px: 3,
-  _placeholder: { color: P.inkFaint },
-  _hover: { borderColor: P.inkFaint },
-  _focus: { borderColor: P.limeDeep, boxShadow: 'none', outline: 'none' },
-};
-
-const pill = {
-  spacing: 1.5,
-  bg: P.lime,
-  color: P.limeInk,
-  borderRadius: 'full',
-  px: 4,
-  h: '38px',
-  fontWeight: '700',
-  fontSize: 'sm',
-  flexShrink: 0,
-  transition: `all 0.18s ${EASE}`,
-  _hover: { bg: '#D2E26B' },
-  _disabled: { opacity: 0.6, cursor: 'wait' },
 };
 
 const EMPTY_DRAFT = { label: '', address: '', app: '', burro: '', note: '' };
@@ -298,183 +271,138 @@ const Registry = () => {
   }, { nb: 0, sol: 0, wallets: 0 });
 
   return (
-    <Box position="relative" minH="100vh" bg={P.mat}>
-      <Box position="absolute" top={0} left={0} right={0} h="320px" bg={`radial-gradient(ellipse at top center, ${P.lime}12, transparent 70%)`} pointerEvents="none" />
+    <Page>
+      <PageHead
+        kicker="Registry"
+        title="The book of our own wallets."
+        lede="Public addresses and labels, never keys, never published. Balances read from the chain, or from the last good read when the chain refuses, and a row says which."
+        actions={(
+          <>
+            <Button size="sm" variant="ghost" onClick={() => readChain(rows)} leftIcon={<Icon as={TbRefresh} boxSize={4} sx={reading ? { animation: 'spin 1s linear infinite', '@keyframes spin': { to: { transform: 'rotate(360deg)' } } } : undefined} />} aria-label="Read the chain">
+              {reading && progress.of > 0 ? `${progress.done} of ${progress.of}` : 'read'}
+            </Button>
+            <Button size="sm" variant="outline" bg={pasting ? P.sunken : undefined} leftIcon={<Icon as={TbClipboardText} boxSize={4} />} onClick={() => { setPasting((v) => !v); setAdding(false); }}>
+              Paste
+            </Button>
+            <Button size="sm" leftIcon={<Icon as={TbPlus} boxSize={4} />} onClick={() => { setAdding((v) => !v); setPasting(false); }}>
+              Wallet
+            </Button>
+          </>
+        )}
+      >
+        <Stats items={[
+          { key: 'nb', n: totals.wallets ? fmtM(totals.nb) : 'not read', label: 'neonburro in the book' },
+          { key: 'share', n: totals.wallets ? `${((totals.nb / SUPPLY) * 100).toFixed(1)}%` : 'not read', label: 'of supply' },
+          { key: 'sol', n: totals.wallets ? fmtSol(totals.sol) : 'not read', label: 'sol' },
+          { key: 'counted', n: `${totals.wallets} of ${rows.length}`, label: 'wallets in the total', tone: P.inkMuted },
+          counts.cached > 0 && { key: 'cached', n: counts.cached, label: 'cached', tone: P.gold },
+        ]} />
+      </PageHead>
 
-      <Container maxW="1100px" mx={0} px={{ base: 5, md: 8 }} py={{ base: 6, md: 10 }} position="relative">
-        <VStack spacing={{ base: 7, md: 9 }} align="stretch">
-
-          <HStack justify="space-between" align="center" gap={3} flexWrap="wrap">
-            <VStack align="start" spacing={1.5} minW={0}>
-              <Text fontFamily="mono" fontSize={TYPE.micro} fontWeight="600" letterSpacing="0.22em" textTransform="uppercase" color={P.inkMuted}>
-                Registry
-              </Text>
-              <Text fontSize={TYPE.title} fontWeight="600" letterSpacing="-0.03em" lineHeight="1.1" color={P.ink}>
-                The book of our own wallets.
-              </Text>
-              <Text fontSize={TYPE.small} color={P.inkMuted}>
-                Public addresses and labels, never keys, never published. Balances read from the chain, or from the last good read when the chain refuses, and a row says which.
-              </Text>
-            </VStack>
-
-            <HStack spacing={3}>
-              <HStack as="button" onClick={() => readChain(rows)} spacing={1.5} color={P.inkMuted} _hover={{ color: P.ink }} transition={`color ${FAST} ${EASE}`}>
-                <Icon as={TbRefresh} boxSize={4} sx={reading ? { animation: 'spin 1s linear infinite', '@keyframes spin': { to: { transform: 'rotate(360deg)' } } } : undefined} />
-                {reading && progress.of > 0 && (
-                  <Text fontFamily="mono" fontSize={TYPE.micro}>{progress.done} of {progress.of}</Text>
-                )}
-              </HStack>
-              <HStack as="button" onClick={() => { setPasting((v) => !v); setAdding(false); }} spacing={1.5} border="1px solid" borderColor={P.hair} bg={pasting ? P.sunken : 'transparent'} color={P.ink} borderRadius="full" px={4} h="38px" fontWeight="700" fontSize="sm" transition={`all 0.18s ${EASE}`} _hover={{ bg: P.sunken }}>
-                <Icon as={TbClipboardText} boxSize={4} />
-                <Text>Paste</Text>
-              </HStack>
-              <HStack as="button" onClick={() => { setAdding((v) => !v); setPasting(false); }} {...pill} _hover={{ bg: '#D2E26B', transform: 'translateY(-1px)' }}>
-                <Icon as={TbPlus} boxSize={4} />
-                <Text>Wallet</Text>
-              </HStack>
-            </HStack>
-          </HStack>
-
-          <HStack spacing={0} flexWrap="wrap" rowGap={1}>
-            <HStack spacing={1.5} align="baseline">
-              <Text fontFamily="mono" fontSize={TYPE.small} fontWeight="700" color={P.ink} sx={{ fontVariantNumeric: 'tabular-nums' }}>{totals.wallets ? fmtM(totals.nb) : 'not read'}</Text>
-              <Text fontFamily="mono" fontSize={TYPE.small} color={P.inkMuted}>neonburro in the book</Text>
-            </HStack>
-            <Text color={P.inkFaint} fontSize={TYPE.small} mx={2}>·</Text>
-            <HStack spacing={1.5} align="baseline">
-              <Text fontFamily="mono" fontSize={TYPE.small} fontWeight="700" color={P.ink} sx={{ fontVariantNumeric: 'tabular-nums' }}>{totals.wallets ? `${((totals.nb / SUPPLY) * 100).toFixed(1)}%` : 'not read'}</Text>
-              <Text fontFamily="mono" fontSize={TYPE.small} color={P.inkMuted}>of supply</Text>
-            </HStack>
-            <Text color={P.inkFaint} fontSize={TYPE.small} mx={2}>·</Text>
-            <HStack spacing={1.5} align="baseline">
-              <Text fontFamily="mono" fontSize={TYPE.small} fontWeight="700" color={P.ink} sx={{ fontVariantNumeric: 'tabular-nums' }}>{totals.wallets ? fmtSol(totals.sol) : 'not read'}</Text>
-              <Text fontFamily="mono" fontSize={TYPE.small} color={P.inkMuted}>sol</Text>
-            </HStack>
-            <Text color={P.inkFaint} fontSize={TYPE.small} mx={2}>·</Text>
-            <HStack spacing={1.5} align="baseline">
-              <Text fontFamily="mono" fontSize={TYPE.small} fontWeight="700" color={P.inkMuted} sx={{ fontVariantNumeric: 'tabular-nums' }}>{totals.wallets} of {rows.length}</Text>
-              <Text fontFamily="mono" fontSize={TYPE.small} color={P.inkMuted}>wallets in the total</Text>
-            </HStack>
-            {counts.cached > 0 && (
-              <>
-                <Text color={P.inkFaint} fontSize={TYPE.small} mx={2}>·</Text>
-                <HStack spacing={1.5} align="baseline">
-                  <Text fontFamily="mono" fontSize={TYPE.small} fontWeight="700" color={P.gold} sx={{ fontVariantNumeric: 'tabular-nums' }}>{counts.cached}</Text>
-                  <Text fontFamily="mono" fontSize={TYPE.small} color={P.inkMuted}>cached</Text>
-                </HStack>
-              </>
-            )}
-          </HStack>
-
-          {(note || chainNotes.length > 0) && (
-            <VStack align="start" spacing={1}>
-              {note && <Text fontFamily="mono" fontSize={TYPE.small} color={P.limeDeep}>{note}</Text>}
-              {chainNotes.map((line) => (
-                <Text key={line} fontFamily="mono" fontSize={TYPE.small} color={P.inkFaint}>{line}</Text>
-              ))}
-            </VStack>
-          )}
-
-          {adding && (
-            <Box as="form" onSubmit={add} bg={P.sheet} border="1px solid" borderColor={P.hair} borderRadius="16px" p={4}>
-              <HStack spacing={3} flexWrap="wrap" rowGap={3} align="end">
-                <Box flex="0 1 160px"><Input {...inputProps} placeholder="label" value={draft.label} onChange={(e) => setDraft({ ...draft, label: e.target.value })} /></Box>
-                <Box flex="1 1 320px"><Input {...inputProps} fontFamily="mono" placeholder="address" value={draft.address} onChange={(e) => setDraft({ ...draft, address: e.target.value })} /></Box>
-                <Box flex="0 1 130px"><Input {...inputProps} placeholder="app" value={draft.app} onChange={(e) => setDraft({ ...draft, app: e.target.value })} /></Box>
-                <Box flex="0 1 130px"><Input {...inputProps} placeholder="burro" value={draft.burro} onChange={(e) => setDraft({ ...draft, burro: e.target.value })} /></Box>
-                <Box flex="1 1 200px"><Input {...inputProps} placeholder="note" value={draft.note} onChange={(e) => setDraft({ ...draft, note: e.target.value })} /></Box>
-                <HStack as="button" type="submit" {...pill}>
-                  <Text>Into the book</Text>
-                </HStack>
-              </HStack>
-            </Box>
-          )}
-
-          {pasting && (
-            <Box as="form" onSubmit={importPaste} bg={P.sheet} border="1px solid" borderColor={P.hair} borderRadius="16px" p={4}>
-              <VStack align="stretch" spacing={3}>
-                <Text fontSize={TYPE.small} color={P.inkMuted}>
-                  One wallet per line, label, address, app, burro, note, in that order. A header line is fine. Only the address is required and one already in the book is skipped.
-                </Text>
-                <Textarea
-                  {...inputProps}
-                  h="auto"
-                  minH="160px"
-                  py={3}
-                  fontFamily="mono"
-                  resize="vertical"
-                  spellCheck={false}
-                  placeholder={'label,address,app,burro,note'}
-                  value={paste}
-                  onChange={(e) => setPaste(e.target.value)}
-                />
-                <HStack justify="space-between" flexWrap="wrap" rowGap={2}>
-                  <Text fontFamily="mono" fontSize={TYPE.small} color={result.startsWith('added') ? P.limeDeep : P.inkMuted}>{result}</Text>
-                  <HStack as="button" type="submit" disabled={importing || !paste.trim()} {...pill}>
-                    <Text>{importing ? 'Writing' : 'Into the book'}</Text>
-                  </HStack>
-                </HStack>
-              </VStack>
-            </Box>
-          )}
-
-          {loading ? (
-            <HStack py={16} justify="center"><Spinner color={P.limeDeep} /></HStack>
-          ) : (
-            <VStack spacing={2} align="stretch">
-              {rows.map((r) => {
-                const b = balances[r.address] || {};
-                return (
-                  <HStack key={r.id} bg={P.sheet} border="1px solid" borderColor={P.hair} borderRadius="14px" px={{ base: 3.5, md: 5 }} py={3} justify="space-between" gap={4} flexWrap="wrap" rowGap={2}>
-                    <VStack align="start" spacing={0.5} minW="150px" flex="1 1 180px">
-                      <HStack spacing={2}>
-                        <Text fontSize={TYPE.body} fontWeight="700" color={P.ink}>{r.label}</Text>
-                        {r.app && <Text fontFamily="mono" fontSize={TYPE.micro} color={P.inkFaint}>{r.app}</Text>}
-                        {r.burro && <Text fontFamily="mono" fontSize={TYPE.micro} color={P.inkMuted}>{r.burro}</Text>}
-                      </HStack>
-                      {r.note && <Text fontSize={TYPE.label} color={P.inkMuted} noOfLines={1}>{r.note}</Text>}
-                    </VStack>
-
-                    <HStack spacing={1.5} flexShrink={0}>
-                      <Text fontFamily="mono" fontSize={TYPE.label} color={P.inkFaint}>{shortAddr(r.address)}</Text>
-                      <HStack as="button" onClick={() => copy(r)} color={copied === r.id ? P.limeDeep : P.inkFaint} _hover={{ color: P.limeDeep }} transition={`color ${FAST} ${EASE}`}>
-                        <Icon as={copied === r.id ? TbCheck : TbCopy} boxSize={3.5} />
-                      </HStack>
-                      <Box as="a" href={`https://solscan.io/account/${r.address}`} target="_blank" rel="noopener noreferrer" color={P.inkFaint} _hover={{ color: P.limeDeep }} transition={`color ${FAST} ${EASE}`}>
-                        <Icon as={TbExternalLink} boxSize={3.5} display="block" />
-                      </Box>
-                      {b.source === 'cache' && (
-                        <Text fontFamily="mono" fontSize={TYPE.micro} color={P.gold} pl={1}>cached {readTime(b.at)}</Text>
-                      )}
-                    </HStack>
-
-                    <HStack spacing={5} flexShrink={0}>
-                      <VStack align="end" spacing={0}>
-                        <Text fontFamily="mono" fontSize={TYPE.small} fontWeight="700" color={P.ink} sx={{ fontVariantNumeric: 'tabular-nums' }}>
-                          {fmtM(b.nb)}
-                        </Text>
-                        <Text fontFamily="mono" fontSize={TYPE.micro} color={P.inkFaint}>
-                          {b.nb ? `${((b.nb / SUPPLY) * 100).toFixed(1)}%` : 'neonburro'}
-                        </Text>
-                      </VStack>
-                      <VStack align="end" spacing={0} minW="52px">
-                        <Text fontFamily="mono" fontSize={TYPE.small} color={P.inkSec} sx={{ fontVariantNumeric: 'tabular-nums' }}>
-                          {fmtSol(b.sol)}
-                        </Text>
-                        <Text fontFamily="mono" fontSize={TYPE.micro} color={P.inkFaint}>sol</Text>
-                      </VStack>
-                      <HStack as="button" onClick={() => remove(r)} color={P.inkFaint} _hover={{ color: P.coral }} transition={`color ${FAST} ${EASE}`}>
-                        <Icon as={TbTrash} boxSize={3.5} />
-                      </HStack>
-                    </HStack>
-                  </HStack>
-                );
-              })}
-            </VStack>
-          )}
+      {(note || chainNotes.length > 0) && (
+        <VStack align="start" spacing={1}>
+          {note && <Text fontFamily="mono" fontSize={TYPE.small} color={P.limeDeep}>{note}</Text>}
+          {chainNotes.map((line) => (
+            <Text key={line} fontFamily="mono" fontSize={TYPE.small} color={P.inkFaint}>{line}</Text>
+          ))}
         </VStack>
-      </Container>
-    </Box>
+      )}
+
+      {adding && (
+        <Plate as="form" onSubmit={add}>
+          <HStack spacing={3} flexWrap="wrap" rowGap={3} align="end">
+            <Box flex="0 1 160px"><Input placeholder="label" value={draft.label} onChange={(e) => setDraft({ ...draft, label: e.target.value })} /></Box>
+            <Box flex="1 1 320px"><Input fontFamily="mono" placeholder="address" value={draft.address} onChange={(e) => setDraft({ ...draft, address: e.target.value })} /></Box>
+            <Box flex="0 1 130px"><Input placeholder="app" value={draft.app} onChange={(e) => setDraft({ ...draft, app: e.target.value })} /></Box>
+            <Box flex="0 1 130px"><Input placeholder="burro" value={draft.burro} onChange={(e) => setDraft({ ...draft, burro: e.target.value })} /></Box>
+            <Box flex="1 1 200px"><Input placeholder="note" value={draft.note} onChange={(e) => setDraft({ ...draft, note: e.target.value })} /></Box>
+            <Button type="submit" size="md">Into the book</Button>
+          </HStack>
+        </Plate>
+      )}
+
+      {pasting && (
+        <Plate as="form" onSubmit={importPaste}>
+          <VStack align="stretch" spacing={3}>
+            <Text fontSize={TYPE.small} color={P.inkMuted}>
+              One wallet per line, label, address, app, burro, note, in that order. A header line is fine. Only the address is required and one already in the book is skipped.
+            </Text>
+            <Textarea
+              minH="160px"
+              fontFamily="mono"
+              fontSize={TYPE.small}
+              spellCheck={false}
+              placeholder={'label,address,app,burro,note'}
+              value={paste}
+              onChange={(e) => setPaste(e.target.value)}
+            />
+            <HStack justify="space-between" flexWrap="wrap" rowGap={2}>
+              <Text fontFamily="mono" fontSize={TYPE.small} color={result.startsWith('added') ? P.limeDeep : P.inkMuted}>{result}</Text>
+              <Button type="submit" size="md" isDisabled={importing || !paste.trim()} isLoading={importing} loadingText="Writing">Into the book</Button>
+            </HStack>
+          </VStack>
+        </Plate>
+      )}
+
+      {loading ? (
+        <Loading label="opening the book" />
+      ) : rows.length === 0 ? (
+        <Empty hint="Add a wallet or paste the map.">The book is empty.</Empty>
+      ) : (
+        <VStack spacing={2} align="stretch">
+          {rows.map((r) => {
+            const b = balances[r.address] || {};
+            return (
+              <Plate key={r.id} pad={false} px={INSET} py={3}>
+                <HStack justify="space-between" gap={4} flexWrap="wrap" rowGap={2}>
+                  <VStack align="start" spacing={0.5} minW="150px" flex="1 1 180px">
+                    <HStack spacing={2}>
+                      <Text fontSize={TYPE.body} fontWeight="700" color={P.ink}>{r.label}</Text>
+                      {r.app && <Text fontFamily="mono" fontSize={TYPE.micro} color={P.inkFaint}>{r.app}</Text>}
+                      {r.burro && <Text fontFamily="mono" fontSize={TYPE.micro} color={P.inkMuted}>{r.burro}</Text>}
+                    </HStack>
+                    {r.note && <Text fontSize={TYPE.label} color={P.inkMuted} noOfLines={1}>{r.note}</Text>}
+                  </VStack>
+
+                  <HStack spacing={1.5} flexShrink={0}>
+                    <Text fontFamily="mono" fontSize={TYPE.label} color={P.inkFaint}>{shortAddr(r.address)}</Text>
+                    <HStack as="button" type="button" onClick={() => copy(r)} color={copied === r.id ? P.limeDeep : P.inkFaint} _hover={{ color: P.limeDeep }} transition={`color ${FAST} ${EASE}`}>
+                      <Icon as={copied === r.id ? TbCheck : TbCopy} boxSize={3.5} />
+                    </HStack>
+                    <Box as="a" href={`https://solscan.io/account/${r.address}`} target="_blank" rel="noopener noreferrer" color={P.inkFaint} _hover={{ color: P.limeDeep }} transition={`color ${FAST} ${EASE}`}>
+                      <Icon as={TbExternalLink} boxSize={3.5} display="block" />
+                    </Box>
+                    {b.source === 'cache' && (
+                      <Text fontFamily="mono" fontSize={TYPE.micro} color={P.gold} pl={1}>cached {readTime(b.at)}</Text>
+                    )}
+                  </HStack>
+
+                  <HStack spacing={5} flexShrink={0}>
+                    <VStack align="end" spacing={0}>
+                      <Text fontFamily="mono" fontSize={TYPE.small} fontWeight="700" color={P.ink} sx={{ fontVariantNumeric: 'tabular-nums' }}>
+                        {fmtM(b.nb)}
+                      </Text>
+                      <Text fontFamily="mono" fontSize={TYPE.micro} color={P.inkFaint}>
+                        {b.nb ? `${((b.nb / SUPPLY) * 100).toFixed(1)}%` : 'neonburro'}
+                      </Text>
+                    </VStack>
+                    <VStack align="end" spacing={0} minW="52px">
+                      <Text fontFamily="mono" fontSize={TYPE.small} color={P.inkSec} sx={{ fontVariantNumeric: 'tabular-nums' }}>
+                        {fmtSol(b.sol)}
+                      </Text>
+                      <Text fontFamily="mono" fontSize={TYPE.micro} color={P.inkFaint}>sol</Text>
+                    </VStack>
+                    <HStack as="button" type="button" onClick={() => remove(r)} color={P.inkFaint} _hover={{ color: P.coral }} transition={`color ${FAST} ${EASE}`} aria-label={`Drop ${r.label}`}>
+                      <Icon as={TbTrash} boxSize={3.5} />
+                    </HStack>
+                  </HStack>
+                </HStack>
+              </Plate>
+            );
+          })}
+        </VStack>
+      )}
+    </Page>
   );
 };
 

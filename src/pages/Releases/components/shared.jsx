@@ -1,5 +1,5 @@
 // src/pages/Releases/components/shared.jsx
-// SENTINEL: NB_PULSE_SOCIALS_SHARED_V3
+// SENTINEL: NB_PULSE_SOCIALS_SHARED_V4
 //
 // One registry for the Socials desk. A voice is the council member speaking.
 // An account owner is the identity that publishes. Those ideas used to be one
@@ -23,11 +23,17 @@
 // takes jpeg only. The picker reads the real pixels of the picked plate and
 // says so, this file only holds the rules.
 //
+// V4, 2026-09-25. inputProps, Kicker and Field are no longer this desk's
+// own. They come from src/theme/layout.js and src/components/common/Page.jsx
+// and are re-exported here under the old names so the desk's imports keep
+// working. The desk's fields carry the same inset as every field in Pulse.
+//
 // No oxford commas, no em dashes.
 
-import { Box, VStack, HStack, Text } from '@chakra-ui/react';
+import { Box } from '@chakra-ui/react';
 import colors from '../../../theme/colors';
-import { TYPE } from '../../../theme/layout';
+import { TYPE, INPUT } from '../../../theme/layout';
+import { Kicker as HouseKicker, Field as HouseField } from '../../../components/common/Page';
 
 export const P = colors.paper;
 
@@ -260,55 +266,11 @@ export const when = (iso) => {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 };
 
-export const inputProps = {
-  bg: P.sheet,
-  border: '1px solid',
-  borderColor: P.hair,
-  borderRadius: '12px',
-  color: P.ink,
-  fontSize: TYPE.body,
-  h: '42px',
-  px: 3.5,
-  _placeholder: { color: P.inkFaint },
-  _hover: { borderColor: P.inkFaint },
-  _focus: { borderColor: P.limeDeep, boxShadow: 'none', outline: 'none' },
-};
-
-export const Kicker = ({ children, ...rest }) => (
-  <Text
-    fontFamily="mono"
-    fontSize={TYPE.label}
-    letterSpacing="0.14em"
-    textTransform="uppercase"
-    color={P.inkMuted}
-    {...rest}
-  >
-    {children}
-  </Text>
-);
-
-export const Field = ({ label, hint, hintColor, children }) => (
-  <VStack align="stretch" spacing={1.5}>
-    <HStack justify="space-between" align="baseline">
-      <Text
-        fontFamily="mono"
-        fontSize={TYPE.micro}
-        fontWeight="600"
-        letterSpacing="0.18em"
-        textTransform="uppercase"
-        color={P.inkMuted}
-      >
-        {label}
-      </Text>
-      {hint && (
-        <Text fontFamily="mono" fontSize={TYPE.micro} color={hintColor || P.inkFaint}>
-          {hint}
-        </Text>
-      )}
-    </HStack>
-    {children}
-  </VStack>
-);
+// The house field, the house kicker and the house field wrapper, under the
+// names this desk has always imported. See src/theme/layout.js.
+export const inputProps = INPUT;
+export const Kicker = HouseKicker;
+export const Field = HouseField;
 
 export const VoiceDisc = ({ voice, size = '18px' }) => (
   <Box

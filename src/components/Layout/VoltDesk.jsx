@@ -59,6 +59,10 @@
 // Keyboard. The disc is a real button, Escape closes the sheet, Enter
 // sends and Shift Enter breaks a line, the mic and send are real buttons.
 //
+// 2026-09-25, the layout law. The input carries the house inset and the
+// house placeholder colour from src/theme/layout.js, the card kicker is the
+// house kicker. The sheet is a fixed object and keeps its own width.
+//
 // No oxford commas, no em dashes.
 
 import { useState, useRef, useEffect, useCallback } from 'react';
@@ -67,7 +71,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { TbBolt, TbMicrophone, TbPlayerStop, TbArrowUp, TbX, TbPlus } from 'react-icons/tb';
 import { supabase } from '../../lib/supabase';
 import colors from '../../theme/colors';
-import { EASE, FAST, SLOW, TABBAR_H, TYPE } from '../../theme/layout';
+import { EASE, FAST, SLOW, TABBAR_H, TYPE, INSET, PLACEHOLDER, KICKER } from '../../theme/layout';
 
 const P = colors.paper;
 const VOLT_AVATAR = 'https://neonburro.com/burros/volt/volt-avatar.webp';
@@ -146,7 +150,7 @@ const VoltLine = ({ children }) => (
 );
 
 const YouLine = ({ children }) => (
-  <Box alignSelf="flex-end" maxW="88%" bg={P.ink} color={P.sheet} px={3.5} py={2} borderRadius="16px" borderBottomRightRadius="4px">
+  <Box alignSelf="flex-end" maxW="88%" bg={P.ink} color={P.sheet} px={INSET} py={2} borderRadius="16px" borderBottomRightRadius="4px">
     <Text fontSize={TYPE.body} lineHeight="1.55" whiteSpace="pre-wrap">{children}</Text>
   </Box>
 );
@@ -156,8 +160,8 @@ const PlainLine = ({ tone = P.inkMuted, children }) => (
 );
 
 const Card = ({ kicker, children, action, onAction }) => (
-  <VStack align="stretch" spacing={2.5} alignSelf="flex-start" w="88%" ml="32px" p={3.5} bg={P.sunken} border="1px solid" borderColor={P.hair} borderRadius="14px">
-    <Text fontFamily="mono" fontSize={TYPE.micro} fontWeight="500" letterSpacing="0.22em" textTransform="uppercase" color={P.inkMuted}>{kicker}</Text>
+  <VStack align="stretch" spacing={2.5} alignSelf="flex-start" w="88%" ml="32px" p={INSET} bg={P.sunken} border="1px solid" borderColor={P.hair} borderRadius="14px">
+    <Text {...KICKER}>{kicker}</Text>
     {children}
     {action && (
       <Button size="xs" alignSelf="flex-start" bg={P.ink} color={P.sheet} borderRadius="full" px={3} _hover={{ bg: P.inkSec }} onClick={onAction}>{action}</Button>
@@ -401,17 +405,17 @@ const VoltDesk = () => {
           pointerEvents="auto"
           overflow="hidden"
         >
-          <HStack px={4} py={3} borderBottom="1px solid" borderColor={P.hairSoft} spacing={3}>
+          <HStack px={INSET} py={3} borderBottom="1px solid" borderColor={P.hairSoft} spacing={3}>
             <Face size={30} />
             <Box flex={1} minW={0}>
               <Text fontSize={TYPE.body} fontWeight="600" color={P.ink} lineHeight="1.1">{VOLT_NAME}</Text>
-              <Text fontFamily="mono" fontSize={TYPE.micro} letterSpacing="0.16em" textTransform="uppercase" color={P.inkMuted} mt={0.5}>drafts, never sends</Text>
+              <Text {...KICKER} mt={0.5}>drafts, never sends</Text>
             </Box>
             <IconButton aria-label="New chat" icon={<Icon as={TbPlus} boxSize="16px" />} size="sm" variant="ghost" borderRadius="full" color={P.inkMuted} _hover={{ bg: P.sunken, color: P.ink }} onClick={fresh} />
             <IconButton aria-label="Close" icon={<Icon as={TbX} boxSize="16px" />} size="sm" variant="ghost" borderRadius="full" color={P.inkMuted} _hover={{ bg: P.sunken, color: P.ink }} onClick={() => setOpen(false)} />
           </HStack>
 
-          <VStack flex={1} minH={0} overflowY="auto" align="stretch" spacing={3} px={4} py={4}>
+          <VStack flex={1} minH={0} overflowY="auto" align="stretch" spacing={3} px={INSET} py={4}>
             {!turns.length && <VoltLine>{OPENER}</VoltLine>}
             {turns.map((t) => {
               if (t.who === 'you') return <YouLine key={t.id}>{t.text}</YouLine>;
@@ -462,9 +466,9 @@ const VoltDesk = () => {
               border="1px solid"
               borderColor={P.hair}
               borderRadius="16px"
-              px={3.5}
+              px={INSET}
               py={2}
-              _placeholder={{ color: P.inkFaint }}
+              _placeholder={{ color: PLACEHOLDER }}
               _focus={{ borderColor: P.ink, boxShadow: 'none' }}
               isDisabled={busy}
             />

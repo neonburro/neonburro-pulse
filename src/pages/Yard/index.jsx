@@ -1,5 +1,5 @@
 // src/pages/Yard/index.jsx
-// SENTINEL: NB_PULSE_YARD_V1
+// SENTINEL: NB_PULSE_YARD_V2
 //
 // The yard, managed from the back office. Every send a burro entry across
 // every status, the two live dials and the size of the private wallet book.
@@ -17,16 +17,18 @@
 // for entries that break the serious rules, no verdict, gone. Approve pulls
 // a pen or pastured entry onto the ramp at the lowest open spot.
 //
-// Paper system page. No oxford commas, no em dashes.
+// V2 sits on the house column with the house head, stats and tabs. No
+// oxford commas, no em dashes.
 
 import { useState, useEffect, useCallback } from 'react';
 import {
-  Box, VStack, HStack, Text, Icon, Container, Spinner, Image,
+  Box, VStack, HStack, Text, Icon, Image, Button,
 } from '@chakra-ui/react';
 import { TbX, TbTrash, TbArrowUp, TbRefresh, TbCheck } from 'react-icons/tb';
 import { supabase } from '../../lib/supabase';
 import colors from '../../theme/colors';
-import { TYPE, EASE, FAST } from '../../theme/layout';
+import { TYPE, EASE, FAST, PLATE_RADIUS } from '../../theme/layout';
+import { Page, PageHead, Stats, Tabs, Empty, Loading } from '../../components/common/Page';
 
 const P = colors.paper;
 
@@ -56,17 +58,8 @@ const call = async (payload) => {
   return data;
 };
 
-const Stat = ({ n, label, tone }) => (
-  <HStack spacing={1.5} align="baseline">
-    <Text fontFamily="mono" fontSize={TYPE.small} fontWeight="700" color={tone || P.ink} sx={{ fontVariantNumeric: 'tabular-nums' }}>{n}</Text>
-    <Text fontFamily="mono" fontSize={TYPE.small} color={P.inkMuted}>{label}</Text>
-  </HStack>
-);
-
-const Dot = () => <Text color={P.inkFaint} fontSize={TYPE.small} mx={2}>·</Text>;
-
 const Dial = ({ label, on, onFlip }) => (
-  <HStack as="button" onClick={onFlip} spacing={2.5}>
+  <HStack as="button" type="button" onClick={onFlip} spacing={2.5}>
     <Box w="34px" h="20px" borderRadius="full" bg={on ? P.lime : P.hair} position="relative" transition={`background ${FAST} ${EASE}`}>
       <Box boxSize="16px" borderRadius="full" bg={P.sheet} position="absolute" top="2px" left={on ? '16px' : '2px'} transition={`left ${FAST} ${EASE}`} boxShadow="0 1px 3px rgba(36,26,22,0.3)" />
     </Box>
@@ -75,24 +68,9 @@ const Dial = ({ label, on, onFlip }) => (
 );
 
 const ActionChip = ({ icon, label, tone, onClick, disabled }) => (
-  <HStack
-    as="button"
-    onClick={onClick}
-    spacing={1}
-    px={2.5}
-    h="28px"
-    borderRadius="full"
-    border="1px solid"
-    borderColor={P.hair}
-    color={P.inkSec}
-    opacity={disabled ? 0.4 : 1}
-    pointerEvents={disabled ? 'none' : 'auto'}
-    transition={`all ${FAST} ${EASE}`}
-    _hover={{ borderColor: tone, color: tone }}
-  >
-    <Icon as={icon} boxSize={3.5} />
-    <Text fontFamily="mono" fontSize={TYPE.micro}>{label}</Text>
-  </HStack>
+  <Button size="xs" variant="outline" leftIcon={<Icon as={icon} boxSize={3.5} />} onClick={onClick} isDisabled={disabled} _hover={{ borderColor: tone, color: tone }}>
+    {label}
+  </Button>
 );
 
 const Yard = () => {
@@ -152,145 +130,120 @@ const Yard = () => {
   const filtered = entries.filter((e) => filter === 'all' || e.status === filter);
 
   return (
-    <Box position="relative" minH="100vh" bg={P.mat}>
-      <Box position="absolute" top={0} left={0} right={0} h="320px" bg={`radial-gradient(ellipse at top center, ${P.lime}12, transparent 70%)`} pointerEvents="none" />
+    <Page>
+      <PageHead
+        kicker="The Yard"
+        title="Who came down the ramp."
+        actions={(
+          <>
+            <Dial label="gate open" on={dials.gate_open === 'true'} onFlip={() => flipDial('gate_open')} />
+            <Dial label="auto ramp" on={dials.auto_ramp === 'true'} onFlip={() => flipDial('auto_ramp')} />
+            <Button size="sm" variant="ghost" px={2} onClick={() => { setLoading(true); refresh(); }} aria-label="Refresh">
+              <Icon as={TbRefresh} boxSize={4} />
+            </Button>
+          </>
+        )}
+      >
+        <Stats items={[
+          { key: 'ramp', n: `${counts.ramp} of ${spotsTotal}`, label: 'on the ramp' },
+          { key: 'pen', n: counts.pen, label: 'in the pen', tone: counts.pen > 0 ? P.gold : P.ink },
+          { key: 'pasture', n: counts.pasture, label: 'out to pasture', tone: P.inkMuted },
+          { key: 'book', n: walletBook, label: 'wallets in the book', tone: P.inkMuted },
+        ]} />
+      </PageHead>
 
-      <Container maxW="1500px" mx={0} px={{ base: 5, md: 8 }} py={{ base: 6, md: 10 }} position="relative">
-        <VStack spacing={{ base: 7, md: 9 }} align="stretch">
+      {note && <Text fontFamily="mono" fontSize={TYPE.small} color={P.limeDeep}>{note}</Text>}
 
-          <HStack justify="space-between" align="center" gap={3} flexWrap="wrap">
-            <VStack align="start" spacing={1.5} minW={0}>
-              <Text fontFamily="mono" fontSize={TYPE.micro} fontWeight="600" letterSpacing="0.22em" textTransform="uppercase" color={P.inkMuted}>
-                The Yard
-              </Text>
-              <Text fontSize={TYPE.title} fontWeight="600" letterSpacing="-0.03em" lineHeight="1.1" color={P.ink}>
-                Who came down the ramp.
-              </Text>
-            </VStack>
+      <VStack align="stretch" spacing={5}>
+        <Tabs items={FILTERS.map((f) => ({ ...f, count: counts[f.key] }))} value={filter} onChange={setFilter} />
 
-            <HStack spacing={5} flexWrap="wrap">
-              <Dial label="gate open" on={dials.gate_open === 'true'} onFlip={() => flipDial('gate_open')} />
-              <Dial label="auto ramp" on={dials.auto_ramp === 'true'} onFlip={() => flipDial('auto_ramp')} />
-              <HStack as="button" onClick={() => { setLoading(true); refresh(); }} spacing={1} color={P.inkMuted} _hover={{ color: P.ink }} transition={`color ${FAST} ${EASE}`}>
-                <Icon as={TbRefresh} boxSize={4} />
-              </HStack>
-            </HStack>
-          </HStack>
+        {loading ? (
+          <Loading label="reading the yard" />
+        ) : filtered.length === 0 ? (
+          <Empty>{filter === 'ramp' ? 'The ramp is empty. The believers are on their way.' : 'Nothing here.'}</Empty>
+        ) : (
+          <Box display="grid" gridTemplateColumns={{ base: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)', xl: 'repeat(4, 1fr)' }} gap={4}>
+            {filtered.map((e) => (
+              <VStack key={e.id} align="stretch" spacing={0} bg={P.sheet} border="1px solid" borderColor={P.hair} borderRadius={PLATE_RADIUS} overflow="hidden" opacity={busyId === e.id ? 0.5 : 1} transition={`opacity ${FAST} ${EASE}`}>
+                <Box bg={P.sunken} position="relative" pt="72%">
+                  <Image
+                    src={`${IMG_BASE}${e.image_path}`}
+                    alt={e.username}
+                    position="absolute"
+                    inset={0}
+                    w="100%"
+                    h="100%"
+                    objectFit="contain"
+                    p={3}
+                    loading="lazy"
+                  />
+                  {e.spot && (
+                    <Text position="absolute" top={2.5} left={3} fontFamily="mono" fontSize={TYPE.label} fontWeight="700" color={P.limeDeep}>
+                      {String(e.spot).padStart(3, '0')}
+                    </Text>
+                  )}
+                </Box>
 
-          <HStack spacing={0} flexWrap="wrap" rowGap={1}>
-            <Stat n={`${counts.ramp} of ${spotsTotal}`} label="on the ramp" />
-            <Dot />
-            <Stat n={counts.pen} label={counts.pen === 1 ? 'in the pen' : 'in the pen'} tone={counts.pen > 0 ? P.gold : P.ink} />
-            <Dot />
-            <Stat n={counts.pasture} label="out to pasture" tone={P.inkMuted} />
-            <Dot />
-            <Stat n={walletBook} label="wallets in the book" tone={P.inkMuted} />
-          </HStack>
+                <VStack align="stretch" spacing={2.5} p={4}>
+                  <HStack justify="space-between" align="baseline">
+                    <Text fontSize={TYPE.body} fontWeight="700" color={P.ink} noOfLines={1}>{e.username}</Text>
+                    <Text fontFamily="mono" fontSize={TYPE.micro} color={P[STATUS_TONE[e.status]] || P.inkMuted}>{e.status}</Text>
+                  </HStack>
 
-          {note && <Text fontFamily="mono" fontSize={TYPE.small} color={P.limeDeep}>{note}</Text>}
-
-          <HStack spacing={5} flexWrap="wrap">
-            {FILTERS.map((f) => {
-              const active = filter === f.key;
-              return (
-                <HStack key={f.key} as="button" onClick={() => setFilter(f.key)} spacing={1.5} align="baseline" pb={1} borderBottom="2px solid" borderColor={active ? P.lime : 'transparent'} transition={`all ${FAST} ${EASE}`}>
-                  <Text fontSize={TYPE.small} fontWeight="700" color={active ? P.ink : P.inkMuted}>{f.label}</Text>
-                  <Text fontFamily="mono" fontSize={TYPE.label} color={active ? P.limeDeep : P.inkFaint}>{counts[f.key]}</Text>
-                </HStack>
-              );
-            })}
-          </HStack>
-
-          {loading ? (
-            <HStack py={16} justify="center"><Spinner color={P.limeDeep} /></HStack>
-          ) : filtered.length === 0 ? (
-            <Text py={12} fontSize={TYPE.body} color={P.inkMuted}>
-              {filter === 'ramp' ? 'The ramp is empty. The believers are on their way.' : 'Nothing here.'}
-            </Text>
-          ) : (
-            <Box display="grid" gridTemplateColumns={{ base: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)', xl: 'repeat(4, 1fr)' }} gap={4}>
-              {filtered.map((e) => (
-                <VStack key={e.id} align="stretch" spacing={0} bg={P.sheet} border="1px solid" borderColor={P.hair} borderRadius="18px" overflow="hidden" opacity={busyId === e.id ? 0.5 : 1} transition={`opacity ${FAST} ${EASE}`}>
-                  <Box bg={P.sunken} position="relative" pt="72%">
-                    <Image
-                      src={`${IMG_BASE}${e.image_path}`}
-                      alt={e.username}
-                      position="absolute"
-                      inset={0}
-                      w="100%"
-                      h="100%"
-                      objectFit="contain"
-                      p={3}
-                      loading="lazy"
-                    />
-                    {e.spot && (
-                      <Text position="absolute" top={2.5} left={3} fontFamily="mono" fontSize={TYPE.label} fontWeight="700" color={P.limeDeep}>
-                        {String(e.spot).padStart(3, '0')}
+                  <HStack spacing={2} flexWrap="wrap">
+                    <Text fontFamily="mono" fontSize={TYPE.label} color={P.inkFaint}>{e.wallet}</Text>
+                    <Text fontFamily="mono" fontSize={TYPE.label} color={P.inkFaint}>{when(e.created_at)}</Text>
+                    {e.attempts > 1 && <Text fontFamily="mono" fontSize={TYPE.label} color={P.gold}>try {e.attempts}</Text>}
+                    {e.wallet_source === 'pasted' && (
+                      <Text fontFamily="mono" fontSize={TYPE.label} color={P.gold} title="the address was typed, not signed, check the coin page replies for the trail name then vouch it">
+                        pasted
                       </Text>
                     )}
-                  </Box>
-
-                  <VStack align="stretch" spacing={2.5} p={4}>
-                    <HStack justify="space-between" align="baseline">
-                      <Text fontSize={TYPE.body} fontWeight="700" color={P.ink} noOfLines={1}>{e.username}</Text>
-                      <Text fontFamily="mono" fontSize={TYPE.micro} color={P[STATUS_TONE[e.status]] || P.inkMuted}>{e.status}</Text>
-                    </HStack>
-
-                    <HStack spacing={2} flexWrap="wrap">
-                      <Text fontFamily="mono" fontSize={TYPE.label} color={P.inkFaint}>{e.wallet}</Text>
-                      <Text fontFamily="mono" fontSize={TYPE.label} color={P.inkFaint}>{when(e.created_at)}</Text>
-                      {e.attempts > 1 && <Text fontFamily="mono" fontSize={TYPE.label} color={P.gold}>try {e.attempts}</Text>}
-                      {e.wallet_source === 'pasted' && (
-                        <Text fontFamily="mono" fontSize={TYPE.label} color={P.gold} title="the address was typed, not signed, check the coin page replies for the trail name then vouch it">
-                          pasted
-                        </Text>
-                      )}
-                      {e.wallet_source === 'vouched' && (
-                        <Text fontFamily="mono" fontSize={TYPE.label} color={P.limeDeep} title="the trail name appeared in a reply from the owning account, proven">
-                          vouched
-                        </Text>
-                      )}
-                      {e.wallet_source === 'phrase' && (
-                        <Text fontFamily="mono" fontSize={TYPE.label} color={P.inkMuted} title="no wallet yet, the seed phrase below is the key, a claim attaches one later">
-                          open door
-                        </Text>
-                      )}
-                    </HStack>
-
-                    {e.seed_phrase && (
-                      <Text fontFamily="mono" fontSize={TYPE.label} color={P.limeDeep} title="the house seed phrase, shown here so a lost one can be rescued">
-                        {e.seed_phrase}
+                    {e.wallet_source === 'vouched' && (
+                      <Text fontFamily="mono" fontSize={TYPE.label} color={P.limeDeep} title="the trail name appeared in a reply from the owning account, proven">
+                        vouched
                       </Text>
                     )}
-
-                    {e.status === 'pasture' && e.verdict_line && (
-                      <Text fontSize={TYPE.small} color={P.inkMuted} fontStyle="italic">
-                        {e.verdict_burro}. said "{e.verdict_line}"
+                    {e.wallet_source === 'phrase' && (
+                      <Text fontFamily="mono" fontSize={TYPE.label} color={P.inkMuted} title="no wallet yet, the seed phrase below is the key, a claim attaches one later">
+                        open door
                       </Text>
                     )}
+                  </HStack>
 
-                    <HStack spacing={2} pt={1} flexWrap="wrap" rowGap={2}>
-                      {e.wallet_source === 'pasted' && (
-                        <ActionChip icon={TbCheck} label="vouch" tone={P.limeDeep} onClick={() => act(e, 'vouch')} disabled={!!busyId} />
-                      )}
-                      {e.status !== 'ramp' && (
-                        <ActionChip icon={TbArrowUp} label="to the ramp" tone={P.limeDeep} onClick={() => act(e, 'approve')} disabled={!!busyId} />
-                      )}
-                      {e.status !== 'pasture' && e.status !== 'removed' && (
-                        <ActionChip icon={TbX} label="pasture" tone={P.gold} onClick={() => act(e, 'pasture')} disabled={!!busyId} />
-                      )}
-                      {e.status !== 'removed' && (
-                        <ActionChip icon={TbTrash} label="remove" tone={P.coral} onClick={() => act(e, 'remove')} disabled={!!busyId} />
-                      )}
-                    </HStack>
-                  </VStack>
+                  {e.seed_phrase && (
+                    <Text fontFamily="mono" fontSize={TYPE.label} color={P.limeDeep} title="the house seed phrase, shown here so a lost one can be rescued">
+                      {e.seed_phrase}
+                    </Text>
+                  )}
+
+                  {e.status === 'pasture' && e.verdict_line && (
+                    <Text fontSize={TYPE.small} color={P.inkMuted} fontStyle="italic">
+                      {e.verdict_burro}. said "{e.verdict_line}"
+                    </Text>
+                  )}
+
+                  <HStack spacing={2} pt={1} flexWrap="wrap" rowGap={2}>
+                    {e.wallet_source === 'pasted' && (
+                      <ActionChip icon={TbCheck} label="vouch" tone={P.limeDeep} onClick={() => act(e, 'vouch')} disabled={!!busyId} />
+                    )}
+                    {e.status !== 'ramp' && (
+                      <ActionChip icon={TbArrowUp} label="to the ramp" tone={P.limeDeep} onClick={() => act(e, 'approve')} disabled={!!busyId} />
+                    )}
+                    {e.status !== 'pasture' && e.status !== 'removed' && (
+                      <ActionChip icon={TbX} label="pasture" tone={P.gold} onClick={() => act(e, 'pasture')} disabled={!!busyId} />
+                    )}
+                    {e.status !== 'removed' && (
+                      <ActionChip icon={TbTrash} label="remove" tone={P.coral} onClick={() => act(e, 'remove')} disabled={!!busyId} />
+                    )}
+                  </HStack>
                 </VStack>
-              ))}
-            </Box>
-          )}
-        </VStack>
-      </Container>
-    </Box>
+              </VStack>
+            ))}
+          </Box>
+        )}
+      </VStack>
+    </Page>
   );
 };
 

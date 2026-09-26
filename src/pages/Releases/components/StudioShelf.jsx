@@ -1,5 +1,5 @@
 // src/pages/Releases/components/StudioShelf.jsx
-// SENTINEL: NB_PULSE_SOCIALS_SHELF_V1
+// SENTINEL: NB_PULSE_SOCIALS_SHELF_V2
 //
 // The studio's pictures, for one release. Two sources, one grid.
 //
@@ -34,17 +34,17 @@
 // bucket and path pair and does not know a whole url yet, so a telegram
 // release keeps the bucket picker beneath. The drawer decides which to show.
 //
-// No oxford commas, no em dashes.
+// V2, house small search field, house sizes, house empty lines. No oxford
+// commas, no em dashes.
 
 import { useState, useEffect, useMemo } from 'react';
-import { Box, VStack, HStack, Text, SimpleGrid, Spinner, Image, Icon, Input } from '@chakra-ui/react';
+import { Box, VStack, HStack, Text, SimpleGrid, Image, Icon, Input } from '@chakra-ui/react';
 import { TbCheck, TbX } from 'react-icons/tb';
 import shelf from '../studioShelf.json';
 import {
   P,
   SHAPES,
   Field,
-  inputProps,
   isMeta,
   isPublicUrl,
   formatOf,
@@ -52,6 +52,7 @@ import {
   formatVerdict,
 } from './shared';
 import { TYPE, EASE, FAST } from '../../../theme/layout';
+import { Empty, Loading, Plate } from '../../../components/common/Page';
 
 const SITE = 'https://neonburro.com';
 const LIBRARY_INDEX = '/studio-library/index.json';
@@ -83,8 +84,8 @@ const Chip = ({ on, children, onClick, tone }) => (
     type="button"
     onClick={onClick}
     fontFamily="mono"
-    fontSize={TYPE.micro}
-    letterSpacing="0.08em"
+    fontSize={TYPE.kicker}
+    letterSpacing="0.1em"
     textTransform="uppercase"
     px={2.5}
     h="26px"
@@ -167,7 +168,7 @@ const StudioShelf = ({ channel, selectedPath, onPick, onClear }) => {
     <Field label="Studio shelf" hint={isMeta(channel) ? 'meta fetches the url' : 'public urls'}>
       <VStack align="stretch" spacing={2.5}>
         {showing && (
-          <Box bg={P.sheet} border="1px solid" borderColor={P.hair} borderRadius="12px" p={3}>
+          <Plate p={3}>
             <VStack align="stretch" spacing={2.5}>
               {shapes && (
                 <HStack spacing={1.5} flexWrap="wrap" rowGap={1.5}>
@@ -226,7 +227,7 @@ const StudioShelf = ({ channel, selectedPath, onPick, onClear }) => {
                 </HStack>
               </HStack>
             </VStack>
-          </Box>
+          </Plate>
         )}
 
         <HStack spacing={1.5} flexWrap="wrap" rowGap={1.5}>
@@ -238,10 +239,8 @@ const StudioShelf = ({ channel, selectedPath, onPick, onClear }) => {
         </HStack>
 
         <Input
-          {...inputProps}
-          h="34px"
+          size="sm"
           fontFamily="mono"
-          fontSize={TYPE.small}
           value={query}
           placeholder="find a plate by subject or name"
           onChange={(event) => setQuery(event.target.value)}
@@ -251,12 +250,10 @@ const StudioShelf = ({ channel, selectedPath, onPick, onClear }) => {
           <Text fontFamily="mono" fontSize={TYPE.micro} color={P.gold}>{libraryNote}</Text>
         )}
 
-        {library === null && group === 'library' && (
-          <HStack justify="center" py={4}><Spinner size="sm" color={P.inkMuted} /></HStack>
-        )}
+        {library === null && group === 'library' && <Loading label="reading the library" py={2} />}
 
         {shown.length === 0 && (library !== null || group !== 'library') && (
-          <Text fontSize={TYPE.small} color={P.inkFaint} py={2}>Nothing on this shelf matches.</Text>
+          <Empty py={2}>Nothing on this shelf matches.</Empty>
         )}
 
         {shown.length > 0 && (
@@ -297,7 +294,7 @@ const StudioShelf = ({ channel, selectedPath, onPick, onClear }) => {
                   </Box>
                   <Text
                     fontFamily="mono"
-                    fontSize="8px"
+                    fontSize={TYPE.micro}
                     color={bad ? P.coral : P.inkMuted}
                     bg={P.sheet}
                     px={1.5}

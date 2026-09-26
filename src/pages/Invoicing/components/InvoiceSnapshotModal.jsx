@@ -37,18 +37,20 @@
 import { useState, useEffect, useRef } from 'react';
 import {
   Modal, ModalOverlay, ModalContent, ModalBody, ModalHeader, ModalCloseButton,
-  ModalFooter, Box, VStack, HStack, Text, Spinner, Center, Icon, Button,
+  ModalFooter, Box, VStack, HStack, Text, Icon, Button,
   Input, useToast,
 } from '@chakra-ui/react';
-import { TbMail, TbClock, TbCalendar, TbPrinter, TbDownload, TbSend, TbX } from 'react-icons/tb';
+import { TbMail, TbCalendar, TbPrinter, TbDownload, TbSend, TbX } from 'react-icons/tb';
 import { supabase } from '../../../lib/supabase';
 import { buildInvoiceEmailHTML } from '../../../lib/invoiceEmailTemplate';
 import colors from '../../../theme/colors';
+import { TYPE } from '../../../theme/layout';
+import { Empty, Loading, Field } from '../../../components/common/Page';
 
 const P = colors.paper;
 
 const formatDate = (iso) => {
-  if (!iso) return '—';
+  if (!iso) return 'unknown';
   return new Date(iso).toLocaleString('en-US', {
     month: 'short', day: 'numeric', year: 'numeric',
     hour: 'numeric', minute: '2-digit', hour12: true,
@@ -200,15 +202,15 @@ const InvoiceSnapshotModal = ({ isOpen, onClose, invoiceId }) => {
               <Icon as={TbMail} boxSize={4} color={P.limeDeep} />
             </Box>
             <VStack align="start" spacing={0} flex={1}>
-              <Text color={P.ink} fontSize="md" fontWeight="800">Email snapshot</Text>
+              <Text color={P.ink} fontSize={TYPE.section} fontWeight="700">Email snapshot</Text>
               {history && (
                 <HStack spacing={2}>
                   <Icon as={TbCalendar} boxSize={2.5} color={P.inkFaint} />
-                  <Text color={P.inkMuted} fontSize="2xs" fontFamily="mono">Sent {formatDate(history.sent_at)}</Text>
+                  <Text color={P.inkMuted} fontSize={TYPE.label} fontFamily="mono">Sent {formatDate(history.sent_at)}</Text>
                   {history.sent_to && (
                     <>
-                      <Text color={P.inkFaint} fontSize="2xs">·</Text>
-                      <Text color={P.inkMuted} fontSize="2xs" fontFamily="mono">{history.sent_to}</Text>
+                      <Text color={P.inkFaint} fontSize={TYPE.label}>·</Text>
+                      <Text color={P.inkMuted} fontSize={TYPE.label} fontFamily="mono">{history.sent_to}</Text>
                     </>
                   )}
                 </HStack>
@@ -220,22 +222,9 @@ const InvoiceSnapshotModal = ({ isOpen, onClose, invoiceId }) => {
 
         <ModalBody px={6} pb={2}>
           {loading ? (
-            <Center py={20}>
-              <VStack spacing={3}>
-                <Spinner size="md" color={P.limeDeep} thickness="2px" />
-                <Text color={P.inkFaint} fontSize="xs" fontFamily="mono">Loading snapshot</Text>
-              </VStack>
-            </Center>
+            <Loading label="loading the snapshot" />
           ) : !history ? (
-            <Center py={16}>
-              <VStack spacing={3}>
-                <Icon as={TbClock} boxSize={10} color={P.inkFaint} />
-                <Text color={P.inkMuted} fontSize="sm" fontWeight="700">No snapshot available</Text>
-                <Text color={P.inkFaint} fontSize="2xs" textAlign="center" maxW="280px">
-                  This invoice has not been sent yet. Snapshots are created when an invoice is emailed to the client.
-                </Text>
-              </VStack>
-            </Center>
+            <Empty hint="Snapshots are created when an invoice is emailed to the client.">This invoice has not been sent yet.</Empty>
           ) : (
             <Box borderRadius="xl" overflow="hidden" border="1px solid" borderColor={P.hair} bg={P.mat}>
               <Box
@@ -269,64 +258,39 @@ const InvoiceSnapshotModal = ({ isOpen, onClose, invoiceId }) => {
         {canAct && (
           <ModalFooter px={6} pb={6} pt={4} borderTop="1px solid" borderColor={P.hair} display="block">
             {!forwardOpen ? (
-              <HStack spacing={2.5} flexWrap="wrap" rowGap={2.5}>
-                <Button
-                  size="sm" leftIcon={<Icon as={TbPrinter} boxSize={4} />} onClick={handlePrint}
-                  bg={P.ink} color={P.mat} fontWeight="700" borderRadius="lg"
-                  _hover={{ filter: 'brightness(1.12)' }}
-                >
+              <HStack spacing={2} flexWrap="wrap" rowGap={2}>
+                <Button size="sm" variant="outline" leftIcon={<Icon as={TbPrinter} boxSize={4} />} onClick={handlePrint}>
                   Save as PDF
                 </Button>
-                <Button
-                  size="sm" variant="outline" leftIcon={<Icon as={TbDownload} boxSize={4} />} onClick={handleDownload}
-                  borderColor={P.hair} color={P.ink} fontWeight="700" borderRadius="lg"
-                  _hover={{ bg: `${P.ink}0A`, borderColor: P.inkFaint }}
-                >
+                <Button size="sm" variant="outline" leftIcon={<Icon as={TbDownload} boxSize={4} />} onClick={handleDownload}>
                   Download HTML
                 </Button>
-                <Button
-                  size="sm" variant="ghost" leftIcon={<Icon as={TbSend} boxSize={4} />}
-                  onClick={() => setForwardOpen(true)}
-                  color={P.inkMuted} fontWeight="700" borderRadius="lg"
-                  _hover={{ bg: `${P.ink}0A`, color: P.ink }}
-                >
+                <Button size="sm" variant="ghost" leftIcon={<Icon as={TbSend} boxSize={4} />} onClick={() => setForwardOpen(true)}>
                   Send to someone else
                 </Button>
               </HStack>
             ) : (
               <VStack align="stretch" spacing={2.5}>
-                <Text color={P.inkMuted} fontSize="2xs" fontFamily="mono" letterSpacing="0.08em" textTransform="uppercase">
-                  Send this exact invoice to
-                </Text>
-                <HStack spacing={2.5}>
-                  <Input
-                    value={forwardTo}
-                    onChange={(e) => setForwardTo(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') handleForward(); }}
-                    placeholder="name@company.com"
-                    type="email"
-                    size="sm"
-                    autoFocus
-                    bg={P.mat} borderColor={P.hair} color={P.ink} borderRadius="lg"
-                    _placeholder={{ color: P.inkFaint }}
-                    _focusVisible={{ borderColor: P.limeDeep, boxShadow: 'none' }}
-                  />
-                  <Button
-                    size="sm" onClick={handleForward} isLoading={sending} loadingText="Sending"
-                    bg={P.ink} color={P.mat} fontWeight="700" borderRadius="lg" flexShrink={0}
-                    _hover={{ filter: 'brightness(1.12)' }}
-                  >
-                    Send
-                  </Button>
-                  <Button
-                    size="sm" variant="ghost" onClick={() => { setForwardOpen(false); setForwardTo(''); }}
-                    color={P.inkFaint} borderRadius="lg" flexShrink={0} px={2}
-                    aria-label="Cancel"
-                  >
-                    <Icon as={TbX} boxSize={4} />
-                  </Button>
-                </HStack>
-                <Text color={P.inkFaint} fontSize="2xs" lineHeight="1.5">
+                <Field label="Send this exact invoice to">
+                  <HStack spacing={2}>
+                    <Input
+                      value={forwardTo}
+                      onChange={(e) => setForwardTo(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') handleForward(); }}
+                      placeholder="name@company.com"
+                      type="email"
+                      autoFocus
+                      bg={P.mat}
+                    />
+                    <Button size="md" onClick={handleForward} isLoading={sending} loadingText="Sending" flexShrink={0}>
+                      Send
+                    </Button>
+                    <Button size="md" variant="ghost" onClick={() => { setForwardOpen(false); setForwardTo(''); }} flexShrink={0} px={2} aria-label="Cancel">
+                      <Icon as={TbX} boxSize={4} />
+                    </Button>
+                  </HStack>
+                </Field>
+                <Text color={P.inkFaint} fontSize={TYPE.label} lineHeight="1.5">
                   Sends the same document the client received, with the same attachments. It is logged
                   against this invoice and does not change who the invoice is addressed to.
                 </Text>

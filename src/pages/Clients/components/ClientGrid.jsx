@@ -1,23 +1,25 @@
 // src/pages/Clients/components/ClientGrid.jsx
-// SENTINEL: NB_PULSE_CLIENT_GRID_V3
+// SENTINEL: NB_PULSE_CLIENT_GRID_V4
 //
 // One row per client, on Paper. Press it to open them. Built mobile first: the
 // money line and the sprint count ride along at every width, not hidden behind a
 // desktop breakpoint. The subscription pip is a small repeat glyph coloured by
 // health so a past due plan is visible from the list. The edit control is always
 // visible at low contrast, because a control at opacity 0 does not exist on a
-// phone. No oxford commas, no dashes.
+// phone. Rows bleed the inset so the name sits on the column edge. The empty
+// state is the house line. No oxford commas, no dashes.
 
 import {
-  Box, VStack, HStack, Text, Icon, Center, Spinner, Button, Tooltip,
+  Box, VStack, HStack, Text, Icon, Button, Tooltip,
 } from '@chakra-ui/react';
 import { useNavigate } from 'react-router-dom';
-import { TbUsers, TbBolt, TbEdit, TbRepeat, TbChevronRight } from 'react-icons/tb';
+import { TbBolt, TbEdit, TbRepeat, TbChevronRight } from 'react-icons/tb';
 import { timeAgo } from '../../../utils/phone';
 import { subscriptionHealth, cadenceLabel, renewalLabel } from '../../../lib/billing';
 import colors from '../../../theme/colors';
-import { TYPE, EASE, FAST } from '../../../theme/layout';
+import { TYPE, EASE, FAST, INSET } from '../../../theme/layout';
 import Avatar from '../../../components/common/Avatar';
+import { Empty, Loading } from '../../../components/common/Page';
 
 const P = colors.paper;
 
@@ -47,20 +49,21 @@ const ClientRow = ({ client, onEdit }) => {
   return (
     <HStack
       as="button"
+      type="button"
       onClick={() => navigate(`/clients/${client.id}/`)}
       w="100%"
       align="center"
       spacing={{ base: 3, md: 4 }}
       textAlign="left"
       py={{ base: 3.5, md: 4 }}
-      px={{ base: 2, md: 3 }}
+      px={INSET}
       borderBottom="1px solid"
       borderColor={P.hairSoft}
       borderLeft="2px solid"
       borderLeftColor="transparent"
       role="group"
       transition={`all ${FAST} ${EASE}`}
-      _hover={{ bg: P.sheet, borderLeftColor: status, transform: 'translateX(2px)' }}
+      _hover={{ bg: P.sheet, borderLeftColor: status }}
       _active={{ bg: P.sunken }}
     >
       <Box w="6px" h="6px" borderRadius="full" bg={status} flexShrink={0} />
@@ -74,7 +77,7 @@ const ClientRow = ({ client, onEdit }) => {
           </Text>
 
           {health !== 'none' && (
-            <Tooltip label={`${cadenceLabel(sub)} · ${renewalLabel(sub)}`} placement="top" hasArrow bg={P.ink} color={P.sheet} fontSize="xs" openDelay={300}>
+            <Tooltip label={`${cadenceLabel(sub)} · ${renewalLabel(sub)}`} placement="top" hasArrow bg={P.ink} color={P.sheet} fontSize={TYPE.small} openDelay={300}>
               <HStack spacing={1} flexShrink={0}>
                 <Icon as={TbRepeat} boxSize="11px" color={HEALTH_PAPER[health] || P.inkFaint} />
               </HStack>
@@ -90,7 +93,7 @@ const ClientRow = ({ client, onEdit }) => {
           )}
         </HStack>
 
-        <HStack spacing={2} fontFamily="mono" fontSize={TYPE.micro} color={P.inkMuted} minW={0}>
+        <HStack spacing={2} fontFamily="mono" fontSize={TYPE.label} color={P.inkMuted} minW={0}>
           <Text color={client.total_funded > 0 ? P.inkSec : P.inkFaint} fontWeight="500" sx={{ fontVariantNumeric: 'tabular-nums' }}>
             {money(client.total_funded)}
           </Text>
@@ -108,7 +111,7 @@ const ClientRow = ({ client, onEdit }) => {
         </HStack>
       </VStack>
 
-      <Text display={{ base: 'none', lg: 'block' }} fontFamily="mono" fontSize={TYPE.micro} color={P.inkFaint} minW="58px" textAlign="right" flexShrink={0}>
+      <Text display={{ base: 'none', lg: 'block' }} fontFamily="mono" fontSize={TYPE.label} color={P.inkFaint} minW="58px" textAlign="right" flexShrink={0}>
         {timeAgo(client.last_activity_at || client.created_at)}
       </Text>
 
@@ -128,40 +131,21 @@ const ClientRow = ({ client, onEdit }) => {
 };
 
 const ClientGrid = ({ clients, loading, onEdit, onAdd, isEmpty }) => {
-  if (loading) {
-    return (
-      <Center py={16}>
-        <VStack spacing={3}>
-          <Spinner size="md" color={P.limeDeep} thickness="2px" />
-          <Text color={P.inkMuted} fontSize={TYPE.micro} fontFamily="mono">Loading clients</Text>
-        </VStack>
-      </Center>
-    );
-  }
+  if (loading) return <Loading label="loading clients" />;
 
   if (!clients.length) {
     return (
-      <VStack py={{ base: 14, md: 20 }} spacing={4} align="center">
-        <Icon as={TbUsers} boxSize={9} color={P.inkFaint} />
-        <VStack spacing={1}>
-          <Text fontSize={TYPE.body} fontWeight="600" color={P.ink}>
-            {isEmpty ? 'No clients yet' : 'No matches'}
-          </Text>
-          <Text fontSize={TYPE.small} color={P.inkMuted}>
-            {isEmpty ? 'Add the first one to the herd' : 'Try a different search or filter'}
-          </Text>
-        </VStack>
-        {isEmpty && (
-          <Button size="sm" bg={P.lime} color={P.limeInk} fontWeight="700" borderRadius="full" onClick={onAdd} mt={2} _hover={{ bg: '#D2E26B' }}>
-            Add your first client
-          </Button>
-        )}
-      </VStack>
+      <Empty
+        hint={isEmpty ? 'Add the first one to the herd.' : 'Try a different search or filter.'}
+        action={isEmpty ? <Button size="sm" onClick={onAdd}>Add your first client</Button> : undefined}
+      >
+        {isEmpty ? 'No clients yet.' : 'No matches.'}
+      </Empty>
     );
   }
 
   return (
-    <Box borderTop="1px solid" borderColor={P.hair}>
+    <Box borderTop="1px solid" borderColor={P.hair} mx={-INSET}>
       {clients.map((c) => <ClientRow key={c.id} client={c} onEdit={onEdit} />)}
     </Box>
   );

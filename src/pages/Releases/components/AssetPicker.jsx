@@ -1,5 +1,5 @@
 // src/pages/Releases/components/AssetPicker.jsx
-// SENTINEL: NB_PULSE_RELEASES_ASSETS_V1
+// SENTINEL: NB_PULSE_RELEASES_ASSETS_V2
 //
 // The picture shelf for one release. It lists the objects in the bucket the
 // channel owns (social-telegram, social-instagram, social-x or social-reddit,
@@ -21,14 +21,15 @@
 // .emptyFolderPlaceholder file in some buckets. Both are filtered. Anything
 // that is not an image by extension shows its name in place of a thumbnail.
 //
-// No oxford commas, no em dashes.
+// V2, house buttons and empty lines. No oxford commas, no em dashes.
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Box, VStack, HStack, Text, SimpleGrid, Spinner, Image, Icon, Input } from '@chakra-ui/react';
+import { Box, VStack, HStack, Text, SimpleGrid, Image, Icon, Input, Button } from '@chakra-ui/react';
 import { TbUpload, TbX, TbCheck } from 'react-icons/tb';
 import { supabase } from '../../../lib/supabase';
 import { P, Field } from './shared';
 import { TYPE, EASE, FAST } from '../../../theme/layout';
+import { Empty, Loading } from '../../../components/common/Page';
 
 const isImage = (name) => /\.(webp|png|jpe?g|gif|avif)$/i.test(name);
 
@@ -87,13 +88,9 @@ const AssetPicker = ({ bucket, selectedBucket, selectedPath, onPick }) => {
     <Field label="Picture" hint={bucket}>
       <VStack align="stretch" spacing={2.5}>
         <HStack spacing={2.5}>
-          <HStack as="button" type="button" onClick={() => fileRef.current && fileRef.current.click()} spacing={1.5}
-            bg={P.sheet} border="1px solid" borderColor={P.hair} color={P.ink} borderRadius="full" px={3.5} h="34px"
-            fontSize={TYPE.small} fontWeight="600" opacity={busy ? 0.6 : 1} pointerEvents={busy ? 'none' : 'auto'}
-            _hover={{ borderColor: P.limeDeep }} transition={`border-color ${FAST} ${EASE}`}>
-            {busy ? <Spinner size="xs" color={P.inkMuted} /> : <Icon as={TbUpload} boxSize={3.5} />}
-            <Text>{busy ? 'uploading' : 'upload'}</Text>
-          </HStack>
+          <Button size="sm" variant="outline" leftIcon={<Icon as={TbUpload} boxSize={3.5} />} onClick={() => fileRef.current && fileRef.current.click()} isLoading={busy} loadingText="uploading">
+            upload
+          </Button>
           {selectedBucket && selectedPath && (
             <HStack as="button" type="button" onClick={() => onPick(null, null)} spacing={1}
               color={P.inkMuted} _hover={{ color: P.coral }} transition={`color ${FAST} ${EASE}`}>
@@ -108,12 +105,10 @@ const AssetPicker = ({ bucket, selectedBucket, selectedPath, onPick }) => {
 
         {note && <Text fontFamily="mono" fontSize={TYPE.label} color={P.limeDeep}>{note}</Text>}
 
-        {objects === null && (
-          <HStack justify="center" py={6}><Spinner size="sm" color={P.inkMuted} /></HStack>
-        )}
+        {objects === null && <Loading label="reading the shelf" py={2} />}
 
         {objects !== null && objects.length === 0 && (
-          <Text fontSize={TYPE.small} color={P.inkFaint} py={2}>Nothing on this shelf yet.</Text>
+          <Empty py={2}>Nothing on this shelf yet.</Empty>
         )}
 
         {objects !== null && objects.length > 0 && (

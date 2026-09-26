@@ -5,12 +5,15 @@
 // and the list is always visible before anything leaves. Add with Enter,
 // comma or the button. A fixed address, the client on file for the first
 // send, shows without an x. Duplicates and bad addresses never enter the
-// list, and the server checks again. No oxford commas, no dashes.
+// list, and the server checks again. House field and label. No oxford
+// commas, no dashes.
 
 import { useState } from 'react';
 import { Box, HStack, Text, Input, Button, Icon, Wrap, WrapItem } from '@chakra-ui/react';
 import { TbX, TbPlus } from 'react-icons/tb';
 import colors from '../../../theme/colors';
+import { TYPE, INSET } from '../../../theme/layout';
+import { Field } from '../../../components/common/Page';
 
 const P = colors.paper;
 export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
@@ -46,15 +49,12 @@ const RecipientsField = ({ value, onChange, fixed = [], label = 'send to', note 
   const remove = (email) => onChange(list.filter((e) => e !== email && !fixedSet.has(e)));
 
   return (
-    <Box>
-      <Text fontSize="2xs" fontWeight="700" color={P.inkMuted} textTransform="uppercase" letterSpacing="0.1em" fontFamily="mono" mb={2}>
-        {label}
-      </Text>
-      <Wrap spacing={2} mb={2}>
+    <Field label={label}>
+      <Wrap spacing={2} mb={0.5}>
         {list.map((email) => (
           <WrapItem key={email}>
-            <HStack spacing={1.5} px={3} py={1.5} bg={P.mat} border="1px solid" borderColor={P.hair} borderRadius="full">
-              <Text fontSize="sm" color={P.ink}>{email}</Text>
+            <HStack spacing={1.5} px={INSET} h="30px" bg={P.mat} border="1px solid" borderColor={P.hair} borderRadius="full">
+              <Text fontSize={TYPE.small} color={P.ink}>{email}</Text>
               {!fixedSet.has(email) && (
                 <Box as="button" type="button" onClick={() => remove(email)} aria-label={`Remove ${email}`} color={P.inkMuted} display="inline-flex" _hover={{ color: P.coral }}>
                   <Icon as={TbX} boxSize={3.5} />
@@ -63,7 +63,7 @@ const RecipientsField = ({ value, onChange, fixed = [], label = 'send to', note 
             </HStack>
           </WrapItem>
         ))}
-        {list.length === 0 && <Text fontSize="sm" color={P.coral}>Nobody yet. Add at least one address.</Text>}
+        {list.length === 0 && <Text fontSize={TYPE.small} color={P.coral}>Nobody yet. Add at least one address.</Text>}
       </Wrap>
       <HStack spacing={2}>
         <Input
@@ -74,17 +74,14 @@ const RecipientsField = ({ value, onChange, fixed = [], label = 'send to', note 
           placeholder="add another address"
           bg={P.mat}
           borderColor={bad ? P.coral : P.hair}
-          color={P.ink}
-          fontSize="sm"
-          _focus={{ borderColor: P.limeDeep, boxShadow: 'none' }}
         />
-        <Button size="sm" variant="outline" borderColor={P.hair} color={P.inkSec} borderRadius="full" leftIcon={<Icon as={TbPlus} boxSize={3.5} />} onClick={add} _hover={{ bg: P.sheet, borderColor: P.limeDeep }} flexShrink={0}>
+        <Button size="md" variant="outline" leftIcon={<Icon as={TbPlus} boxSize={3.5} />} onClick={add} flexShrink={0}>
           Add
         </Button>
       </HStack>
-      {bad && <Text mt={2} fontSize="xs" color={P.coral}>That is not an email address.</Text>}
-      {note && !bad && <Text mt={2} fontSize="xs" color={P.inkMuted} lineHeight="1.6">{note}</Text>}
-    </Box>
+      {bad && <Text fontSize={TYPE.small} color={P.coral}>That is not an email address.</Text>}
+      {note && !bad && <Text fontSize={TYPE.small} color={P.inkMuted} lineHeight="1.6">{note}</Text>}
+    </Field>
   );
 };
 

@@ -1,5 +1,5 @@
 // src/pages/Calendar/components/AppointmentModal.jsx
-// SENTINEL: NB_APPT_MODAL_V1
+// SENTINEL: NB_APPT_MODAL_V2
 //
 // Create, edit, remind and cancel one appointment, on Paper. This is where the
 // operator "clicks and sets" a meeting. It owns the write AND the notify call so
@@ -17,7 +17,11 @@
 // TIME: the operator's date + time are read as THEIR local wall time
 // (combineLocal), stored as an absolute instant, and stamped with the operator's
 // resolved zone. The invite and the .ics convert automatically for the client,
-// so there is nothing to reconcile and no off-by-one. No oxford commas, no dashes.
+// so there is nothing to reconcile and no off-by-one.
+//
+// V2, 2026-09-25. The fields are the house fields from the theme, the labels
+// are the house field label. No local field style. No oxford commas, no
+// dashes.
 
 import { useState, useEffect, useMemo } from 'react';
 import {
@@ -26,11 +30,13 @@ import {
   Box, SimpleGrid, Icon, useToast,
 } from '@chakra-ui/react';
 import DotSelect from '../../../components/common/DotSelect';
+import { Field, FieldLabel, Kicker } from '../../../components/common/Page';
 import {
   TbPhone, TbVideo, TbMapPin, TbRefresh, TbBell, TbTrash, TbCalendarPlus, TbCopy, TbCheck,
 } from 'react-icons/tb';
 import { supabase } from '../../../lib/supabase';
 import colors from '../../../theme/colors';
+import { TYPE, EASE, FAST } from '../../../theme/layout';
 import { personaForClient } from '../../../lib/personas';
 import {
   MEETING_TYPES, typeOf, DURATIONS, ymd, combineLocal, buildVideoRoom, endFrom, fmtTime,
@@ -46,25 +52,7 @@ const TZ_SHORT = (() => {
 })();
 
 const TYPE_ICON = { call: TbPhone, video: TbVideo, in_person: TbMapPin };
-
-const FIELD = {
-  bg: P.sheet, border: '1px solid', borderColor: P.hair, borderRadius: 'lg',
-  color: P.ink, fontSize: 'sm', h: '46px', px: 3.5,
-  _hover: { borderColor: P.inkFaint },
-  _focus: { borderColor: P.lime, boxShadow: `0 0 0 3px ${P.lime}33`, outline: 'none' },
-  _placeholder: { color: P.inkFaint },
-};
-const LABEL = {
-  fontSize: '2xs', fontWeight: '600', color: P.inkMuted,
-  textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'mono', mb: 1.5,
-};
-
-const Field = ({ label, children }) => (
-  <Box>
-    <Text {...LABEL}>{label}</Text>
-    {children}
-  </Box>
-);
+const PICKER = { '&::-webkit-calendar-picker-indicator': { filter: 'invert(0.3)' } };
 
 const NotifyToggle = ({ on, disabled, onClick, icon, children }) => (
   <Box
@@ -73,11 +61,11 @@ const NotifyToggle = ({ on, disabled, onClick, icon, children }) => (
     borderColor={on && !disabled ? 'transparent' : P.hair}
     bg={on && !disabled ? P.lime : 'transparent'}
     opacity={disabled ? 0.4 : 1} cursor={disabled ? 'not-allowed' : 'pointer'}
-    transition="all 0.15s" _hover={{ borderColor: disabled ? P.hair : (on ? 'transparent' : P.inkFaint) }}
+    transition={`all ${FAST} ${EASE}`} _hover={{ borderColor: disabled ? P.hair : (on ? 'transparent' : P.inkFaint) }}
   >
-    <HStack spacing={1.5} justify="center">
+    <HStack spacing={1.5}>
       <Icon as={icon} boxSize={3.5} color={on && !disabled ? P.limeInk : P.inkMuted} />
-      <Text fontSize="2xs" fontWeight="700" fontFamily="mono" letterSpacing="0.04em" textTransform="uppercase" color={on && !disabled ? P.limeInk : P.inkMuted}>
+      <Text fontSize={TYPE.kicker} fontWeight="500" fontFamily="mono" letterSpacing="0.1em" textTransform="uppercase" color={on && !disabled ? P.limeInk : P.inkMuted}>
         {children}
       </Text>
     </HStack>
@@ -258,10 +246,10 @@ const AppointmentModal = ({ isOpen, onClose, clients = [], appointment = null, i
       <ModalOverlay bg="rgba(36,26,22,0.55)" backdropFilter="blur(3px)" />
       <ModalContent bg={P.mat} borderRadius={{ base: 0, md: '2xl' }} border="1px solid" borderColor={P.hair} overflow="hidden" mx={{ base: 0, md: 4 }} my={{ base: 0, md: 'auto' }}>
         <ModalHeader pb={2}>
-          <Text fontFamily="mono" fontSize="2xs" fontWeight="600" letterSpacing="0.22em" textTransform="uppercase" color={tCfg.accent}>
+          <Kicker color={tCfg.accent}>
             {isEdit ? 'Edit appointment' : 'New appointment'}
-          </Text>
-          <Text fontSize="xl" fontWeight="700" color={P.ink} letterSpacing="-0.01em" mt={1}>
+          </Kicker>
+          <Text fontSize={TYPE.section} fontWeight="700" color={P.ink} letterSpacing="-0.01em" mt={1}>
             {isEdit ? (title || 'Appointment') : 'Set a meeting'}
           </Text>
         </ModalHeader>
@@ -270,29 +258,28 @@ const AppointmentModal = ({ isOpen, onClose, clients = [], appointment = null, i
         <ModalBody>
           <VStack spacing={4} align="stretch" pb={2}>
 
-            {/* Type segmented control */}
             <HStack spacing={2}>
               {MEETING_TYPES.map((t) => {
                 const on = type === t.id;
                 return (
                   <Box
                     key={t.id} as="button" type="button" onClick={() => setType(t.id)}
-                    flex={1} py={3} borderRadius="xl" border="1px solid"
+                    flex={1} py={3} px={3} textAlign="left" borderRadius="xl" border="1px solid"
                     borderColor={on ? t.accent : P.hair} bg={on ? t.tint : 'transparent'}
-                    transition="all 0.15s" _hover={{ borderColor: on ? t.accent : P.inkFaint }}
+                    transition={`all ${FAST} ${EASE}`} _hover={{ borderColor: on ? t.accent : P.inkFaint }}
                   >
-                    <VStack spacing={1}>
-                      <Icon as={TYPE_ICON[t.id]} boxSize={5} color={on ? t.accent : P.inkMuted} />
-                      <Text fontSize="xs" fontWeight="700" color={on ? t.accent : P.inkMuted}>{t.label}</Text>
-                    </VStack>
+                    <HStack spacing={2}>
+                      <Icon as={TYPE_ICON[t.id]} boxSize={4} color={on ? t.accent : P.inkMuted} />
+                      <Text fontSize={TYPE.small} fontWeight="700" color={on ? t.accent : P.inkMuted}>{t.label}</Text>
+                    </HStack>
                   </Box>
                 );
               })}
             </HStack>
-            <Text fontSize="xs" color={P.inkFaint} mt={-2}>{tCfg.hint}</Text>
+            <Text fontSize={TYPE.small} color={P.inkFaint} mt={-2}>{tCfg.hint}</Text>
 
             <Field label="What is it">
-              <Input {...FIELD} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Kickoff call, design review, site walkthrough" autoFocus />
+              <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Kickoff call, design review, site walkthrough" autoFocus />
             </Field>
 
             <Field label="Client">
@@ -309,10 +296,10 @@ const AppointmentModal = ({ isOpen, onClose, clients = [], appointment = null, i
 
             <SimpleGrid columns={{ base: 1, md: 3 }} spacing={3}>
               <Field label="Date">
-                <Input {...FIELD} type="date" value={date} onChange={(e) => setDate(e.target.value)} sx={{ '&::-webkit-calendar-picker-indicator': { filter: 'invert(0.3)' } }} />
+                <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} sx={PICKER} />
               </Field>
               <Field label="Start">
-                <Input {...FIELD} type="time" value={time} onChange={(e) => setTime(e.target.value)} sx={{ '&::-webkit-calendar-picker-indicator': { filter: 'invert(0.3)' } }} />
+                <Input type="time" value={time} onChange={(e) => setTime(e.target.value)} sx={PICKER} />
               </Field>
               <Field label="Length">
                 <DotSelect
@@ -324,57 +311,54 @@ const AppointmentModal = ({ isOpen, onClose, clients = [], appointment = null, i
             </SimpleGrid>
 
             {startPreview && (
-              <Text fontSize="xs" color={P.inkMuted} mt={-2}>
+              <Text fontSize={TYPE.small} color={P.inkMuted} mt={-2}>
                 {fmtTime(startPreview)} to {fmtTime(endPreview)} · read in your time, {TZ_SHORT}. The invite and calendar file convert for the client.
               </Text>
             )}
 
-            {/* Type-specific detail */}
             {type === 'in_person' && (
               <Field label="Where">
-                <Textarea {...FIELD} h="auto" minH="72px" py={3} value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Address or place. The Ridgway shop, a coffee spot, their office" />
+                <Textarea minH="72px" value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Address or place. The Ridgway shop, a coffee spot, their office" />
               </Field>
             )}
             {type === 'video' && (
               <Box bg={tCfg.tint} border="1px solid" borderColor={`${tCfg.accent}55`} borderRadius="xl" p={3.5}>
                 <HStack justify="space-between" mb={2}>
-                  <Text {...LABEL} mb={0} color={tCfg.accent}>Video room</Text>
+                  <FieldLabel mb={0} color={tCfg.accent}>Video room</FieldLabel>
                   <HStack spacing={1}>
                     <Box as="button" type="button" onClick={copyRoom} px={2} py={1} borderRadius="md" _hover={{ bg: `${tCfg.accent}22` }}>
-                      <HStack spacing={1}><Icon as={copied ? TbCheck : TbCopy} boxSize={3} color={tCfg.accent} /><Text fontSize="2xs" fontFamily="mono" color={tCfg.accent}>{copied ? 'Copied' : 'Copy'}</Text></HStack>
+                      <HStack spacing={1}><Icon as={copied ? TbCheck : TbCopy} boxSize={3} color={tCfg.accent} /><Text fontSize={TYPE.label} fontFamily="mono" color={tCfg.accent}>{copied ? 'Copied' : 'Copy'}</Text></HStack>
                     </Box>
                     <Box as="button" type="button" onClick={() => setMeetingUrl(buildVideoRoom(client?.name))} px={2} py={1} borderRadius="md" _hover={{ bg: `${tCfg.accent}22` }}>
-                      <HStack spacing={1}><Icon as={TbRefresh} boxSize={3} color={tCfg.accent} /><Text fontSize="2xs" fontFamily="mono" color={tCfg.accent}>New link</Text></HStack>
+                      <HStack spacing={1}><Icon as={TbRefresh} boxSize={3} color={tCfg.accent} /><Text fontSize={TYPE.label} fontFamily="mono" color={tCfg.accent}>New link</Text></HStack>
                     </Box>
                   </HStack>
                 </HStack>
-                <Text fontSize="xs" fontFamily="mono" color={P.inkSec} wordBreak="break-all">{meetingUrl}</Text>
-                <Text fontSize="2xs" color={P.inkFaint} mt={1.5}>Jitsi Meet. No account, opens in any browser, nothing to install. Sent with the invite.</Text>
+                <Text fontSize={TYPE.small} fontFamily="mono" color={P.inkSec} wordBreak="break-all">{meetingUrl}</Text>
+                <Text fontSize={TYPE.label} color={P.inkFaint} mt={1.5}>Jitsi Meet. No account, opens in any browser, nothing to install. Sent with the invite.</Text>
               </Box>
             )}
             {type === 'call' && (
-              <Text fontSize="xs" color={P.inkMuted}>
+              <Text fontSize={TYPE.small} color={P.inkMuted}>
                 {client?.phone ? `We ring ${client.name?.split(' ')[0] || 'them'} at ${client.phone}.` : 'We call the number on the client file. Add a phone on the client to include it in the invite.'}
               </Text>
             )}
 
             <Field label="What it is about">
-              <Textarea {...FIELD} h="auto" minH="80px" py={3} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="A line or two the client sees in the invite. Agenda, what to bring, what we will cover." />
+              <Textarea minH="80px" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="A line or two the client sees in the invite. Agenda, what to bring, what we will cover." />
             </Field>
 
-            {/* Notify controls, only meaningful when not editing */}
             {!isEdit && (
-              <Box>
-                <Text {...LABEL}>When I schedule this</Text>
+              <Field label="When I schedule this">
                 <HStack spacing={2} align="stretch">
                   <NotifyToggle on={notifyClient} disabled={!clientHasEmail} onClick={() => setNotifyClient((v) => !v)} icon={TbCalendarPlus}>Email client</NotifyToggle>
                   <NotifyToggle on={notifyTeam} onClick={() => setNotifyTeam((v) => !v)} icon={TbBell}>Notify me</NotifyToggle>
                   <NotifyToggle on={postPortal} disabled={!clientId} onClick={() => setPostPortal((v) => !v)} icon={TbCheck}>Post to portal</NotifyToggle>
                 </HStack>
                 {!clientHasEmail && clientId && (
-                  <Text fontSize="2xs" color={P.gold} mt={1.5}>This client has no email on file, so no invite goes out.</Text>
+                  <Text fontSize={TYPE.label} color={P.gold}>This client has no email on file, so no invite goes out.</Text>
                 )}
-              </Box>
+              </Field>
             )}
           </VStack>
         </ModalBody>
@@ -382,22 +366,18 @@ const AppointmentModal = ({ isOpen, onClose, clients = [], appointment = null, i
         <ModalFooter borderTop="1px solid" borderColor={P.hair} flexWrap="wrap" gap={2}>
           {isEdit && (
             <HStack spacing={2} mr="auto">
-              <Button variant="ghost" size="sm" color={P.inkMuted} leftIcon={<TbBell size={15} />} onClick={handleReminder} isDisabled={saving || !clientHasEmail} _hover={{ bg: P.sunken, color: P.ink }}>
+              <Button variant="ghost" size="sm" leftIcon={<TbBell size={15} />} onClick={handleReminder} isDisabled={saving || !clientHasEmail}>
                 Send reminder
               </Button>
-              <Button variant="ghost" size="sm" color={P.coral} leftIcon={<TbTrash size={15} />} onClick={handleCancel} isDisabled={saving} _hover={{ bg: `${P.coral}14` }}>
+              <Button variant="ghost" size="sm" color={P.coral} leftIcon={<TbTrash size={15} />} onClick={handleCancel} isDisabled={saving} _hover={{ bg: `${P.coral}14`, color: P.coral }}>
                 Cancel it
               </Button>
             </HStack>
           )}
-          <Button variant="ghost" color={P.inkMuted} onClick={onClose} isDisabled={saving} _hover={{ bg: P.sunken, color: P.ink }}>
+          <Button variant="ghost" size="sm" onClick={onClose} isDisabled={saving}>
             Close
           </Button>
-          <Button
-            bg={P.lime} color={P.limeInk} fontWeight="700"
-            _hover={{ bg: '#B8CC4A' }} _active={{ bg: '#A9BD3E' }}
-            onClick={handleSave} isLoading={saving} loadingText={isEdit ? 'Saving' : 'Scheduling'}
-          >
+          <Button size="sm" onClick={handleSave} isLoading={saving} loadingText={isEdit ? 'Saving' : 'Scheduling'}>
             {primaryLabel}
           </Button>
         </ModalFooter>

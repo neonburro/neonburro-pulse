@@ -1,5 +1,5 @@
 // src/pages/Releases/components/ReleaseDrawer.jsx
-// SENTINEL: NB_PULSE_SOCIALS_DRAWER_V3
+// SENTINEL: NB_PULSE_SOCIALS_DRAWER_V4
 //
 // One release, one shared record. The voice is the council member speaking.
 // The publishing account is a separate row in social_accounts. The creative
@@ -36,6 +36,7 @@
 // beside save. It is the five minute runner on a person's click, the same
 // gate, and it asks once before it goes. Nothing leaves on its own.
 //
+// V4, the house fields through shared.jsx, the house buttons and kicker.
 // No oxford commas, no em dashes.
 
 import { useState, useEffect, useCallback } from 'react';
@@ -55,6 +56,7 @@ import {
   Textarea,
   Select,
   Switch,
+  Button,
 } from '@chakra-ui/react';
 import { supabase } from '../../../lib/supabase';
 import {
@@ -67,7 +69,7 @@ import {
   HASHTAG_LIMITS,
   STATUS_TINT,
   Field,
-  inputProps,
+  Kicker,
   VoiceDisc,
   isAutomatic,
   isSocial,
@@ -87,6 +89,7 @@ import StudioShelf from './StudioShelf';
 import VoltDraft from './VoltDraft';
 import { useConnectors, connectorLine, postNow } from './connectors';
 import { TYPE, EASE, FAST } from '../../../theme/layout';
+import { Plate } from '../../../components/common/Page';
 
 const APPROVAL_FIELDS = [
   'title',
@@ -376,16 +379,7 @@ const ReleaseDrawer = ({ release, isOpen, onClose, onSaved, onAdvance }) => {
             <DrawerHeader pb={3} pr={14}>
               <HStack spacing={2.5} mb={2}>
                 <VoiceDisc voice={form.voice} size="20px" />
-                <Text
-                  fontFamily="mono"
-                  fontSize="9px"
-                  fontWeight="500"
-                  letterSpacing="0.2em"
-                  textTransform="uppercase"
-                  color={P.limeDeep}
-                >
-                  social release
-                </Text>
+                <Kicker color={P.limeDeep}>social release</Kicker>
                 <HStack
                   as="button"
                   type="button"
@@ -437,7 +431,6 @@ const ReleaseDrawer = ({ release, isOpen, onClose, onSaved, onAdvance }) => {
 
                 <Field label="Title">
                   <Input
-                    {...inputProps}
                     value={form.title}
                     placeholder="what ships"
                     onChange={(event) => set({ title: event.target.value })}
@@ -448,7 +441,6 @@ const ReleaseDrawer = ({ release, isOpen, onClose, onSaved, onAdvance }) => {
                   <Box flex={1} minW="150px">
                     <Field label="Channel" hint="free text">
                       <Input
-                        {...inputProps}
                         fontFamily="mono"
                         fontSize={TYPE.small}
                         list="social-channel-list"
@@ -467,7 +459,6 @@ const ReleaseDrawer = ({ release, isOpen, onClose, onSaved, onAdvance }) => {
                   <Box flex={1} minW="150px">
                     <Field label="Voice" hint="who is speaking">
                       <Select
-                        {...inputProps}
                         fontFamily="mono"
                         fontSize={TYPE.small}
                         value={form.voice}
@@ -490,7 +481,6 @@ const ReleaseDrawer = ({ release, isOpen, onClose, onSaved, onAdvance }) => {
                     hintColor={meta ? (probe?.ready ? P.limeDeep : probe?.unknown ? P.inkFaint : P.gold) : undefined}
                   >
                     <Select
-                      {...inputProps}
                       fontFamily="mono"
                       fontSize={TYPE.small}
                       value={form.social_account_id}
@@ -510,7 +500,6 @@ const ReleaseDrawer = ({ release, isOpen, onClose, onSaved, onAdvance }) => {
                   <Box flex={1} minW="150px">
                     <Field label="Date">
                       <Input
-                        {...inputProps}
                         type="date"
                         fontFamily="mono"
                         fontSize={TYPE.small}
@@ -522,7 +511,6 @@ const ReleaseDrawer = ({ release, isOpen, onClose, onSaved, onAdvance }) => {
                   <Box flex={1} minW="120px">
                     <Field label="Time" hint="local">
                       <Input
-                        {...inputProps}
                         type="time"
                         fontFamily="mono"
                         fontSize={TYPE.small}
@@ -535,7 +523,6 @@ const ReleaseDrawer = ({ release, isOpen, onClose, onSaved, onAdvance }) => {
 
                 <Field label="Content lane" hint="one useful thread">
                   <Input
-                    {...inputProps}
                     value={form.content_pillar}
                     placeholder="craft, place, research, token record"
                     onChange={(event) => set({ content_pillar: event.target.value })}
@@ -566,11 +553,7 @@ const ReleaseDrawer = ({ release, isOpen, onClose, onSaved, onAdvance }) => {
 
                 <Field label="Body" hint={bodyHint} hintColor={over ? P.coral : undefined}>
                   <Textarea
-                    {...inputProps}
-                    h="auto"
                     minH="160px"
-                    py={3}
-                    lineHeight="1.6"
                     borderColor={over ? P.coral : P.hair}
                     value={form.body}
                     placeholder="the words that go out"
@@ -578,19 +561,16 @@ const ReleaseDrawer = ({ release, isOpen, onClose, onSaved, onAdvance }) => {
                   />
                 </Field>
 
-                <Box bg={P.sunken} border="1px solid" borderColor={P.hair} borderRadius="14px" p={4}>
+                <Plate sunken>
                   <VStack align="stretch" spacing={4}>
                     <HStack justify="space-between" align="baseline">
                       <Text fontSize={TYPE.body} fontWeight="600" color={P.ink}>
                         Lyra queue
                       </Text>
                       <Select
-                        {...inputProps}
-                        h="34px"
-                        w="150px"
-                        px={2.5}
+                        size="sm"
+                        w="160px"
                         fontFamily="mono"
-                        fontSize={TYPE.micro}
                         value={form.asset_status}
                         onChange={(event) => set({ asset_status: event.target.value })}
                       >
@@ -602,10 +582,7 @@ const ReleaseDrawer = ({ release, isOpen, onClose, onSaved, onAdvance }) => {
 
                     <Field label="Creative brief" hint="image, motion or both">
                       <Textarea
-                        {...inputProps}
-                        h="auto"
                         minH="100px"
-                        py={3}
                         value={form.creative_brief}
                         placeholder="what the asset should make someone feel and what must stay true"
                         onChange={(event) => set({ creative_brief: event.target.value })}
@@ -633,7 +610,6 @@ const ReleaseDrawer = ({ release, isOpen, onClose, onSaved, onAdvance }) => {
                     {hasPicture && (
                       <Field label="Alt line" hint={hasAlt ? 'carried to facebook' : 'saved after the migration'}>
                         <Input
-                          {...inputProps}
                           fontSize={TYPE.small}
                           value={form.asset_alt}
                           placeholder="what the picture shows, one line"
@@ -653,11 +629,10 @@ const ReleaseDrawer = ({ release, isOpen, onClose, onSaved, onAdvance }) => {
                       })}
                     />
                   </VStack>
-                </Box>
+                </Plate>
 
                 <Field label="Link" hint={form.channel === 'instagram' ? 'instagram does not link captions' : undefined}>
                   <Input
-                    {...inputProps}
                     fontFamily="mono"
                     fontSize={TYPE.small}
                     value={form.link}
@@ -668,16 +643,13 @@ const ReleaseDrawer = ({ release, isOpen, onClose, onSaved, onAdvance }) => {
 
                 <Field label="Notes" hint="private to the studio">
                   <Textarea
-                    {...inputProps}
-                    h="auto"
                     minH="70px"
-                    py={2.5}
                     value={form.notes}
                     onChange={(event) => set({ notes: event.target.value })}
                   />
                 </Field>
 
-                <Box bg={P.sunken} border="1px solid" borderColor={P.hair} borderRadius="14px" p={4}>
+                <Plate sunken>
                   <HStack justify="space-between" align="center">
                     <VStack align="start" spacing={0.5}>
                       <Text fontSize={TYPE.body} fontWeight="600" color={P.ink}>Approved</Text>
@@ -706,7 +678,7 @@ const ReleaseDrawer = ({ release, isOpen, onClose, onSaved, onAdvance }) => {
                       })}
                     </Text>
                   )}
-                </Box>
+                </Plate>
               </VStack>
             </DrawerBody>
 
@@ -714,68 +686,18 @@ const ReleaseDrawer = ({ release, isOpen, onClose, onSaved, onAdvance }) => {
               <Text fontFamily="mono" fontSize={TYPE.micro} color={P.inkFaint}>
                 {dirty ? 'unsaved' : 'saved'}
               </Text>
-              <HStack spacing={2.5}>
-                <HStack
-                  as="button"
-                  type="button"
-                  onClick={onClose}
-                  spacing={1.5}
-                  bg={P.sheet}
-                  border="1px solid"
-                  borderColor={P.hair}
-                  color={P.inkSec}
-                  borderRadius="full"
-                  px={4}
-                  h="38px"
-                  fontWeight="600"
-                  fontSize="sm"
-                  _hover={{ borderColor: P.inkFaint }}
-                  transition={`border-color ${FAST} ${EASE}`}
-                >
-                  <Text>close</Text>
-                </HStack>
+              <HStack spacing={2}>
+                <Button size="sm" variant="outline" onClick={onClose}>
+                  close
+                </Button>
                 {canPostNow && (
-                  <HStack
-                    as="button"
-                    type="button"
-                    onClick={carryNow}
-                    spacing={1.5}
-                    bg={P.sheet}
-                    border="1px solid"
-                    borderColor={P.limeDeep}
-                    color={P.limeDeep}
-                    borderRadius="full"
-                    px={4}
-                    h="38px"
-                    fontWeight="600"
-                    fontSize="sm"
-                    opacity={posting ? 0.6 : 1}
-                    pointerEvents={posting ? 'none' : 'auto'}
-                    _hover={{ bg: P.sunken }}
-                    transition={`all ${FAST} ${EASE}`}
-                  >
-                    <Text>{posting ? 'posting' : 'post now'}</Text>
-                  </HStack>
+                  <Button size="sm" variant="outline" color={P.limeDeep} borderColor={P.limeDeep} onClick={carryNow} isLoading={posting} loadingText="posting">
+                    post now
+                  </Button>
                 )}
-                <HStack
-                  as="button"
-                  type="button"
-                  onClick={save}
-                  spacing={1.5}
-                  bg={P.lime}
-                  color={P.limeInk}
-                  borderRadius="full"
-                  px={5}
-                  h="38px"
-                  fontWeight="700"
-                  fontSize="sm"
-                  opacity={busy ? 0.6 : 1}
-                  pointerEvents={busy ? 'none' : 'auto'}
-                  _hover={{ bg: '#D2E26B' }}
-                  transition={`all ${FAST} ${EASE}`}
-                >
-                  <Text>{busy ? 'saving' : 'save'}</Text>
-                </HStack>
+                <Button size="sm" onClick={save} isLoading={busy} loadingText="saving">
+                  save
+                </Button>
               </HStack>
             </DrawerFooter>
           </>

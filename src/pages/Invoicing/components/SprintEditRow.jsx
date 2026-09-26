@@ -6,13 +6,17 @@
 //
 // The funding chips use the SAME warm tints as the invoice document
 // (invoiceEmailTemplate.js CHIP), so what you set here reads identically to what
-// the client sees. No oxford commas, no dashes.
+// the client sees. The title and amount are naked inline fields, they sit in a
+// row with no rounded edge so they carry no inset, the description opens as
+// a house textarea. No oxford commas, no dashes.
 
 import { useState } from 'react';
 import { Box, HStack, Input, Textarea, Text, Icon } from '@chakra-ui/react';
 import { TbCheck, TbTrash, TbLock } from 'react-icons/tb';
 import { FUNDING_MODES } from '../../../lib/invoiceConstants';
 import colors from '../../../theme/colors';
+import { TYPE, PLACEHOLDER, EASE, FAST } from '../../../theme/layout';
+import { Kicker } from '../../../components/common/Page';
 
 const P = colors.paper;
 
@@ -45,7 +49,7 @@ const SprintEditRow = ({ sprint, onUpdate, onDelete }) => {
           mt="2px"
           cursor={isLocked ? 'not-allowed' : 'pointer'}
           flexShrink={0}
-          transition="all 0.15s"
+          transition={`all ${FAST} ${EASE}`}
         >
           {!isWip && <Icon as={TbCheck} boxSize={2.5} color={P.limeInk} strokeWidth={3} />}
         </Box>
@@ -55,16 +59,16 @@ const SprintEditRow = ({ sprint, onUpdate, onDelete }) => {
             <Input
               value={sprint.title || ''}
               onChange={(e) => onUpdate({ ...sprint, title: e.target.value })}
-              placeholder="Sprint title..."
+              placeholder="Sprint title"
               variant="unstyled"
               color={P.ink}
-              fontSize="md"
+              fontSize={TYPE.body}
               fontWeight="600"
               letterSpacing="-0.01em"
               h="28px"
               flex={1}
               isReadOnly={isLocked}
-              _placeholder={{ color: P.inkFaint, fontWeight: '500' }}
+              _placeholder={{ color: PLACEHOLDER, fontWeight: '500' }}
             />
             <Input
               value={sprint.amount || ''}
@@ -74,20 +78,20 @@ const SprintEditRow = ({ sprint, onUpdate, onDelete }) => {
               step="0.01"
               variant="unstyled"
               color={P.ink}
-              fontSize="md"
+              fontSize={TYPE.body}
               fontFamily="mono"
               fontWeight="600"
               h="28px"
               textAlign="right"
               w="90px"
               isReadOnly={isLocked}
-              _placeholder={{ color: P.inkFaint }}
+              _placeholder={{ color: PLACEHOLDER }}
             />
-            <Text color={P.inkMuted} fontSize="xs" fontFamily="mono">USD</Text>
+            <Text color={P.inkMuted} fontSize={TYPE.small} fontFamily="mono">USD</Text>
           </HStack>
 
           <HStack spacing={3} mt={1.5} flexWrap="wrap" rowGap={2}>
-            <Text color={P.inkFaint} fontSize="2xs" fontFamily="mono" fontWeight="600" letterSpacing="0.04em">
+            <Text color={P.inkFaint} fontSize={TYPE.label} fontFamily="mono" fontWeight="600" letterSpacing="0.04em">
               {sprint.sprint_number || 'number on save'}
             </Text>
 
@@ -99,22 +103,23 @@ const SprintEditRow = ({ sprint, onUpdate, onDelete }) => {
                   <Box
                     key={mode.value}
                     as="button"
+                    type="button"
                     onClick={() => !isLocked && onUpdate({ ...sprint, payment_mode: mode.value })}
                     px={2.5}
-                    py={1}
+                    h="26px"
                     borderRadius="full"
                     border="1px solid"
                     borderColor={active ? 'transparent' : P.hair}
                     bg={active ? chip.bg : 'transparent'}
-                    transition="all 0.15s"
+                    transition={`all ${FAST} ${EASE}`}
                     cursor={isLocked ? 'not-allowed' : 'pointer'}
                     _hover={isLocked ? {} : { borderColor: active ? 'transparent' : P.inkFaint }}
                   >
                     <Text
-                      fontSize="2xs"
-                      fontWeight="600"
+                      fontSize={TYPE.kicker}
+                      fontWeight="500"
                       fontFamily="mono"
-                      letterSpacing="0.04em"
+                      letterSpacing="0.1em"
                       textTransform="uppercase"
                       color={active ? chip.ink : P.inkMuted}
                     >
@@ -128,33 +133,27 @@ const SprintEditRow = ({ sprint, onUpdate, onDelete }) => {
             {isLocked && (
               <HStack spacing={1} color={P.limeDeep}>
                 <Icon as={TbLock} boxSize={3} />
-                <Text fontSize="2xs" fontFamily="mono" fontWeight="700" letterSpacing="0.06em">PAID</Text>
+                <Kicker color="inherit">PAID</Kicker>
               </HStack>
             )}
             {isWip && !isLocked && (
-              <Text color={P.inkFaint} fontSize="2xs" fontFamily="mono" fontWeight="700" letterSpacing="0.06em">
-                WIP
-              </Text>
+              <Kicker color={P.inkFaint}>WIP</Kicker>
             )}
 
             <Box flex={1} />
 
             <Box
               as="button"
+              type="button"
               onClick={() => setExpanded(!expanded)}
               color={P.inkMuted}
               _hover={{ color: P.ink }}
-              fontSize="2xs"
-              fontFamily="mono"
-              fontWeight="700"
-              textTransform="uppercase"
-              letterSpacing="0.04em"
             >
-              {expanded ? 'Less' : 'Details'}
+              <Kicker color="inherit">{expanded ? 'Less' : 'Details'}</Kicker>
             </Box>
 
             {!isLocked && (
-              <Box as="button" onClick={onDelete} color={P.inkFaint} _hover={{ color: P.coral }} transition="color 0.15s">
+              <Box as="button" type="button" onClick={onDelete} color={P.inkFaint} _hover={{ color: P.coral }} transition={`color ${FAST} ${EASE}`}>
                 <Icon as={TbTrash} boxSize={3.5} />
               </Box>
             )}
@@ -179,18 +178,10 @@ const SprintEditRow = ({ sprint, onUpdate, onDelete }) => {
               onChange={(e) => onUpdate({ ...sprint, description: e.target.value })}
               placeholder="Where the work is, then what it covers. Drag the corner for more room."
               mt={3}
-              bg={P.sheet}
-              border="1px solid"
-              borderColor={P.hair}
-              borderRadius="lg"
               color={P.inkSec}
-              fontSize="sm"
               rows={6}
               minH="140px"
-              resize="vertical"
               isReadOnly={isLocked}
-              _focus={{ borderColor: P.lime, boxShadow: `0 0 0 3px ${P.lime}33` }}
-              _placeholder={{ color: P.inkFaint }}
             />
           )}
         </Box>

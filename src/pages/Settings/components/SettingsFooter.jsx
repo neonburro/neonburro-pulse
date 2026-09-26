@@ -1,11 +1,13 @@
 // src/pages/Settings/components/SettingsFooter.jsx
-// Sign out, and the version line, on Paper.
+// Sign out, and the version line, on Paper. Left aligned. No oxford commas,
+// no dashes.
 
 import { HStack, Text, VStack, Button, useToast } from '@chakra-ui/react';
 import { TbLogout } from 'react-icons/tb';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../../lib/supabase';
 import colors from '../../../theme/colors';
+import { TYPE } from '../../../theme/layout';
 
 const P = colors.paper;
 
@@ -24,13 +26,15 @@ const SettingsFooter = () => {
   };
 
   return (
-    <VStack spacing={4} pt={2}>
-      <Button w="100%" h="46px" borderRadius="xl" fontSize="sm" fontWeight="700" leftIcon={<TbLogout size={16} />} bg="transparent" color={P.inkMuted} border="1px solid" borderColor={P.hair} transition="all 0.2s" _hover={{ color: P.coral, borderColor: `${P.coral}66`, bg: `${P.coral}0F` }} onClick={handleSignOut}>
-        Sign out
-      </Button>
-      <HStack justify="space-between" w="100%" pt={4} borderTop="1px solid" borderColor={P.hairSoft}>
-        <Text fontSize="2xs" color={P.inkFaint} fontFamily="mono">Neon Burro Pulse</Text>
-        <Text fontSize="2xs" color={P.inkFaint} fontFamily="mono">v1.1.0</Text>
+    <VStack spacing={5} align="stretch" pt={2}>
+      <HStack>
+        <Button size="md" variant="outline" leftIcon={<TbLogout size={16} />} onClick={handleSignOut} _hover={{ color: P.coral, borderColor: `${P.coral}66`, bg: `${P.coral}0F` }}>
+          Sign out
+        </Button>
+      </HStack>
+      <HStack justify="space-between" pt={4} borderTop="1px solid" borderColor={P.hairSoft}>
+        <Text fontSize={TYPE.label} color={P.inkFaint} fontFamily="mono">neonburro pulse</Text>
+        <Text fontSize={TYPE.label} color={P.inkFaint} fontFamily="mono">v1.1.0</Text>
       </HStack>
     </VStack>
   );

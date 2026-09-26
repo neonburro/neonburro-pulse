@@ -1,45 +1,27 @@
 // src/pages/Clients/components/SubscriptionModal.jsx
-// SENTINEL: NB_PULSE_SUB_MODAL_V2
+// SENTINEL: NB_PULSE_SUB_MODAL_V3
 //
 // Create or edit one recurring arrangement, on Paper. The rail is the first
 // question, not a setting: two large cards at the top, and choosing one rewrites
 // the sentence underneath. Every client renews on their own anchor, the date the
 // first period closes, counting forward. This writes the record at status draft
-// and does NOT talk to Stripe, sending it is a separate deliberate act. No oxford
-// commas, no dashes.
+// and does NOT talk to Stripe, sending it is a separate deliberate act. House
+// fields and labels. No oxford commas, no dashes.
 
 import { useState, useEffect } from 'react';
 import {
   Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalFooter,
   ModalCloseButton, Box, VStack, HStack, Text, Input, Textarea, Select,
-  Button, FormControl, FormLabel, Icon, useToast, SimpleGrid,
+  Button, Icon, useToast, SimpleGrid,
 } from '@chakra-ui/react';
 import { TbCreditCard, TbCoins, TbCheck } from 'react-icons/tb';
 import { supabase } from '../../../lib/supabase';
 import { RAILS, cadenceLabel, renewalAction } from '../../../lib/billing';
 import { TYPE, EASE, FAST } from '../../../theme/layout';
 import colors from '../../../theme/colors';
+import { Field, Kicker } from '../../../components/common/Page';
 
 const P = colors.paper;
-
-const field = {
-  bg: P.sheet,
-  border: '1px solid',
-  borderColor: P.hair,
-  borderRadius: '10px',
-  color: P.ink,
-  fontSize: '14px',
-  _placeholder: { color: P.inkFaint },
-  _hover: { borderColor: P.inkFaint },
-  _focus: { borderColor: P.lime, boxShadow: `0 0 0 3px ${P.lime}33` },
-};
-
-const Label = ({ children, hint }) => (
-  <FormLabel mb={2} fontFamily="mono" fontSize="9px" fontWeight="500" letterSpacing="0.18em" textTransform="uppercase" color={P.inkMuted}>
-    {children}
-    {hint && <Text as="span" ml={2} textTransform="none" letterSpacing="0.03em" color={P.inkFaint}>{hint}</Text>}
-  </FormLabel>
-);
 
 const RailCard = ({ rail, selected, onSelect }) => (
   <VStack as="button" type="button" onClick={onSelect} align="start" spacing={2} p={4} borderRadius="14px" textAlign="left" w="100%"
@@ -146,85 +128,75 @@ const SubscriptionModal = ({ isOpen, onClose, clientId, clientName, subscription
       <ModalOverlay bg="rgba(23,17,12,0.6)" backdropFilter="blur(6px)" />
       <ModalContent bg={P.mat} border="1px solid" borderColor={P.hair} borderRadius="18px" mx={4}>
         <ModalHeader pb={2}>
-          <Text fontFamily="mono" fontSize="9px" fontWeight="500" letterSpacing="0.2em" textTransform="uppercase" color={P.limeDeep} mb={1.5}>{editing ? 'Edit subscription' : 'New subscription'}</Text>
-          <Text fontSize={TYPE.title} fontWeight="600" letterSpacing="-0.03em" color={P.ink}>{clientName}</Text>
+          <Kicker color={P.limeDeep} mb={1.5}>{editing ? 'Edit subscription' : 'New subscription'}</Kicker>
+          <Text fontSize={TYPE.section} fontWeight="600" letterSpacing="-0.02em" color={P.ink}>{clientName}</Text>
         </ModalHeader>
         <ModalCloseButton color={P.inkMuted} borderRadius="full" top={4} right={4} _hover={{ color: P.ink, bg: P.sunken }} />
 
         <ModalBody pb={2}>
           <VStack align="stretch" spacing={7}>
-            <Box>
-              <Label>How it gets paid</Label>
+            <Field label="How it gets paid">
               <SimpleGrid columns={{ base: 1, sm: 2 }} spacing={3}>
                 {Object.values(RAILS).map((r) => (
                   <RailCard key={r.id} rail={r} selected={form.rail === r.id} onSelect={() => setForm((p) => ({ ...p, rail: r.id }))} />
                 ))}
               </SimpleGrid>
-              <Text fontSize={TYPE.small} color={P.inkMuted} mt={3} lineHeight="1.65">
+              <Text fontSize={TYPE.small} color={P.inkMuted} mt={1} lineHeight="1.65">
                 On the renewal date it <Box as="span" color={P.ink}>{action.verb} {action.happens}</Box>.{' '}
                 {action.ifNothing}
                 {action.staffAction && <Box as="span" color={P.gold}> {action.staffAction} lands in this tab.</Box>}
               </Text>
-            </Box>
+            </Field>
 
             <VStack align="stretch" spacing={5}>
-              <FormControl isRequired>
-                <Label>What are they buying</Label>
-                <Input {...field} value={form.name} onChange={set('name')} placeholder="Hosting and care" />
-              </FormControl>
-              <FormControl>
-                <Label hint="optional">In their words</Label>
-                <Textarea {...field} rows={2} resize="vertical" value={form.description} onChange={set('description')} p={3} placeholder="What they actually get for it" />
-              </FormControl>
+              <Field label="What are they buying">
+                <Input value={form.name} onChange={set('name')} placeholder="Hosting and care" />
+              </Field>
+              <Field label="In their words" hint="optional">
+                <Textarea rows={2} minH="72px" value={form.description} onChange={set('description')} placeholder="What they actually get for it" />
+              </Field>
             </VStack>
 
             <SimpleGrid columns={{ base: 2, sm: 4 }} spacing={4}>
-              <FormControl isRequired>
-                <Label>Amount</Label>
-                <Input {...field} type="number" min="0" step="0.01" value={form.amount} onChange={set('amount')} placeholder="250" />
-              </FormControl>
-              <FormControl>
-                <Label hint="once">Setup</Label>
-                <Input {...field} type="number" min="0" step="0.01" value={form.setup_fee} onChange={set('setup_fee')} placeholder="0" />
-              </FormControl>
-              <FormControl>
-                <Label>Every</Label>
-                <Input {...field} type="number" min="1" value={form.interval_count} onChange={set('interval_count')} />
-              </FormControl>
-              <FormControl>
-                <Label>Unit</Label>
-                <Select {...field} value={form.interval} onChange={set('interval')} sx={{ option: { background: P.sheet } }}>
+              <Field label="Amount">
+                <Input type="number" min="0" step="0.01" value={form.amount} onChange={set('amount')} placeholder="250" />
+              </Field>
+              <Field label="Setup" hint="once">
+                <Input type="number" min="0" step="0.01" value={form.setup_fee} onChange={set('setup_fee')} placeholder="0" />
+              </Field>
+              <Field label="Every">
+                <Input type="number" min="1" value={form.interval_count} onChange={set('interval_count')} />
+              </Field>
+              <Field label="Unit">
+                <Select value={form.interval} onChange={set('interval')}>
                   <option value="month">Months</option>
                   <option value="year">Years</option>
                 </Select>
-              </FormControl>
+              </Field>
             </SimpleGrid>
 
-            <FormControl>
-              <Label hint="their anchor, not a shared billing day">First period closes</Label>
-              <Input {...field} type="date" value={form.current_period_end} onChange={set('current_period_end')} />
-              <Text fontSize={TYPE.small} color={P.inkMuted} mt={2}>
+            <Field label="First period closes" hint="their anchor, not a shared billing day">
+              <Input type="date" value={form.current_period_end} onChange={set('current_period_end')} />
+              <Text fontSize={TYPE.small} color={P.inkMuted}>
                 {cadenceLabel({ interval: form.interval, interval_count: form.interval_count })}, counting forward from that date.
               </Text>
-            </FormControl>
+            </Field>
 
             {form.rail === 'stablecoin' && (
-              <FormControl>
-                <Label hint="optional">Wallet they will send from</Label>
-                <Input {...field} value={form.payer_address} onChange={set('payer_address')} placeholder="Address, so an incoming transfer matches itself" fontFamily="mono" fontSize="13px" />
-              </FormControl>
+              <Field label="Wallet they will send from" hint="optional">
+                <Input value={form.payer_address} onChange={set('payer_address')} placeholder="Address, so an incoming transfer matches itself" fontFamily="mono" fontSize={TYPE.small} />
+              </Field>
             )}
 
-            <FormControl>
-              <Label hint="internal">Notes</Label>
-              <Textarea {...field} rows={2} resize="vertical" value={form.notes} onChange={set('notes')} p={3} placeholder="Nobody outside sees this" />
-            </FormControl>
+            <Field label="Notes" hint="internal">
+              <Textarea rows={2} minH="72px" value={form.notes} onChange={set('notes')} placeholder="Nobody outside sees this" />
+            </Field>
           </VStack>
         </ModalBody>
 
-        <ModalFooter gap={3} pt={6}>
-          <Button variant="ghost" color={P.inkMuted} fontSize={TYPE.small} onClick={onClose} _hover={{ color: P.ink, bg: P.sunken }}>Cancel</Button>
-          <Button bg={P.lime} color={P.limeInk} fontWeight="700" fontSize={TYPE.small} borderRadius="full" px={6} isLoading={saving} isDisabled={!valid} onClick={save} _hover={{ bg: '#D2E26B' }} _disabled={{ opacity: 0.4, cursor: 'not-allowed' }}>
+        <ModalFooter gap={2} pt={6}>
+          <Button variant="ghost" size="sm" onClick={onClose}>Cancel</Button>
+          <Button size="sm" isLoading={saving} isDisabled={!valid} onClick={save}>
             {editing ? 'Save' : 'Create as draft'}
           </Button>
         </ModalFooter>

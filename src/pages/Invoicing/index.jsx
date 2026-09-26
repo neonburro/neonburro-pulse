@@ -1,9 +1,7 @@
 // src/pages/Invoicing/index.jsx
-// The invoicing surface, Paper. A cream worktable: kicker, a lime new-invoice
-// button, a live stats line, a rounded search and the filter tabs over the list.
-// Local Paper styles here rather than the shared dark uiConstants, since those
-// still drive the not yet converted pages. When selectedInvoiceId is set the
-// whole surface hands off to InvoiceEditor.
+// The invoicing surface, Paper. The house column, kicker, title, the two
+// buttons, a stat strip, the house search and the house tabs over the list.
+// When selectedInvoiceId is set the whole surface hands off to InvoiceEditor.
 //
 // Two ways a Volt draft arrives, 2026-09-25. The Draft with Volt door on
 // this page hands it through onDraft the way it always has. The desk in
@@ -14,19 +12,25 @@
 // No oxford commas, no dashes.
 
 import { useState, useEffect } from 'react';
-import {
-  Box, VStack, HStack, Text, Icon, Input, Container,
-} from '@chakra-ui/react';
+import { VStack, Button, Icon } from '@chakra-ui/react';
 import { useSearchParams, useLocation } from 'react-router-dom';
-import { TbPlus, TbSearch, TbSparkles } from 'react-icons/tb';
+import { TbPlus, TbSparkles } from 'react-icons/tb';
 import { supabase } from '../../lib/supabase';
 import { SENT_STATUSES, formatCurrencyCompact } from '../../lib/invoiceConstants';
 import colors from '../../theme/colors';
+import { Page, PageHead, Stats, SearchBox, Tabs } from '../../components/common/Page';
 import InvoiceList from './components/InvoiceList';
 import InvoiceEditor from './components/InvoiceEditor';
 import VoltComposer from './components/VoltComposer';
 
 const P = colors.paper;
+
+const FILTER_OPTIONS = [
+  { key: 'all',   label: 'All' },
+  { key: 'draft', label: 'Drafts' },
+  { key: 'sent',  label: 'Sent' },
+  { key: 'paid',  label: 'Paid' },
+];
 
 const Invoicing = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -173,157 +177,44 @@ const Invoicing = () => {
     );
   }
 
-  const FILTER_OPTIONS = [
-    { value: 'all',   label: 'All' },
-    { value: 'draft', label: 'Drafts' },
-    { value: 'sent',  label: 'Sent' },
-    { value: 'paid',  label: 'Paid' },
-  ];
-
   return (
-    <Box position="relative" minH="100vh" bg={P.mat}>
-      <Box
-        position="absolute"
-        top={0}
-        left={0}
-        right={0}
-        h="320px"
-        bg={`radial-gradient(ellipse at top center, ${P.lime}12, transparent 70%)`}
-        pointerEvents="none"
-      />
+    <Page>
+      <PageHead
+        kicker="Invoicing"
+        title="Sprints, invoices and what is owed."
+        actions={(
+          <>
+            <Button size="sm" variant="outline" leftIcon={<Icon as={TbSparkles} boxSize={4} color={P.limeDeep} />} onClick={() => setShowVolt(true)}>
+              Draft with Volt
+            </Button>
+            <Button size="sm" leftIcon={<Icon as={TbPlus} boxSize={4} />} onClick={handleNewInvoice}>
+              Invoice
+            </Button>
+          </>
+        )}
+      >
+        <Stats items={[
+          { key: 'count', n: stats.totalCount, label: 'invoices' },
+          { key: 'mtd', n: formatCurrencyCompact(stats.mtdRevenue), label: 'MTD' },
+          stats.totalOutstanding > 0 && { key: 'out', n: formatCurrencyCompact(stats.totalOutstanding), label: 'outstanding', tone: P.gold },
+          stats.drafts > 0 && { key: 'drafts', n: stats.drafts, label: `draft${stats.drafts !== 1 ? 's' : ''}`, tone: P.inkSec },
+        ]} />
+      </PageHead>
 
-      <Container maxW="1500px" mx={0} px={{ base: 5, md: 8 }} py={{ base: 6, md: 10 }} position="relative">
-        <VStack spacing={{ base: 7, md: 9 }} align="stretch">
-          {/* Header */}
-          <VStack align="stretch" spacing={3}>
-            <HStack justify="space-between" align="center" flexWrap="wrap" gap={3}>
-              <Text fontFamily="mono" fontSize="2xs" fontWeight="600" letterSpacing="0.22em" textTransform="uppercase" color={P.inkMuted}>
-                Invoicing
-              </Text>
-
-              <HStack spacing={2}>
-                <HStack
-                  as="button"
-                  onClick={() => setShowVolt(true)}
-                  spacing={1.5}
-                  bg="transparent"
-                  border="1px solid"
-                  borderColor={P.hair}
-                  color={P.inkSec}
-                  borderRadius="full"
-                  px={4}
-                  h="40px"
-                  fontWeight="700"
-                  fontSize="sm"
-                  transition="all 0.18s"
-                  _hover={{ borderColor: P.lime, color: P.ink, bg: `${P.lime}14` }}
-                >
-                  <Icon as={TbSparkles} boxSize={4} color={P.limeDeep} />
-                  <Text>Draft with Volt</Text>
-                </HStack>
-                <HStack
-                  as="button"
-                  onClick={handleNewInvoice}
-                  spacing={1.5}
-                  bg={P.lime}
-                  color={P.limeInk}
-                  borderRadius="full"
-                  px={4}
-                  h="40px"
-                  fontWeight="700"
-                  fontSize="sm"
-                  transition="all 0.18s"
-                  _hover={{ bg: '#D2E26B', transform: 'translateY(-1px)' }}
-                  _active={{ transform: 'scale(0.98)' }}
-                >
-                  <Icon as={TbPlus} boxSize={4} />
-                  <Text>Invoice</Text>
-                </HStack>
-              </HStack>
-            </HStack>
-
-            <HStack spacing={0} fontSize="xs" fontFamily="mono" flexWrap="wrap" rowGap={1}>
-              <Text color={P.ink} fontWeight="700">{stats.totalCount}</Text>
-              <Text color={P.inkMuted} mx={1.5}>invoices</Text>
-              <Text color={P.inkFaint} mx={1}>·</Text>
-              <Text color={P.ink} fontWeight="700">{formatCurrencyCompact(stats.mtdRevenue)}</Text>
-              <Text color={P.inkMuted} mx={1.5}>MTD</Text>
-              {stats.totalOutstanding > 0 && (
-                <>
-                  <Text color={P.inkFaint} mx={1}>·</Text>
-                  <Text color={P.gold} fontWeight="700">{formatCurrencyCompact(stats.totalOutstanding)}</Text>
-                  <Text color={P.inkMuted} mx={1.5}>outstanding</Text>
-                </>
-              )}
-              {stats.drafts > 0 && (
-                <>
-                  <Text color={P.inkFaint} mx={1}>·</Text>
-                  <Text color={P.inkSec} fontWeight="700">{stats.drafts}</Text>
-                  <Text color={P.inkMuted} mx={1.5}>draft{stats.drafts !== 1 ? 's' : ''}</Text>
-                </>
-              )}
-            </HStack>
-          </VStack>
-
-          {/* Search */}
-          <HStack
-            spacing={3}
-            bg={P.sheet}
-            border="1px solid"
-            borderColor={P.hair}
-            borderRadius="full"
-            px={5}
-            h="52px"
-            position="sticky"
-            top={4}
-            zIndex={2}
-            _focusWithin={{ borderColor: P.lime, boxShadow: `0 0 0 3px ${P.lime}22` }}
-          >
-            <Icon as={TbSearch} boxSize={4} color={P.inkMuted} flexShrink={0} />
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by number, client or company"
-              variant="unstyled"
-              color={P.ink}
-              fontSize="sm"
-              _placeholder={{ color: P.inkFaint }}
-            />
-          </HStack>
-
-          {/* Filter tabs */}
-          <HStack spacing={7} flexWrap="wrap" align="center">
-            {FILTER_OPTIONS.map((opt) => {
-              const active = filterStatus === opt.value;
-              const count = counts[opt.value] || 0;
-              return (
-                <Box key={opt.value} onClick={() => setFilterStatus(opt.value)} position="relative" pb={2} cursor="pointer">
-                  <HStack spacing={2}>
-                    <Text fontSize="sm" fontWeight={active ? '700' : '500'} color={active ? P.ink : P.inkMuted}>
-                      {opt.label}
-                    </Text>
-                    <Text fontSize="2xs" fontFamily="mono" fontWeight="700" color={active ? P.limeDeep : P.inkFaint}>
-                      {count}
-                    </Text>
-                  </HStack>
-                  {active && <Box position="absolute" bottom="-1px" left={0} right={0} h="2px" bg={P.lime} borderRadius="full" />}
-                </Box>
-              );
-            })}
-          </HStack>
-
-          <InvoiceList
-            invoices={filtered}
-            loading={loading}
-            onSelect={handleSelectInvoice}
-            onNew={handleNewInvoice}
-            onQuickDelete={handleQuickDelete}
-          />
-        </VStack>
-      </Container>
+      <VStack align="stretch" spacing={5}>
+        <SearchBox value={search} onChange={setSearch} placeholder="Search by number, client or company" />
+        <Tabs items={FILTER_OPTIONS.map((o) => ({ ...o, count: counts[o.key] || 0 }))} value={filterStatus} onChange={setFilterStatus} />
+        <InvoiceList
+          invoices={filtered}
+          loading={loading}
+          onSelect={handleSelectInvoice}
+          onNew={handleNewInvoice}
+          onQuickDelete={handleQuickDelete}
+        />
+      </VStack>
 
       <VoltComposer isOpen={showVolt} onClose={() => setShowVolt(false)} clients={clients} onDraft={handleVoltDraft} />
-    </Box>
+    </Page>
   );
 };
 

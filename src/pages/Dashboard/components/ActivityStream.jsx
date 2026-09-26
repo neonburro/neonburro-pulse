@@ -1,18 +1,21 @@
 // src/pages/Dashboard/components/ActivityStream.jsx
 // The activity stream, on Paper. Last 24h by default with a 7 day toggle, hides
-// system noise, groups consecutive same-client events into expandable rows,
+// system noise, groups consecutive same client events into expandable rows,
 // entity names link to the client, timestamps render MST via formatSmart. Entity
-// tones carry meaning and are kept, deepened for cream. No oxford, no dashes.
+// tones carry meaning and are kept, deepened for cream. The house section
+// format, the two toggles sit on the kicker row. No oxford, no dashes.
 
 import { useState, useMemo } from 'react';
-import { Box, VStack, HStack, Text, Icon, Center, Spinner, Image, Tooltip, Collapse } from '@chakra-ui/react';
-import { TbActivity, TbCreditCard, TbBuildingBank, TbWriting, TbArrowsTransferUp, TbChevronDown, TbChevronRight } from 'react-icons/tb';
+import { Box, VStack, HStack, Text, Icon, Image, Tooltip, Collapse } from '@chakra-ui/react';
+import { TbCreditCard, TbBuildingBank, TbWriting, TbArrowsTransferUp, TbChevronDown, TbChevronRight } from 'react-icons/tb';
 import { FaCcVisa, FaCcMastercard, FaCcAmex, FaCcDiscover, FaApplePay, FaGooglePay } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import Avatar from '../../../components/common/Avatar';
 import { usePresence } from '../../../hooks/usePresence';
 import { formatSmart } from '../../../lib/time';
 import colors from '../../../theme/colors';
+import { TYPE, EASE, FAST, INSET } from '../../../theme/layout';
+import { Section, Empty, Loading } from '../../../components/common/Page';
 
 const P = colors.paper;
 
@@ -64,6 +67,12 @@ const pmLabel = ({ type, brand, last4, wallet }) => {
   return null;
 };
 
+const Toggle = ({ on, onClick, children }) => (
+  <Box as="button" type="button" onClick={onClick} color={on ? P.ink : P.inkMuted} _hover={{ color: P.ink }} fontFamily="mono" fontSize={TYPE.kicker} letterSpacing="0.14em" textTransform="uppercase" transition={`color ${FAST} ${EASE}`}>
+    {children}
+  </Box>
+);
+
 const ActivityItem = ({ activity, profileMap }) => {
   const navigate = useNavigate();
   const verb = VERB_MAP[activity.action] || activity.action?.replace(/_/g, ' ');
@@ -86,7 +95,7 @@ const ActivityItem = ({ activity, profileMap }) => {
   const handleEntityClick = (e) => { e.stopPropagation(); if (activity.client_id) navigate(`/clients/${activity.client_id}/`); };
 
   return (
-    <HStack spacing={3} py={2.5} pl={3} pr={3} align="center" role="group" borderBottom="1px solid" borderColor={P.hairSoft} transition="all 0.15s" _hover={{ bg: P.sheet }}>
+    <HStack spacing={3} py={2.5} px={INSET} align="center" role="group" borderBottom="1px solid" borderColor={P.hairSoft} transition={`all ${FAST} ${EASE}`} _hover={{ bg: P.sheet }}>
       {isSystem ? (
         <Box w="32px" h="32px" borderRadius="full" bg={P.sheet} border="1px solid" borderColor={P.hair} display="flex" alignItems="center" justifyContent="center" flexShrink={0} overflow="hidden">
           <Image src="/neon-burro-email-logo.png" alt="Neon Burro" w="22px" h="22px" borderRadius="full" />
@@ -97,22 +106,22 @@ const ActivityItem = ({ activity, profileMap }) => {
 
       <Box flex={1} minW={0}>
         <HStack spacing={1.5} flexWrap="wrap" align="baseline">
-          <Text color={P.ink} fontSize="sm" fontWeight="700">{displayName}</Text>
-          <Text color={P.inkMuted} fontSize="sm">{verb}</Text>
+          <Text color={P.ink} fontSize={TYPE.body} fontWeight="700">{displayName}</Text>
+          <Text color={P.inkMuted} fontSize={TYPE.body}>{verb}</Text>
           {entityName && (
-            <Text color={entityColor} fontSize="sm" fontWeight="700" fontFamily="mono" cursor={activity.client_id ? 'pointer' : 'default'} onClick={handleEntityClick} _hover={activity.client_id ? { textDecoration: 'underline', textDecorationColor: entityColor } : {}}>{entityName}</Text>
+            <Text color={entityColor} fontSize={TYPE.body} fontWeight="700" fontFamily="mono" cursor={activity.client_id ? 'pointer' : 'default'} onClick={handleEntityClick} _hover={activity.client_id ? { textDecoration: 'underline', textDecorationColor: entityColor } : {}}>{entityName}</Text>
           )}
-          {amountDisplay && <Text color={isPayment ? P.green : P.gold} fontSize="sm" fontWeight="800" fontFamily="mono">{amountDisplay}</Text>}
+          {amountDisplay && <Text color={isPayment ? P.green : P.gold} fontSize={TYPE.body} fontWeight="700" fontFamily="mono">{amountDisplay}</Text>}
           {showPaymentMethod && (
-            <Tooltip label={pmLabel({ type: pmType, brand: pmBrand, last4: pmLast4, wallet: pmWallet })} placement="top" hasArrow bg={P.ink} color={P.sheet} fontSize="xs">
+            <Tooltip label={pmLabel({ type: pmType, brand: pmBrand, last4: pmLast4, wallet: pmWallet })} placement="top" hasArrow bg={P.ink} color={P.sheet} fontSize={TYPE.small}>
               <HStack spacing={1}>
                 <PaymentMethodIcon type={pmType} brand={pmBrand} wallet={pmWallet} />
-                {pmLast4 && <Text color={P.inkMuted} fontSize="2xs" fontFamily="mono">··{pmLast4}</Text>}
+                {pmLast4 && <Text color={P.inkMuted} fontSize={TYPE.label} fontFamily="mono">··{pmLast4}</Text>}
               </HStack>
             </Tooltip>
           )}
         </HStack>
-        <Text color={P.inkFaint} fontSize="2xs" fontFamily="mono" mt={0.5}>{formatSmart(activity.created_at)}</Text>
+        <Text color={P.inkFaint} fontSize={TYPE.label} fontFamily="mono" mt={0.5}>{formatSmart(activity.created_at)}</Text>
       </Box>
     </HStack>
   );
@@ -127,14 +136,14 @@ const ClientGroup = ({ clientId, clientName, events, profileMap }) => {
 
   return (
     <Box borderBottom="1px solid" borderColor={P.hairSoft}>
-      <HStack spacing={3} py={2.5} pl={3} pr={3} cursor="pointer" onClick={() => setExpanded(!expanded)} transition="all 0.15s" _hover={{ bg: P.sheet }}>
+      <HStack spacing={3} py={2.5} px={INSET} cursor="pointer" onClick={() => setExpanded(!expanded)} transition={`all ${FAST} ${EASE}`} _hover={{ bg: P.sheet }}>
         <Icon as={expanded ? TbChevronDown : TbChevronRight} boxSize={3} color={P.inkMuted} flexShrink={0} />
         <Box flex={1} minW={0}>
           <HStack spacing={1.5}>
-            <Text color={P.limeDeep} fontSize="sm" fontWeight="700" fontFamily="mono" _hover={{ textDecoration: 'underline' }} onClick={(e) => { e.stopPropagation(); navigate(`/clients/${clientId}/`); }}>{clientName}</Text>
-            <Text color={P.inkMuted} fontSize="sm">{events.length} events</Text>
+            <Text color={P.limeDeep} fontSize={TYPE.body} fontWeight="700" fontFamily="mono" _hover={{ textDecoration: 'underline' }} onClick={(e) => { e.stopPropagation(); navigate(`/clients/${clientId}/`); }}>{clientName}</Text>
+            <Text color={P.inkMuted} fontSize={TYPE.body}>{events.length} events</Text>
           </HStack>
-          <Text color={P.inkFaint} fontSize="2xs" fontFamily="mono" mt={0.5}>latest {formatSmart(latestEvent.created_at)}</Text>
+          <Text color={P.inkFaint} fontSize={TYPE.label} fontFamily="mono" mt={0.5}>latest {formatSmart(latestEvent.created_at)}</Text>
         </Box>
       </HStack>
       <Collapse in={expanded} animateOpacity>
@@ -178,32 +187,29 @@ const ActivityStream = ({ activities, profileMap = {}, loading }) => {
   }, [filtered]);
 
   return (
-    <Box position="relative">
-      <HStack spacing={2} mb={4} justify="space-between">
-        <HStack spacing={2}>
-          <Box w="6px" h="6px" borderRadius="full" bg={P.lime} />
-          <Text color={P.limeDeep} fontSize="xs" fontWeight="700" textTransform="uppercase" letterSpacing="0.12em" fontFamily="mono">Activity stream</Text>
-        </HStack>
+    <Section
+      kicker="Activity stream"
+      action={(
         <HStack spacing={4}>
-          <Box as="button" onClick={() => setRange(range === '24h' ? '7d' : '24h')} color={P.inkMuted} _hover={{ color: P.limeDeep }} fontSize="2xs" fontFamily="mono" fontWeight="700" textTransform="uppercase" letterSpacing="0.05em" transition="color 0.15s">{range === '24h' ? 'Last 24h' : 'Last 7 days'}</Box>
-          <Box as="button" onClick={() => setShowSystem(!showSystem)} color={showSystem ? P.limeDeep : P.inkFaint} _hover={{ color: P.limeDeep }} fontSize="2xs" fontFamily="mono" fontWeight="700" textTransform="uppercase" letterSpacing="0.05em" transition="color 0.15s">{showSystem ? 'Hide system' : 'Show system'}</Box>
+          <Toggle on onClick={() => setRange(range === '24h' ? '7d' : '24h')}>{range === '24h' ? 'Last 24h' : 'Last 7 days'}</Toggle>
+          <Toggle on={showSystem} onClick={() => setShowSystem(!showSystem)}>{showSystem ? 'Hide system' : 'Show system'}</Toggle>
         </HStack>
-      </HStack>
-
+      )}
+    >
       {loading ? (
-        <Center py={10}><Spinner size="sm" color={P.limeDeep} thickness="2px" /></Center>
+        <Loading label="loading the stream" />
       ) : filtered.length === 0 ? (
-        <VStack py={10} spacing={2}>
-          <Icon as={TbActivity} boxSize={6} color={P.inkFaint} />
-          <Text color={P.inkMuted} fontSize="xs" fontFamily="mono">No signals in the {range === '24h' ? 'last 24 hours' : 'last 7 days'}</Text>
-          {range === '24h' && <Text as="button" color={P.limeDeep} fontSize="2xs" fontFamily="mono" fontWeight="700" textTransform="uppercase" letterSpacing="0.05em" onClick={() => setRange('7d')} _hover={{ opacity: 0.8 }}>Show last 7 days</Text>}
-        </VStack>
+        <Empty
+          action={range === '24h' ? <Toggle on onClick={() => setRange('7d')}>Show last 7 days</Toggle> : undefined}
+        >
+          No signals in the {range === '24h' ? 'last 24 hours' : 'last 7 days'}.
+        </Empty>
       ) : (
-        <Box borderTop="1px solid" borderColor={P.hair}>
+        <Box borderTop="1px solid" borderColor={P.hair} mx={-INSET}>
           {grouped.map((group, idx) => <ClientGroup key={`${group.clientId || 'none'}-${idx}`} clientId={group.clientId} clientName={group.clientName} events={group.events} profileMap={profileMap} />)}
         </Box>
       )}
-    </Box>
+    </Section>
   );
 };
 

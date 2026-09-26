@@ -1,5 +1,5 @@
 // src/pages/Analytics/index.jsx
-// SENTINEL: NB_PULSE_ANALYTICS_V2
+// SENTINEL: NB_PULSE_ANALYTICS_V3
 //
 // ── V2, 2026-08-26. THE TRAFFIC PANEL IS LIVE ───────────────────────────────
 // Did anybody hit the page stopped being a question for Google's console.
@@ -14,13 +14,16 @@
 // what is wired next. GA4 still collects in parallel, deeper SEO tooling
 // (search console, the semrush shaped stuff) rides on those cards.
 //
-// No oxford commas, no em dashes.
+// V3, 2026-09-25. On the house column, the house head and the house
+// section. No oxford commas, no em dashes.
 
 import { useState, useEffect } from 'react';
-import { Box, Text, HStack, VStack, Icon, SimpleGrid, Badge, Spinner } from '@chakra-ui/react';
-import { TbActivity, TbCoin, TbChartArea, TbBrandStripe, TbServer, TbEye } from 'react-icons/tb';
+import { Text, HStack, VStack, Icon, SimpleGrid } from '@chakra-ui/react';
+import { TbActivity, TbCoin, TbChartArea, TbBrandStripe, TbServer } from 'react-icons/tb';
 import { supabase } from '../../lib/supabase';
 import colors from '../../theme/colors';
+import { TYPE } from '../../theme/layout';
+import { Page, PageHead, Section, Plate, Empty, Loading, Kicker } from '../../components/common/Page';
 
 const P = colors.paper;
 
@@ -61,6 +64,13 @@ const SOURCES = [
 
 const dayKey = (d) => d.toISOString().slice(0, 10);
 
+const Figure = ({ n, label, tone }) => (
+  <HStack spacing={1.5} align="baseline">
+    <Text fontFamily="mono" fontSize={TYPE.section} fontWeight="700" color={tone || P.ink} sx={{ fontVariantNumeric: 'tabular-nums' }}>{n}</Text>
+    <Text fontFamily="mono" fontSize={TYPE.small} color={P.inkMuted}>{label}</Text>
+  </HStack>
+);
+
 const Analytics = () => {
   const [rows, setRows] = useState(null);
 
@@ -95,107 +105,75 @@ const Analytics = () => {
   const burroViews = (rows || []).filter((r) => r.path.startsWith('/send-a-burro')).length;
 
   return (
-    <Box bg={P.mat} minH="100vh" px={{ base: 4, md: 6, xl: 8 }} py={{ base: 5, md: 7 }}>
-      <Box maxW="1500px">
-        <Text fontFamily="mono" fontSize="2xs" fontWeight="600" letterSpacing="0.22em" textTransform="uppercase" color={P.limeDeep} mb={2}>
-          Command center
-        </Text>
-        <Text fontFamily="display" fontSize={{ base: '3xl', md: '4xl' }} fontWeight="600" color={P.ink} letterSpacing="-0.02em" lineHeight="1.05">
-          Analytics
-        </Text>
+    <Page>
+      <PageHead kicker="Command center" title="Analytics" lede="The house beacon on neonburro.com, last seven days, no cookies and no ids. The sources under it are what lands next." />
 
-        {/* ── the traffic panel, live, first party ─────────────────────────── */}
-        <Box bg={P.sheet} border="1px solid" borderColor={P.hair} borderRadius="18px" p={5} mt={7}>
-          <HStack justify="space-between" mb={4} flexWrap="wrap" gap={2}>
-            <HStack spacing={2}>
-              <Icon as={TbEye} boxSize={4} color={P.limeDeep} />
-              <Text fontSize="md" fontWeight="700" color={P.ink}>neonburro.com traffic</Text>
-            </HStack>
-            <Text fontFamily="mono" fontSize="2xs" color={P.inkFaint}>the house beacon, last seven days, no cookies no ids</Text>
-          </HStack>
-
+      <Section kicker="neonburro.com traffic">
+        <Plate>
           {rows === null ? (
-            <HStack py={6} justify="center"><Spinner color={P.limeDeep} size="sm" /></HStack>
+            <Loading label="reading the beacon" py={2} />
           ) : (
-            <>
-              <HStack spacing={0} flexWrap="wrap" rowGap={1} mb={5}>
-                <HStack spacing={1.5} align="baseline">
-                  <Text fontFamily="mono" fontSize="lg" fontWeight="700" color={P.ink} sx={{ fontVariantNumeric: 'tabular-nums' }}>{todayRows.length}</Text>
-                  <Text fontFamily="mono" fontSize="13px" color={P.inkMuted}>views today</Text>
-                </HStack>
-                <Text color={P.inkFaint} mx={2}>·</Text>
-                <HStack spacing={1.5} align="baseline">
-                  <Text fontFamily="mono" fontSize="lg" fontWeight="700" color={P.ink} sx={{ fontVariantNumeric: 'tabular-nums' }}>{rows.length}</Text>
-                  <Text fontFamily="mono" fontSize="13px" color={P.inkMuted}>this week</Text>
-                </HStack>
-                <Text color={P.inkFaint} mx={2}>·</Text>
-                <HStack spacing={1.5} align="baseline">
-                  <Text fontFamily="mono" fontSize="lg" fontWeight="700" color={P.limeDeep} sx={{ fontVariantNumeric: 'tabular-nums' }}>{burroViews}</Text>
-                  <Text fontFamily="mono" fontSize="13px" color={P.inkMuted}>on send a burro</Text>
-                </HStack>
+            <VStack align="stretch" spacing={5}>
+              <HStack spacing={5} flexWrap="wrap" rowGap={2}>
+                <Figure n={todayRows.length} label="views today" />
+                <Figure n={rows.length} label="this week" />
+                <Figure n={burroViews} label="on send a burro" tone={P.limeDeep} />
               </HStack>
 
               {rows.length === 0 ? (
-                <Text fontSize="sm" color={P.inkMuted}>
-                  Nothing yet. The beacon shipped with the latest studio deploy, rows appear the moment anybody loads a page.
-                </Text>
+                <Empty py={2}>Nothing yet. The beacon shipped with the latest studio deploy, rows appear the moment anybody loads a page.</Empty>
               ) : (
                 <SimpleGrid columns={{ base: 1, md: 2 }} spacing={5}>
                   <VStack align="stretch" spacing={1.5}>
-                    <Text fontFamily="mono" fontSize="2xs" fontWeight="600" letterSpacing="0.18em" textTransform="uppercase" color={P.inkMuted} mb={1}>Top pages</Text>
+                    <Kicker mb={1}>Top pages</Kicker>
                     {topPaths.map(([path, n]) => (
                       <HStack key={path} justify="space-between">
-                        <Text fontFamily="mono" fontSize="13px" color={P.inkSec} noOfLines={1}>{path}</Text>
-                        <Text fontFamily="mono" fontSize="13px" fontWeight="700" color={P.ink} sx={{ fontVariantNumeric: 'tabular-nums' }}>{n}</Text>
+                        <Text fontFamily="mono" fontSize={TYPE.small} color={P.inkSec} noOfLines={1}>{path}</Text>
+                        <Text fontFamily="mono" fontSize={TYPE.small} fontWeight="700" color={P.ink} sx={{ fontVariantNumeric: 'tabular-nums' }}>{n}</Text>
                       </HStack>
                     ))}
                   </VStack>
                   <VStack align="stretch" spacing={1.5}>
-                    <Text fontFamily="mono" fontSize="2xs" fontWeight="600" letterSpacing="0.18em" textTransform="uppercase" color={P.inkMuted} mb={1}>Came from</Text>
+                    <Kicker mb={1}>Came from</Kicker>
                     {topRefs.length === 0 && (
-                      <Text fontSize="13px" color={P.inkFaint}>Direct visits only so far.</Text>
+                      <Text fontSize={TYPE.small} color={P.inkFaint}>Direct visits only so far.</Text>
                     )}
                     {topRefs.map(([host, n]) => (
                       <HStack key={host} justify="space-between">
-                        <Text fontFamily="mono" fontSize="13px" color={P.inkSec} noOfLines={1}>{host}</Text>
-                        <Text fontFamily="mono" fontSize="13px" fontWeight="700" color={P.ink} sx={{ fontVariantNumeric: 'tabular-nums' }}>{n}</Text>
+                        <Text fontFamily="mono" fontSize={TYPE.small} color={P.inkSec} noOfLines={1}>{host}</Text>
+                        <Text fontFamily="mono" fontSize={TYPE.small} fontWeight="700" color={P.ink} sx={{ fontVariantNumeric: 'tabular-nums' }}>{n}</Text>
                       </HStack>
                     ))}
                   </VStack>
                 </SimpleGrid>
               )}
-            </>
+            </VStack>
           )}
-        </Box>
+        </Plate>
+      </Section>
 
-        <Text fontSize="sm" color={P.inkMuted} mt={8} maxW="620px" lineHeight="1.7">
-          What lands next, interconnected and honest. Here is each source and what it needs.
-        </Text>
-
-        <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4} mt={4}>
+      <Section kicker="What lands next">
+        <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
           {SOURCES.map((s) => (
-            <Box key={s.title} bg={P.sheet} border="1px solid" borderColor={P.hair} borderRadius="18px" p={5}>
+            <Plate key={s.title}>
               <HStack justify="space-between" align="start" mb={3}>
-                <Box w="40px" h="40px" borderRadius="12px" bg={P.sunken} display="flex" alignItems="center" justifyContent="center">
-                  <Icon as={s.icon} boxSize={5} color={P.inkSec} />
-                </Box>
-                <Badge bg={`${s.tone}1A`} color={s.tone} fontFamily="mono" fontSize="2xs" fontWeight="700" letterSpacing="0.06em" textTransform="uppercase" px={2.5} py={1} borderRadius="full">
-                  {s.status}
-                </Badge>
+                <HStack spacing={2.5}>
+                  <Icon as={s.icon} boxSize={4} color={P.inkSec} />
+                  <Text fontSize={TYPE.section} fontWeight="700" color={P.ink} letterSpacing="-0.01em">{s.title}</Text>
+                </HStack>
+                <Text fontFamily="mono" fontSize={TYPE.kicker} letterSpacing="0.12em" textTransform="uppercase" color={s.tone} flexShrink={0} pt={1}>{s.status}</Text>
               </HStack>
-              <Text fontSize="md" fontWeight="700" color={P.ink} letterSpacing="-0.01em">{s.title}</Text>
-              <Text fontSize="sm" color={P.inkMuted} mt={1.5} lineHeight="1.65">{s.line}</Text>
-              <Text fontSize="xs" color={P.inkFaint} mt={3} fontFamily="mono">{s.note}</Text>
-            </Box>
+              <Text fontSize={TYPE.body} color={P.inkMuted} lineHeight="1.65">{s.line}</Text>
+              <Text fontSize={TYPE.small} color={P.inkFaint} mt={3} fontFamily="mono">{s.note}</Text>
+            </Plate>
           ))}
         </SimpleGrid>
-
-        <HStack mt={6} spacing={2} color={P.inkFaint}>
+        <HStack spacing={2} color={P.inkFaint}>
           <Icon as={TbActivity} boxSize={3.5} />
-          <Text fontSize="xs" color={P.inkFaint}>The full plan and the env var names are in docs/analytics-and-integrations.md</Text>
+          <Text fontSize={TYPE.small} color={P.inkFaint}>The full plan and the env var names are in docs/analytics-and-integrations.md</Text>
         </HStack>
-      </Box>
-    </Box>
+      </Section>
+    </Page>
   );
 };
 

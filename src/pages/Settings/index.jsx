@@ -1,13 +1,15 @@
 // src/pages/Settings/index.jsx
-// Settings, on Paper. A narrow centered edit column (640px), kicker only, no big
-// title, because this is a vertical edit surface not a list. Team management is
-// visible to super_admin and admin. No oxford commas, no dashes.
+// Settings, on Paper. A form, so it sits on MEASURE, kicker, title and lede
+// up top like every page, then the sections, each a kicker and its fields.
+// Team management is visible to super_admin and admin. No oxford commas, no
+// dashes.
 
 import { useState, useEffect } from 'react';
-import { Box, VStack, Spinner, Divider } from '@chakra-ui/react';
+import { Divider } from '@chakra-ui/react';
 import { useAuth } from '../../hooks/useAuth';
 import { supabase } from '../../lib/supabase';
 import colors from '../../theme/colors';
+import { Page, Loading } from '../../components/common/Page';
 import SettingsHeader from './components/SettingsHeader';
 import SettingsAvatar from './components/SettingsAvatar';
 import SettingsProfile from './components/SettingsProfile';
@@ -17,7 +19,7 @@ import SettingsAccountInfo from './components/SettingsAccountInfo';
 import SettingsFooter from './components/SettingsFooter';
 
 const P = colors.paper;
-const SectionDivider = () => <Divider borderColor={P.hair} my={2} />;
+const SectionDivider = () => <Divider borderColor={P.hair} />;
 
 const Settings = () => {
   const { user } = useAuth();
@@ -36,37 +38,27 @@ const Settings = () => {
   const canManageTeam = ['super_admin', 'admin'].includes(profile?.role);
 
   if (loading) {
-    return (
-      <Box minH="100vh" bg={P.mat} display="flex" alignItems="center" justifyContent="center">
-        <Spinner size="md" color={P.limeDeep} thickness="2px" />
-      </Box>
-    );
+    return <Page measure><Loading label="loading your profile" /></Page>;
   }
 
   return (
-    <Box position="relative" minH="100vh" bg={P.mat}>
-      <Box position="absolute" top={0} left={0} right={0} h="300px" bg={`radial-gradient(ellipse at top center, ${P.lime}12, transparent 70%)`} pointerEvents="none" />
-
-      <Box maxW="960px" px={{ base: 5, md: 8 }} py={{ base: 8, md: 12 }} position="relative">
-        <VStack spacing={{ base: 8, md: 10 }} align="stretch">
-          <SettingsHeader />
-          <SettingsAvatar user={user} profile={profile} setProfile={setProfile} />
+    <Page measure>
+      <SettingsHeader />
+      <SettingsAvatar user={user} profile={profile} setProfile={setProfile} />
+      <SectionDivider />
+      <SettingsProfile user={user} profile={profile} setProfile={setProfile} />
+      <SectionDivider />
+      <SettingsPassword user={user} />
+      {canManageTeam && (
+        <>
           <SectionDivider />
-          <SettingsProfile user={user} profile={profile} setProfile={setProfile} />
-          <SectionDivider />
-          <SettingsPassword user={user} />
-          {canManageTeam && (
-            <>
-              <SectionDivider />
-              <SettingsTeam currentUserId={user.id} currentUserRole={profile?.role} />
-            </>
-          )}
-          <SectionDivider />
-          <SettingsAccountInfo user={user} profile={profile} />
-          <SettingsFooter user={user} />
-        </VStack>
-      </Box>
-    </Box>
+          <SettingsTeam currentUserId={user.id} currentUserRole={profile?.role} />
+        </>
+      )}
+      <SectionDivider />
+      <SettingsAccountInfo user={user} profile={profile} />
+      <SettingsFooter user={user} />
+    </Page>
   );
 };
 

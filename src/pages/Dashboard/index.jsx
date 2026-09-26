@@ -1,5 +1,5 @@
 // src/pages/Dashboard/index.jsx
-// SENTINEL: NB_PULSE_TODAY_V3
+// SENTINEL: NB_PULSE_TODAY_V4
 //
 // Today, on Paper. What is waiting on you, then what was asked of volt for a
 // person, then where things stand, then the forms, then what happened. The
@@ -9,13 +9,17 @@
 // V3, 2026-09-25. VoltAsks sits under NeedsYou because an ask of volt is a
 // thing waiting on a hand, the same emotional state as the queue above it.
 // It reads desk_asks itself and refetches on the nb:desk-ask event the desk
-// fires. No oxford commas, no dashes.
+// fires.
+//
+// V4, 2026-09-25. The page sits on the house column, src/components/common/
+// Page.jsx, and every section below is a kicker and a list in the one
+// format. No width, gutter or font size is typed here. No oxford commas, no
+// dashes.
 
 import { useState, useEffect, useCallback } from 'react';
-import { Box, VStack, Container } from '@chakra-ui/react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
-import colors from '../../theme/colors';
+import { Page } from '../../components/common/Page';
 import TodayHeader from './components/TodayHeader';
 import NeedsYou from './components/NeedsYou';
 import VoltAsks from './components/VoltAsks';
@@ -23,7 +27,6 @@ import Numbers from './components/Numbers';
 import FormInbox from './components/FormInbox';
 import ActivityStream from './components/ActivityStream';
 
-const P = colors.paper;
 const OPEN_STATUSES = ['sent', 'viewed', 'partial', 'overdue'];
 
 const EMPTY = {
@@ -96,25 +99,19 @@ const Dashboard = () => {
   const myName = me?.display_name || me?.username || user?.email?.split('@')[0] || null;
 
   return (
-    <Box position="relative" minH="100vh" bg={P.mat}>
-      <Box position="absolute" top={0} left={0} right={0} h="320px" bg={`radial-gradient(ellipse at top center, ${P.lime}14, transparent 70%)`} pointerEvents="none" />
-
-      <Container maxW="1500px" mx={0} px={{ base: 5, md: 8 }} py={{ base: 6, md: 10 }} position="relative">
-        <VStack spacing={{ base: 8, md: 12 }} align="stretch">
-          <TodayHeader name={myName} onRefresh={refresh} refreshing={refreshing} />
-          <NeedsYou
-            overdueCount={stats.overdueCount} overdueTotal={stats.overdueTotal}
-            unreadForms={stats.unreadForms} unreadMessages={stats.unreadMessages}
-            awaitingPayment={stats.awaitingPayment} awaitingTotal={stats.awaitingTotal}
-            openSprints={stats.openSprints}
-          />
-          <VoltAsks />
-          <Numbers outstanding={stats.outstanding} collected={stats.collected} activeClients={stats.activeClients} totalClients={stats.totalClients} openSprints={stats.openSprints} />
-          <FormInbox />
-          <ActivityStream activities={activities} profileMap={profileMap} loading={loading} />
-        </VStack>
-      </Container>
-    </Box>
+    <Page>
+      <TodayHeader name={myName} onRefresh={refresh} refreshing={refreshing} />
+      <NeedsYou
+        overdueCount={stats.overdueCount} overdueTotal={stats.overdueTotal}
+        unreadForms={stats.unreadForms} unreadMessages={stats.unreadMessages}
+        awaitingPayment={stats.awaitingPayment} awaitingTotal={stats.awaitingTotal}
+        openSprints={stats.openSprints}
+      />
+      <VoltAsks />
+      <Numbers outstanding={stats.outstanding} collected={stats.collected} activeClients={stats.activeClients} totalClients={stats.totalClients} openSprints={stats.openSprints} />
+      <FormInbox />
+      <ActivityStream activities={activities} profileMap={profileMap} loading={loading} />
+    </Page>
   );
 };
 

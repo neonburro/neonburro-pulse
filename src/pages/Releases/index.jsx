@@ -1,5 +1,5 @@
 // src/pages/Releases/index.jsx
-// SENTINEL: NB_PULSE_SOCIALS_V4
+// SENTINEL: NB_PULSE_SOCIALS_V5
 //
 // Socials is the shared room for every public release. The calendar, council
 // voice, publishing account, Lyra brief, asset and human approval all live on
@@ -24,6 +24,9 @@
 // X and reddit remain on the calendar but release by hand. Failed rows return
 // to staged with one tap.
 //
+// V5, 2026-09-25. The house column, the house head (V4 read TYPE.h1, which
+// did not exist, so the title fell to the browser default), the house tabs
+// for the two calendars, house fields on the add bar and house empty lines.
 // No oxford commas, no em dashes.
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -32,23 +35,22 @@ import {
   VStack,
   HStack,
   Text,
-  Container,
-  Spinner,
   Input,
   Select,
   Icon,
+  Button,
   useToast,
 } from '@chakra-ui/react';
-import { TbPlus, TbBroadcast, TbSparkles, TbCalendarMonth, TbCalendarWeek } from 'react-icons/tb';
+import { TbPlus, TbSparkles } from 'react-icons/tb';
 import { supabase } from '../../lib/supabase';
 import { TYPE, EASE, FAST } from '../../theme/layout';
+import { Page, PageHead, Section, Tabs, Plate, Empty, Loading } from '../../components/common/Page';
 import {
   P,
   STATUSES,
   CHANNELS,
   STATUS_TINT,
   VoiceDisc,
-  Kicker,
   isAutomatic,
   assetStatusLabel,
   when,
@@ -80,27 +82,6 @@ const StatusPip = ({ status, onAdvance }) => (
     >
       {status}
     </Text>
-  </HStack>
-);
-
-const ViewButton = ({ on, icon, label, onClick }) => (
-  <HStack
-    as="button"
-    type="button"
-    onClick={onClick}
-    spacing={1}
-    h="30px"
-    px={2.5}
-    borderRadius="full"
-    border="1px solid"
-    borderColor={on ? P.ink : P.hair}
-    color={on ? P.ink : P.inkMuted}
-    bg={on ? P.sheet : 'transparent'}
-    _hover={{ color: P.ink, borderColor: P.inkFaint }}
-    transition={`all ${FAST} ${EASE}`}
-  >
-    <Icon as={icon} boxSize={3.5} />
-    <Text fontFamily="mono" fontSize={TYPE.micro}>{label}</Text>
   </HStack>
 );
 
@@ -172,11 +153,6 @@ const Row = ({ release, onAdvance, onOpen }) => {
         fontFamily="mono"
         fontSize={TYPE.label}
         color={P.inkMuted}
-        border="1px solid"
-        borderColor={P.hair}
-        borderRadius="full"
-        px={2.5}
-        py={0.5}
         display={{ base: 'none', sm: 'block' }}
         flexShrink={0}
       >
@@ -323,120 +299,88 @@ const Releases = () => {
   ));
 
   return (
-    <Container maxW="1040px" px={{ base: 4, md: 8 }} py={{ base: 6, md: 10 }}>
-      <VStack align="stretch" spacing={{ base: 8, md: 10 }}>
-        <Box>
-          <Text fontSize={TYPE.h1} fontWeight="600" letterSpacing="-0.02em" color={P.ink}>
-            Socials
-          </Text>
-          <Text fontSize={TYPE.body} color={P.inkSec} mt={1} maxW="720px">
-            One calendar for the studio voice, every council voice and the account that carries each release. Nothing leaves without a person saying yes.
-          </Text>
-        </Box>
+    <Page>
+      <PageHead
+        kicker="Socials"
+        title="Every voice, account and release."
+        lede="One calendar for the studio voice, every council voice and the account that carries each release. Nothing leaves without a person saying yes."
+      />
 
-        <VStack align="stretch" spacing={1.5}>
-          <HStack spacing={2.5} flexWrap={{ base: 'wrap', md: 'nowrap' }} rowGap={2.5}>
-            <Input
-              ref={titleRef}
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
-              onKeyDown={(event) => event.key === 'Enter' && add()}
-              placeholder="what should go out"
-              bg={P.sheet}
-              borderColor={dayHint ? P.limeDeep : P.hair}
-              color={P.ink}
-              fontSize={TYPE.body}
-              _placeholder={{ color: P.inkFaint }}
-              _hover={{ borderColor: P.inkFaint }}
-              _focus={{ borderColor: P.inkMuted, boxShadow: 'none' }}
-              flex="1"
-              minW={{ base: '100%', md: '260px' }}
-            />
-            <Select
-              value={channel}
-              onChange={(event) => setChannel(event.target.value)}
-              bg={P.sheet}
-              borderColor={P.hair}
-              color={P.inkSec}
-              fontSize={TYPE.label}
-              fontFamily="mono"
-              w={{ base: '46%', md: '150px' }}
-              flexShrink={0}
-            >
-              {CHANNELS.map((value) => <option key={value} value={value}>{value}</option>)}
-            </Select>
-            <Input
-              type="date"
-              value={date}
-              onChange={(event) => { setDate(event.target.value); setDayHint(''); }}
-              bg={P.sheet}
-              borderColor={P.hair}
-              color={P.inkSec}
-              fontSize={TYPE.label}
-              fontFamily="mono"
-              w={{ base: '46%', md: '160px' }}
-              flexShrink={0}
-            />
-            <HStack
-              as="button"
-              type="button"
-              onClick={() => add()}
-              spacing={1.5}
-              bg={P.lime}
-              color={P.limeInk}
-              borderRadius="10px"
-              px={4}
-              py={2}
-              fontSize={TYPE.label}
-              fontWeight="600"
-              cursor="pointer"
-              flexShrink={0}
-              opacity={saving ? 0.6 : 1}
-              _hover={{ opacity: 0.85 }}
-              transition={`opacity ${FAST} ${EASE}`}
-            >
-              <TbPlus size={15} />
-              <Text>add</Text>
-            </HStack>
-          </HStack>
-          {dayHint && (
-            <Text fontFamily="mono" fontSize={TYPE.label} color={P.limeDeep}>{dayHint}</Text>
-          )}
-        </VStack>
-
-        {rows === null && (
-          <HStack justify="center" py={16}>
-            <Spinner size="sm" color={P.inkMuted} />
-          </HStack>
+      <VStack align="stretch" spacing={1.5}>
+        <HStack spacing={2.5} flexWrap={{ base: 'wrap', md: 'nowrap' }} rowGap={2.5}>
+          <Input
+            ref={titleRef}
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+            onKeyDown={(event) => event.key === 'Enter' && add()}
+            placeholder="what should go out"
+            borderColor={dayHint ? P.limeDeep : P.hair}
+            flex="1"
+            minW={{ base: '100%', md: '260px' }}
+          />
+          <Select
+            value={channel}
+            onChange={(event) => setChannel(event.target.value)}
+            fontSize={TYPE.small}
+            fontFamily="mono"
+            w={{ base: '46%', md: '150px' }}
+            flexShrink={0}
+          >
+            {CHANNELS.map((value) => <option key={value} value={value}>{value}</option>)}
+          </Select>
+          <Input
+            type="date"
+            value={date}
+            onChange={(event) => { setDate(event.target.value); setDayHint(''); }}
+            fontSize={TYPE.small}
+            fontFamily="mono"
+            w={{ base: '46%', md: '160px' }}
+            flexShrink={0}
+          />
+          <Button size="md" leftIcon={<TbPlus size={15} />} onClick={() => add()} isDisabled={saving} flexShrink={0}>
+            add
+          </Button>
+        </HStack>
+        {dayHint && (
+          <Text fontFamily="mono" fontSize={TYPE.label} color={P.limeDeep}>{dayHint}</Text>
         )}
+      </VStack>
 
-        {loadError && (
-          <Box bg={P.sunken} border="1px solid" borderColor={P.hair} borderRadius="14px" p={5}>
-            <Text fontSize={TYPE.body} color={P.inkSec}>
-              The Socials record could not open. Apply the prepared Socials migration, confirm this login has a staff role and reload.
-            </Text>
-            <Text fontFamily="mono" fontSize={TYPE.micro} color={P.inkFaint} mt={2}>{loadError}</Text>
-          </Box>
-        )}
+      {rows === null && <Loading label="opening the record" />}
 
-        {rows !== null && !loadError && (
-          <>
-            <VStack align="stretch" spacing={3}>
-              <HStack spacing={1.5}>
-                <ViewButton on={view === 'month'} icon={TbCalendarMonth} label="month" onClick={() => setView('month')} />
-                <ViewButton on={view === 'fortnight'} icon={TbCalendarWeek} label="fortnight" onClick={() => setView('fortnight')} />
-              </HStack>
-              {view === 'month'
-                ? <MonthCalendar rows={rows} onOpen={open} onDay={onDay} />
-                : <Timeline rows={rows} onOpen={open} />}
-            </VStack>
+      {loadError && (
+        <Plate sunken>
+          <Text fontSize={TYPE.body} color={P.inkSec}>
+            The Socials record could not open. Apply the prepared Socials migration, confirm this login has a staff role and reload.
+          </Text>
+          <Text fontFamily="mono" fontSize={TYPE.micro} color={P.inkFaint} mt={2}>{loadError}</Text>
+        </Plate>
+      )}
 
-            {lyraQueue.length > 0 && (
-              <Box bg={P.sunken} border="1px solid" borderColor={P.hair} borderRadius="14px" p={4}>
-                <HStack spacing={2} mb={2}>
+      {rows !== null && !loadError && (
+        <>
+          <VStack align="stretch" spacing={4}>
+            <Tabs
+              items={[{ key: 'month', label: 'month' }, { key: 'fortnight', label: 'fortnight' }]}
+              value={view}
+              onChange={setView}
+            />
+            {view === 'month'
+              ? <MonthCalendar rows={rows} onOpen={open} onDay={onDay} />
+              : <Timeline rows={rows} onOpen={open} />}
+          </VStack>
+
+          {lyraQueue.length > 0 && (
+            <Section
+              kicker={(
+                <HStack spacing={2}>
                   <TbSparkles size={14} color={P.gold} />
-                  <Kicker>Lyra queue · {lyraQueue.length}</Kicker>
+                  <Text fontFamily="mono" fontSize={TYPE.kicker} fontWeight="500" letterSpacing="0.2em" textTransform="uppercase" color={P.inkMuted}>Lyra queue</Text>
                 </HStack>
+              )}
+              count={lyraQueue.length}
+            >
+              <Plate sunken>
                 <VStack align="stretch" spacing={0}>
                   {lyraQueue.map((release) => (
                     <HStack
@@ -448,6 +392,7 @@ const Releases = () => {
                       borderTop="1px solid"
                       borderColor={P.hairSoft}
                       textAlign="left"
+                      _first={{ borderTop: 0 }}
                     >
                       <VoiceDisc voice={release.voice} size="16px" />
                       <Text flex="1" minW={0} fontSize={TYPE.small} color={P.ink} noOfLines={1}>
@@ -459,44 +404,35 @@ const Releases = () => {
                     </HStack>
                   ))}
                 </VStack>
-              </Box>
-            )}
+              </Plate>
+            </Section>
+          )}
 
-            <Box>
-              <HStack spacing={2} mb={2}>
-                <TbBroadcast size={14} color={P.inkMuted} />
-                <Kicker>on the ramp · {ramp.length}</Kicker>
-              </HStack>
-              <VStack align="stretch" spacing={0} borderTop="1px solid" borderColor={P.hair}>
-                {ramp.map((release) => (
-                  <Row key={release.id} release={release} onAdvance={advance} onOpen={open} />
-                ))}
-                {ramp.length === 0 && (
-                  <Text fontSize={TYPE.body} color={P.inkFaint} py={6}>
-                    Nothing staged. The room is suspiciously quiet.
-                  </Text>
-                )}
-              </VStack>
-            </Box>
+          <Section kicker="on the ramp" count={ramp.length}>
+            <VStack align="stretch" spacing={0} borderTop="1px solid" borderColor={P.hair}>
+              {ramp.map((release) => (
+                <Row key={release.id} release={release} onAdvance={advance} onOpen={open} />
+              ))}
+              {ramp.length === 0 && (
+                <Empty>Nothing staged. The room is suspiciously quiet.</Empty>
+              )}
+            </VStack>
+          </Section>
 
-            <Box>
-              <Kicker mb={2}>out in the world · {shipped.length}</Kicker>
-              <VStack align="stretch" spacing={0} borderTop="1px solid" borderColor={P.hair}>
-                {shipped.map((release) => (
-                  <Row key={release.id} release={release} onAdvance={advance} onOpen={open} />
-                ))}
-                {shipped.length === 0 && (
-                  <Text fontSize={TYPE.body} color={P.inkFaint} py={6}>
-                    Nothing has left this room yet.
-                  </Text>
-                )}
-              </VStack>
-            </Box>
+          <Section kicker="out in the world" count={shipped.length}>
+            <VStack align="stretch" spacing={0} borderTop="1px solid" borderColor={P.hair}>
+              {shipped.map((release) => (
+                <Row key={release.id} release={release} onAdvance={advance} onOpen={open} />
+              ))}
+              {shipped.length === 0 && (
+                <Empty>Nothing has left this room yet.</Empty>
+              )}
+            </VStack>
+          </Section>
 
-            <Accounts />
-          </>
-        )}
-      </VStack>
+          <Accounts />
+        </>
+      )}
 
       <ReleaseDrawer
         release={editing}
@@ -505,7 +441,7 @@ const Releases = () => {
         onSaved={load}
         onAdvance={advance}
       />
-    </Container>
+    </Page>
   );
 };
 

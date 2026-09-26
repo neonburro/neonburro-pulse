@@ -1,5 +1,5 @@
 // src/pages/Invoicing/components/ReviewSendModal.jsx
-// SENTINEL: NB_SEND_GATE_V1
+// SENTINEL: NB_SEND_GATE_V2
 //
 // The gate. Nothing reaches a client without passing through here first.
 //
@@ -11,16 +11,12 @@
 // (the same buildInvoiceEmailHTML the email uses, in an iframe), the recipient,
 // the amount and the due date. Only Approve and send actually fires the email.
 //
-// ── PAPER ────────────────────────────────────────────────────────────────────
-// This is a Paper surface (src/theme/colors.js paper.*): cream sheet, dark ink,
-// one lime action. It sits over the still dark editor for now, a cream sheet on
-// a dark desk, until the editor itself is repainted.
-//
 // ── SAFETY ───────────────────────────────────────────────────────────────────
 // If the client has no email on file the send is blocked here with a clear
 // reason, rather than failing in the function after the click.
 //
-// No oxford commas, no dashes.
+// V2, house kicker, house buttons, nothing centred. No oxford commas, no
+// dashes.
 
 import { useMemo, useState, useEffect } from 'react';
 import {
@@ -31,6 +27,8 @@ import { TbArrowLeft, TbSend, TbAlertTriangle, TbMailFast } from 'react-icons/tb
 import { buildInvoiceEmailHTML } from '../../../lib/invoiceEmailTemplate';
 import { useInvoiceAttachments } from '../../../lib/useInvoiceAttachments';
 import colors from '../../../theme/colors';
+import { TYPE, PLATE_RADIUS } from '../../../theme/layout';
+import { Kicker, Empty } from '../../../components/common/Page';
 import RecipientsField from './RecipientsField';
 
 const P = colors.paper;
@@ -49,10 +47,8 @@ const formatDue = (val) => {
 
 const Meta = ({ label, value, accent }) => (
   <VStack align="start" spacing={0.5} minW="0">
-    <Text fontFamily="mono" fontSize="9px" letterSpacing="0.16em" textTransform="uppercase" color={P.inkMuted}>
-      {label}
-    </Text>
-    <Text fontSize="sm" fontWeight="600" color={accent || P.ink} noOfLines={1}>
+    <Kicker>{label}</Kicker>
+    <Text fontSize={TYPE.body} fontWeight="600" color={accent || P.ink} noOfLines={1}>
       {value}
     </Text>
   </VStack>
@@ -91,23 +87,19 @@ const ReviewSendModal = ({ isOpen, onClose, invoice, client, project, sprints, d
       <ModalOverlay bg="rgba(23,17,12,0.6)" backdropFilter="blur(3px)" />
       <ModalContent
         bg={P.sheet}
-        borderRadius="20px"
+        borderRadius={PLATE_RADIUS}
         border="1px solid"
         borderColor={P.hair}
         overflow="hidden"
         mx={4}
         boxShadow="0 30px 80px rgba(23,17,12,0.5)"
       >
-        {/* Header */}
         <Box px={{ base: 5, md: 7 }} pt={{ base: 5, md: 6 }} pb={4} borderBottom="1px solid" borderColor={P.hairSoft}>
           <HStack spacing={2} mb={4}>
             <Icon as={TbMailFast} boxSize={3.5} color={P.limeDeep} />
-            <Text fontFamily="mono" fontSize="10px" letterSpacing="0.2em" textTransform="uppercase" color={P.inkMuted}>
-              Review and send
-            </Text>
+            <Kicker>Review and send</Kicker>
           </HStack>
 
-          {/* Recipient + amount + due */}
           <HStack spacing={6} align="flex-start" flexWrap="wrap" rowGap={3}>
             <Meta label="Amount" value={currency(total)} />
             <Meta label="Due" value={formatDue(dueDate || invoice?.due_date)} accent={P.limeDeep} />
@@ -127,14 +119,13 @@ const ReviewSendModal = ({ isOpen, onClose, invoice, client, project, sprints, d
           {!hasEmail && (
             <HStack spacing={2} mt={4} bg={`${P.coral}12`} border="1px solid" borderColor={`${P.coral}40`} borderRadius="lg" px={3} py={2}>
               <Icon as={TbAlertTriangle} boxSize={3.5} color={P.coral} flexShrink={0} />
-              <Text fontSize="xs" color={P.coral}>
+              <Text fontSize={TYPE.small} color={P.coral}>
                 Add an email to this client before sending. Back out and set it on their profile.
               </Text>
             </HStack>
           )}
         </Box>
 
-        {/* The document, exactly as sent */}
         <ModalBody p={0} bg={P.mat}>
           {html ? (
             <Box
@@ -161,13 +152,10 @@ const ReviewSendModal = ({ isOpen, onClose, invoice, client, project, sprints, d
               }}
             />
           ) : (
-            <Box py={16} textAlign="center">
-              <Text color={P.inkMuted} fontSize="sm">Add a client and a billable sprint to preview</Text>
-            </Box>
+            <Empty px={{ base: 5, md: 7 }}>Add a client and a billable sprint to preview.</Empty>
           )}
         </ModalBody>
 
-        {/* Actions */}
         <HStack
           justify="space-between"
           px={{ base: 5, md: 7 }}
@@ -178,29 +166,20 @@ const ReviewSendModal = ({ isOpen, onClose, invoice, client, project, sprints, d
         >
           <Button
             variant="ghost"
-            color={P.inkSec}
-            fontWeight="600"
-            borderRadius="full"
+            size="sm"
             leftIcon={<TbArrowLeft size={15} />}
             onClick={onClose}
             isDisabled={sending}
-            _hover={{ bg: P.sunken, color: P.ink }}
           >
             Back to edit
           </Button>
           <Button
-            bg={P.lime}
-            color={P.limeInk}
-            fontWeight="700"
-            borderRadius="full"
-            px={7}
+            size="sm"
             rightIcon={<TbSend size={15} />}
             onClick={() => onConfirm({ ccEmails: cc })}
             isLoading={sending}
             loadingText="Sending"
             isDisabled={!hasEmail || !html}
-            _hover={{ bg: '#D2E26B', transform: 'translateY(-1px)' }}
-            _active={{ transform: 'scale(0.98)' }}
           >
             Approve and send
           </Button>

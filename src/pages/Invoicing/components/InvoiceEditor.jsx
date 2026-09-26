@@ -12,17 +12,18 @@
 // Mark Paid records an off-platform payment from any source. Duplicate clones to
 // a fresh draft. Cancel soft cancels and kills the pay link, keeping the snapshot.
 //
-// No oxford commas, no em dashes.
+// 2026-09-25. The house column, the house fields and labels, the house tabs,
+// nothing centred. No oxford commas, no em dashes.
 
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  Box, VStack, HStack, Text, Icon, Spinner, Center, Button,
-  Input, Textarea, Container, Divider, Tooltip, useToast,
+  Box, VStack, HStack, Text, Icon, Button,
+  Input, Textarea, Divider, Tooltip, useToast,
 } from '@chakra-ui/react';
 import DotSelect from '../../../components/common/DotSelect';
 import {
-  TbArrowLeft, TbPlus, TbTrash, TbEdit, TbEye, TbSend, TbBolt,
+  TbArrowLeft, TbPlus, TbTrash, TbEye, TbSend,
   TbAlertTriangle, TbRotateClockwise, TbBellRinging, TbCash, TbCopy,
 } from 'react-icons/tb';
 import { supabase } from '../../../lib/supabase';
@@ -38,6 +39,8 @@ import {
 } from '../../../lib/invoiceConstants';
 import { validateSprintsForSend } from '../../../lib/invoiceValidation';
 import colors from '../../../theme/colors';
+import { TYPE, EASE, FAST } from '../../../theme/layout';
+import { Page, Field, Kicker, Tabs, Empty, Loading, Plate } from '../../../components/common/Page';
 
 import SprintEditRow from './SprintEditRow';
 import InvoiceAttachments from './InvoiceAttachments';
@@ -51,20 +54,6 @@ import ResendModal, { payLinkFor } from './ResendModal';
 import ReviewSendModal from './ReviewSendModal';
 
 const P = colors.paper;
-
-// Paper field label and control styles, local so the editor does not inherit the
-// dark tokens from invoiceConstants.
-const LABEL = {
-  fontFamily: 'mono', fontSize: '2xs', fontWeight: '600', color: P.inkMuted,
-  textTransform: 'uppercase', letterSpacing: '0.16em', mb: 2, display: 'block',
-};
-const FIELD = {
-  bg: P.sheet, border: '1px solid', borderColor: P.hair, borderRadius: 'lg',
-  color: P.ink, fontSize: 'sm', h: '48px', px: 4,
-  _hover: { borderColor: P.inkFaint },
-  _focus: { borderColor: P.lime, boxShadow: `0 0 0 3px ${P.lime}33`, outline: 'none' },
-  _placeholder: { color: P.inkFaint },
-};
 
 // Strip timestamp to YYYY-MM-DD for <input type="date"> compatibility
 const dateInputValue = (val) => {
@@ -699,13 +688,7 @@ const InvoiceEditor = ({ invoiceId, clientId: initialClientId, clients, onClose,
   };
 
   if (loading) {
-    return (
-      <Box minH="100vh" bg={P.mat}>
-        <Center minH="60vh">
-          <Spinner size="lg" color={P.limeDeep} />
-        </Center>
-      </Box>
-    );
+    return <Page><Loading label="loading the invoice" /></Page>;
   }
 
   const billableTotal = sprints
@@ -731,272 +714,185 @@ const InvoiceEditor = ({ invoiceId, clientId: initialClientId, clients, onClose,
     invoice?.status === 'draft' ? P.inkMuted : P.limeDeep;
 
   return (
-    <Box position="relative" minH="100vh" bg={P.mat}>
-      {/* soft warm wash from the top */}
-      <Box
-        position="absolute"
-        top={0}
-        left={0}
-        right={0}
-        h="360px"
-        bg={`radial-gradient(ellipse at top center, ${P.lime}14, transparent 70%)`}
-        pointerEvents="none"
-      />
+    <Page spacing={6}>
+      <HStack
+        as="button"
+        type="button"
+        spacing={2}
+        color={P.inkMuted}
+        _hover={{ color: P.ink }}
+        transition={`color ${FAST} ${EASE}`}
+        onClick={onClose}
+        userSelect="none"
+        alignSelf="flex-start"
+      >
+        <Icon as={TbArrowLeft} boxSize={3.5} />
+        <Kicker color="inherit">All invoices</Kicker>
+      </HStack>
 
-      <Container maxW="1180px" mx={0} px={{ base: 5, md: 8 }} py={{ base: 6, md: 10 }} position="relative">
-        <HStack
-          spacing={2}
-          cursor="pointer"
-          color={P.inkMuted}
-          _hover={{ color: P.ink }}
-          transition="color 0.15s"
-          mb={7}
-          onClick={onClose}
-          userSelect="none"
-        >
-          <Icon as={TbArrowLeft} boxSize={3.5} />
-          <Text fontSize="2xs" fontFamily="mono" fontWeight="700" letterSpacing="0.14em" textTransform="uppercase">
-            All invoices
-          </Text>
-        </HStack>
-
-        <VStack align="stretch" spacing={6} mb={7}>
-          <HStack justify="space-between" align="flex-end" flexWrap="wrap" gap={4}>
-            <VStack align="start" spacing={1.5}>
-              <HStack spacing={3} align="baseline">
-                <Text
-                  fontFamily={isNew ? 'mono' : 'display'}
-                  fontSize={isNew ? { base: 'xl', md: '2xl' } : { base: '3xl', md: '4xl' }}
-                  fontWeight={isNew ? '600' : '500'}
-                  color={P.ink}
-                  letterSpacing="-0.01em"
-                  lineHeight="1"
-                >
-                  {displayNumber}
-                </Text>
-                {!isNew && invoice?.status && (
-                  <HStack spacing={2}>
-                    <Text
-                      fontSize="2xs"
-                      fontWeight="700"
-                      color={statusColor}
-                      textTransform="uppercase"
-                      letterSpacing="0.08em"
-                      fontFamily="mono"
-                    >
-                      {invoice.status}
-                    </Text>
-                    {wasSent && (
-                      <Tooltip label="View the email we sent" {...TOOLTIP_PROPS}>
-                        <Box
-                          as="button"
-                          onClick={() => setShowSnapshot(true)}
-                          color={P.inkFaint}
-                          _hover={{ color: P.limeDeep }}
-                          transition="color 0.15s"
-                          p={0.5}
-                        >
-                          <Icon as={TbEye} boxSize={3.5} />
-                        </Box>
-                      </Tooltip>
-                    )}
-                  </HStack>
-                )}
-                {isNew && previewNumber && (
-                  <Text fontSize="2xs" color={P.inkFaint} fontFamily="mono" fontWeight="600" textTransform="uppercase" letterSpacing="0.08em">
-                    Draft preview
-                  </Text>
-                )}
-              </HStack>
-              <Text color={P.inkMuted} fontSize="sm">
-                {billableCount} sprint{billableCount !== 1 ? 's' : ''} · {formatCurrency(billableTotal)}
-              </Text>
-            </VStack>
-
-            <HStack spacing={2} flexWrap="wrap" rowGap={2}>
-              {!isPaid && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  borderColor={P.hair}
-                  color={P.inkSec}
-                  borderRadius="full"
-                  onClick={handleSave}
-                  isLoading={saving && !showSendGate}
-                  loadingText="Saving"
-                  _hover={{ borderColor: P.inkFaint, color: P.ink, bg: P.sheet }}
-                >
-                  Save draft
-                </Button>
-              )}
-              {isDraft && billableCount > 0 && clientId && (
-                <Button
-                  size="sm"
-                  bg={P.lime}
-                  color={P.limeInk}
-                  fontWeight="700"
-                  borderRadius="full"
-                  leftIcon={<TbSend size={14} />}
-                  onClick={handleReviewSend}
-                  isLoading={saving}
-                  loadingText="Preparing"
-                  _hover={{ bg: '#D2E26B', transform: 'translateY(-1px)' }}
-                >
-                  Review and send
-                </Button>
-              )}
-
-              {canResend && (
-                <>
-                  <Tooltip label={isPaid ? 'Send the stamped receipt' : 'Send it again, or to somebody else'} {...TOOLTIP_PROPS}>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      borderColor={P.hair}
-                      color={P.limeDeep}
-                      fontWeight="600"
-                      borderRadius="full"
-                      leftIcon={<TbRotateClockwise size={14} />}
-                      onClick={() => setShowResendModal(true)}
-                      isLoading={resending}
-                      loadingText="Sending"
-                      _hover={{ bg: P.sheet, borderColor: P.limeDeep }}
-                    >
-                      {isPaid ? 'Receipt' : 'Resend'}
-                    </Button>
-                  </Tooltip>
-                  {payLinkFor(invoice) && !isPaid && (
-                    <Tooltip label="Copy the pay link" {...TOOLTIP_PROPS}>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        borderColor={P.hair}
-                        color={P.inkSec}
-                        fontWeight="600"
-                        borderRadius="full"
-                        leftIcon={<TbCopy size={14} />}
-                        onClick={async () => {
-                          try {
-                            await navigator.clipboard.writeText(payLinkFor(invoice));
-                            toast({ title: 'Link copied', description: 'Paste it anywhere the client will see it', status: 'success', duration: 2500 });
-                          } catch {
-                            toast({ title: 'Could not copy', description: payLinkFor(invoice), status: 'warning', duration: 6000 });
-                          }
-                        }}
-                        _hover={{ bg: P.sheet, borderColor: P.limeDeep }}
-                      >
-                        Copy link
-                      </Button>
-                    </Tooltip>
-                  )}
-                  {canResendOrRemind && !isPaid && (
-                  <Tooltip label="Send a friendly nudge" {...TOOLTIP_PROPS}>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      borderColor={P.hair}
-                      color={P.gold}
-                      fontWeight="600"
-                      borderRadius="full"
-                      leftIcon={<TbBellRinging size={14} />}
-                      onClick={() => setShowReminderModal(true)}
-                      _hover={{ bg: P.sheet, borderColor: P.gold }}
-                    >
-                      Remind
-                    </Button>
-                  </Tooltip>
-                  )}
-                </>
-              )}
-
-              {canMarkPaid && (
-                <Tooltip label="Record an off-platform payment" {...TOOLTIP_PROPS}>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    borderColor={P.hair}
-                    color={P.green}
-                    fontWeight="600"
-                    borderRadius="full"
-                    leftIcon={<TbCash size={14} />}
-                    onClick={() => setShowMarkPaidModal(true)}
-                    _hover={{ bg: P.sheet, borderColor: P.green }}
+      <VStack align="stretch" spacing={5}>
+        <HStack justify="space-between" align="flex-end" flexWrap="wrap" gap={4}>
+          <VStack align="start" spacing={1.5}>
+            <HStack spacing={3} align="baseline">
+              <Kicker color={statusColor}>
+                {isNew ? (previewNumber ? 'Draft preview' : 'New invoice') : invoice?.status}
+              </Kicker>
+              {wasSent && (
+                <Tooltip label="View the email we sent" {...TOOLTIP_PROPS}>
+                  <Box
+                    as="button"
+                    type="button"
+                    onClick={() => setShowSnapshot(true)}
+                    color={P.inkFaint}
+                    _hover={{ color: P.limeDeep }}
+                    transition={`color ${FAST} ${EASE}`}
+                    p={0.5}
                   >
-                    Mark paid
-                  </Button>
-                </Tooltip>
-              )}
-
-              {canDuplicate && (
-                <Tooltip label="Create a fresh draft with the same sprints" {...TOOLTIP_PROPS}>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    borderColor={P.hair}
-                    color={P.inkSec}
-                    fontWeight="600"
-                    borderRadius="full"
-                    leftIcon={<TbCopy size={14} />}
-                    onClick={handleDuplicate}
-                    isLoading={duplicating}
-                    loadingText="Duplicating"
-                    _hover={{ borderColor: P.inkFaint, color: P.ink, bg: P.sheet }}
-                  >
-                    Duplicate
-                  </Button>
+                    <Icon as={TbEye} boxSize={3.5} />
+                  </Box>
                 </Tooltip>
               )}
             </HStack>
-          </HStack>
+            <Text
+              fontFamily="mono"
+              fontSize={TYPE.title}
+              fontWeight="600"
+              color={P.ink}
+              letterSpacing="-0.02em"
+              lineHeight="1.1"
+            >
+              {displayNumber}
+            </Text>
+            <Text color={P.inkMuted} fontSize={TYPE.lede}>
+              {billableCount} sprint{billableCount !== 1 ? 's' : ''} · {formatCurrency(billableTotal)}
+            </Text>
+          </VStack>
 
-          {!isNew && (
-            <SendHistoryStrip
-              invoiceId={invoiceId}
-              refreshKey={historyRefreshKey}
-              onViewSnapshot={() => setShowSnapshot(true)}
-            />
-          )}
-        </VStack>
-
-        <HStack spacing={7} borderBottom="1px solid" borderColor={P.hair} mb={8}>
-          {[
-            { value: 'compose', label: 'Compose', icon: TbEdit },
-            { value: 'preview', label: 'Preview', icon: TbEye },
-          ].map((tab) => {
-            const active = activeTab === tab.value;
-            return (
-              <Box
-                key={tab.value}
-                pb={3}
-                cursor="pointer"
-                position="relative"
-                onClick={() => setActiveTab(tab.value)}
+          <HStack spacing={2} flexWrap="wrap" rowGap={2}>
+            {!isPaid && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleSave}
+                isLoading={saving && !showSendGate}
+                loadingText="Saving"
               >
-                <HStack spacing={2}>
-                  <Icon as={tab.icon} boxSize={3.5} color={active ? P.limeDeep : P.inkFaint} />
-                  <Text
-                    fontSize="xs"
-                    fontWeight="700"
-                    color={active ? P.ink : P.inkMuted}
-                    textTransform="uppercase"
-                    letterSpacing="0.05em"
+                Save draft
+              </Button>
+            )}
+            {isDraft && billableCount > 0 && clientId && (
+              <Button
+                size="sm"
+                leftIcon={<TbSend size={14} />}
+                onClick={handleReviewSend}
+                isLoading={saving}
+                loadingText="Preparing"
+              >
+                Review and send
+              </Button>
+            )}
+
+            {canResend && (
+              <>
+                <Tooltip label={isPaid ? 'Send the stamped receipt' : 'Send it again, or to somebody else'} {...TOOLTIP_PROPS}>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    color={P.limeDeep}
+                    leftIcon={<TbRotateClockwise size={14} />}
+                    onClick={() => setShowResendModal(true)}
+                    isLoading={resending}
+                    loadingText="Sending"
                   >
-                    {tab.label}
-                  </Text>
-                </HStack>
-                {active && (
-                  <Box position="absolute" bottom="-1px" left={0} right={0} h="2px" bg={P.lime} borderRadius="full" />
+                    {isPaid ? 'Receipt' : 'Resend'}
+                  </Button>
+                </Tooltip>
+                {payLinkFor(invoice) && !isPaid && (
+                  <Tooltip label="Copy the pay link" {...TOOLTIP_PROPS}>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      leftIcon={<TbCopy size={14} />}
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(payLinkFor(invoice));
+                          toast({ title: 'Link copied', description: 'Paste it anywhere the client will see it', status: 'success', duration: 2500 });
+                        } catch {
+                          toast({ title: 'Could not copy', description: payLinkFor(invoice), status: 'warning', duration: 6000 });
+                        }
+                      }}
+                    >
+                      Copy link
+                    </Button>
+                  </Tooltip>
                 )}
-              </Box>
-            );
-          })}
+                {canResendOrRemind && !isPaid && (
+                <Tooltip label="Send a friendly nudge" {...TOOLTIP_PROPS}>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    color={P.gold}
+                    leftIcon={<TbBellRinging size={14} />}
+                    onClick={() => setShowReminderModal(true)}
+                  >
+                    Remind
+                  </Button>
+                </Tooltip>
+                )}
+              </>
+            )}
+
+            {canMarkPaid && (
+              <Tooltip label="Record an off-platform payment" {...TOOLTIP_PROPS}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  color={P.green}
+                  leftIcon={<TbCash size={14} />}
+                  onClick={() => setShowMarkPaidModal(true)}
+                >
+                  Mark paid
+                </Button>
+              </Tooltip>
+            )}
+
+            {canDuplicate && (
+              <Tooltip label="Create a fresh draft with the same sprints" {...TOOLTIP_PROPS}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  leftIcon={<TbCopy size={14} />}
+                  onClick={handleDuplicate}
+                  isLoading={duplicating}
+                  loadingText="Duplicating"
+                >
+                  Duplicate
+                </Button>
+              </Tooltip>
+            )}
+          </HStack>
         </HStack>
 
-        {activeTab === 'compose' && (
-          <VStack spacing={8} align="stretch">
-            <HStack spacing={6} align="start" flexWrap="wrap" rowGap={6}>
-              <Box flex={1} minW="220px">
-                <Text {...LABEL}>Client</Text>
+        {!isNew && (
+          <SendHistoryStrip
+            invoiceId={invoiceId}
+            refreshKey={historyRefreshKey}
+            onViewSnapshot={() => setShowSnapshot(true)}
+          />
+        )}
+      </VStack>
+
+      <Tabs
+        items={[{ key: 'compose', label: 'Compose' }, { key: 'preview', label: 'Preview' }]}
+        value={activeTab}
+        onChange={setActiveTab}
+      />
+
+      {activeTab === 'compose' && (
+        <VStack spacing={8} align="stretch">
+          <HStack spacing={6} align="start" flexWrap="wrap" rowGap={6}>
+            <Box flex={1} minW="220px">
+              <Field label="Client">
                 <DotSelect
                   value={clientId}
                   onChange={setClientId}
@@ -1004,10 +900,11 @@ const InvoiceEditor = ({ invoiceId, clientId: initialClientId, clients, onClose,
                   isDisabled={isPaid}
                   options={clients.map((c) => ({ value: c.id, label: `${c.name}${c.company ? ` · ${c.company}` : ''}` }))}
                 />
-              </Box>
-              {projects.length > 0 && (
-                <Box flex={1} minW="220px">
-                  <Text {...LABEL}>Project</Text>
+              </Field>
+            </Box>
+            {projects.length > 0 && (
+              <Box flex={1} minW="220px">
+                <Field label="Project">
                   <DotSelect
                     value={projectId}
                     onChange={setProjectId}
@@ -1015,179 +912,148 @@ const InvoiceEditor = ({ invoiceId, clientId: initialClientId, clients, onClose,
                     isDisabled={isPaid}
                     options={[{ value: '', label: 'No project' }, ...projects.map((p) => ({ value: p.id, label: p.name }))]}
                   />
-                </Box>
+                </Field>
+              </Box>
+            )}
+          </HStack>
+
+          <Box>
+            <HStack justify="space-between" align="center" mb={2}>
+              <Kicker>Sprints</Kicker>
+              {!isPaid && (
+                <HStack
+                  as="button"
+                  type="button"
+                  spacing={1.5}
+                  onClick={addSprint}
+                  color={P.limeDeep}
+                  _hover={{ color: P.ink }}
+                >
+                  <Icon as={TbPlus} boxSize={3} />
+                  <Kicker color="inherit">Add sprint</Kicker>
+                </HStack>
               )}
             </HStack>
 
-            <Box>
-              <HStack justify="space-between" align="center" mb={2}>
-                <Text {...LABEL} mb={0}>Sprints</Text>
-                {!isPaid && (
-                  <HStack
-                    spacing={1.5}
-                    cursor="pointer"
-                    onClick={addSprint}
-                    color={P.limeDeep}
-                    _hover={{ color: P.ink }}
-                  >
-                    <Icon as={TbPlus} boxSize={3} />
-                    <Text fontSize="2xs" fontFamily="mono" fontWeight="700" textTransform="uppercase" letterSpacing="0.05em">
-                      Add sprint
-                    </Text>
-                  </HStack>
-                )}
+            {sprints.length === 0 ? (
+              <Empty
+                hint="A sprint is a line the client sees and can fund."
+                action={<Button size="sm" leftIcon={<TbPlus size={12} />} onClick={addSprint}>Add first sprint</Button>}
+              >
+                No sprints yet.
+              </Empty>
+            ) : (
+              <Box borderTop="1px solid" borderColor={P.hair}>
+                {sprints.map((sprint) => (
+                  <SprintEditRow
+                    key={sprint.id}
+                    sprint={sprint}
+                    onUpdate={updateSprint}
+                    onDelete={() => deleteSprint(sprint.id)}
+                  />
+                ))}
+              </Box>
+            )}
+
+            {sprints.length > 0 && (
+              <HStack justify="flex-end" pt={5} spacing={6}>
+                <VStack align="end" spacing={0.5}>
+                  <Kicker>Billable total</Kicker>
+                  <Text fontFamily="mono" fontSize={TYPE.figure} color={P.ink} fontWeight="600" sx={{ fontVariantNumeric: 'tabular-nums' }}>
+                    {formatCurrency(billableTotal)}
+                  </Text>
+                </VStack>
               </HStack>
+            )}
+          </Box>
 
-              {sprints.length === 0 ? (
-                <Box py={12} textAlign="center" border="1px dashed" borderColor={P.hair} borderRadius="xl" bg={P.sheet}>
-                  <Icon as={TbBolt} boxSize={8} color={P.inkFaint} mb={2} />
-                  <Text color={P.inkMuted} fontSize="sm" mb={3}>No sprints yet</Text>
-                  <Button
-                    size="sm"
-                    bg={P.lime}
-                    color={P.limeInk}
-                    fontWeight="700"
-                    borderRadius="full"
-                    leftIcon={<TbPlus size={12} />}
-                    onClick={addSprint}
-                    _hover={{ bg: '#D2E26B' }}
-                  >
-                    Add first sprint
-                  </Button>
-                </Box>
-              ) : (
-                <Box borderTop="1px solid" borderColor={P.hair}>
-                  {sprints.map((sprint) => (
-                    <SprintEditRow
-                      key={sprint.id}
-                      sprint={sprint}
-                      onUpdate={updateSprint}
-                      onDelete={() => deleteSprint(sprint.id)}
-                    />
-                  ))}
-                </Box>
-              )}
+          <Divider borderColor={P.hair} />
 
-              {sprints.length > 0 && (
-                <HStack justify="flex-end" pt={5} spacing={6}>
-                  <VStack align="end" spacing={0.5}>
-                    <Text fontSize="2xs" color={P.inkMuted} fontFamily="mono" fontWeight="700" textTransform="uppercase" letterSpacing="0.1em">
-                      Billable total
-                    </Text>
-                    <Text fontFamily="display" fontSize="3xl" color={P.ink} fontWeight="500">
-                      {formatCurrency(billableTotal)}
-                    </Text>
-                  </VStack>
-                </HStack>
-              )}
-            </Box>
+          {/* Backup documents. Sits between the sprints and the internal
+              notes because it belongs to what the CLIENT sees, not to what
+              the team writes to itself. A supplier invoice attached here is
+              what turns a line billed at cost into a line they can check.
+              See InvoiceAttachments.jsx for why these are emailed rather
+              than linked. */}
+          <InvoiceAttachments invoiceId={invoiceId} readOnly={isPaid} />
 
-            <Divider borderColor={P.hair} />
+          <Divider borderColor={P.hair} />
 
-            {/* Backup documents. Sits between the sprints and the internal
-                notes because it belongs to what the CLIENT sees, not to what
-                the team writes to itself. A supplier invoice attached here is
-                what turns a line billed at cost into a line they can check.
-                See InvoiceAttachments.jsx for why these are emailed rather
-                than linked. */}
-            <InvoiceAttachments invoiceId={invoiceId} readOnly={isPaid} />
-
-            <Divider borderColor={P.hair} />
-
-            <HStack spacing={6} align="start" flexWrap="wrap" rowGap={6}>
-              <Box flex={2} minW="240px">
-                <Text {...LABEL}>Internal notes</Text>
+          <HStack spacing={6} align="start" flexWrap="wrap" rowGap={6}>
+            <Box flex={2} minW="240px">
+              <Field label="Internal notes">
                 <Textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Notes only your team sees"
-                  bg={P.sheet}
-                  border="1px solid"
-                  borderColor={P.hair}
-                  borderRadius="lg"
-                  color={P.ink}
-                  fontSize="sm"
                   rows={3}
                   isReadOnly={isPaid}
-                  _focus={{ borderColor: P.lime, boxShadow: `0 0 0 3px ${P.lime}33` }}
-                  _placeholder={{ color: P.inkFaint }}
                 />
-              </Box>
-              <Box flex={1} minW="180px">
-                <Text {...LABEL}>Due date</Text>
+              </Field>
+            </Box>
+            <Box flex={1} minW="180px">
+              <Field label="Due date">
                 <Input
                   type="date"
                   value={dueDate}
                   onChange={(e) => setDueDate(e.target.value)}
                   isDisabled={isPaid}
-                  {...FIELD}
                 />
-              </Box>
-            </HStack>
+              </Field>
+            </Box>
+          </HStack>
 
-            {!isNew && (
-              <Box pt={4}>
-                {isDraft && (
-                  <HStack
-                    spacing={1.5}
-                    cursor="pointer"
-                    onClick={handleHardDelete}
-                    color={confirmDelete ? P.coral : P.inkFaint}
-                    _hover={{ color: P.coral }}
-                    transition="all 0.15s"
-                    justify="center"
-                    userSelect="none"
-                  >
-                    <Icon as={confirmDelete ? TbAlertTriangle : TbTrash} boxSize={3} />
-                    <Text fontSize="2xs" fontFamily="mono" fontWeight="700" textTransform="uppercase" letterSpacing="0.05em">
-                      {deleting ? 'Deleting...' : confirmDelete ? 'Click again to confirm' : 'Delete draft'}
-                    </Text>
-                  </HStack>
-                )}
+          {!isNew && (
+            <Box pt={4}>
+              {isDraft && (
+                <HStack
+                  as="button"
+                  type="button"
+                  spacing={1.5}
+                  onClick={handleHardDelete}
+                  color={confirmDelete ? P.coral : P.inkFaint}
+                  _hover={{ color: P.coral }}
+                  transition={`all ${FAST} ${EASE}`}
+                  userSelect="none"
+                >
+                  <Icon as={confirmDelete ? TbAlertTriangle : TbTrash} boxSize={3} />
+                  <Kicker color="inherit">
+                    {deleting ? 'Deleting' : confirmDelete ? 'Click again to confirm' : 'Delete draft'}
+                  </Kicker>
+                </HStack>
+              )}
 
-                {isSentish && (
-                  <HStack
-                    spacing={1.5}
-                    cursor="pointer"
-                    onClick={() => setShowCancelModal(true)}
-                    color={P.inkFaint}
-                    _hover={{ color: P.coral }}
-                    transition="all 0.15s"
-                    justify="center"
-                    userSelect="none"
-                  >
-                    <Icon as={TbAlertTriangle} boxSize={3} />
-                    <Text fontSize="2xs" fontFamily="mono" fontWeight="700" textTransform="uppercase" letterSpacing="0.05em">
-                      Cancel invoice
-                    </Text>
-                  </HStack>
-                )}
+              {isSentish && (
+                <HStack
+                  as="button"
+                  type="button"
+                  spacing={1.5}
+                  onClick={() => setShowCancelModal(true)}
+                  color={P.inkFaint}
+                  _hover={{ color: P.coral }}
+                  transition={`all ${FAST} ${EASE}`}
+                  userSelect="none"
+                >
+                  <Icon as={TbAlertTriangle} boxSize={3} />
+                  <Kicker color="inherit">Cancel invoice</Kicker>
+                </HStack>
+              )}
 
-                {isPaid && (
-                  <Text
-                    fontSize="2xs"
-                    color={P.inkFaint}
-                    textAlign="center"
-                    fontFamily="mono"
-                    textTransform="uppercase"
-                    letterSpacing="0.05em"
-                  >
-                    Paid invoices cannot be deleted
-                  </Text>
-                )}
-              </Box>
-            )}
-          </VStack>
-        )}
+              {isPaid && (
+                <Kicker color={P.inkFaint}>Paid invoices cannot be deleted</Kicker>
+              )}
+            </Box>
+          )}
+        </VStack>
+      )}
 
-        {activeTab === 'preview' && (
-          <InvoicePreview
-            invoice={previewInvoice}
-            client={client}
-            sprints={sprints.filter((s) => s.is_billable !== false)}
-          />
-        )}
-      </Container>
+      {activeTab === 'preview' && (
+        <InvoicePreview
+          invoice={previewInvoice}
+          client={client}
+          sprints={sprints.filter((s) => s.is_billable !== false)}
+        />
+      )}
 
       <CancelInvoiceModal
         isOpen={showCancelModal}
@@ -1198,19 +1064,12 @@ const InvoiceEditor = ({ invoiceId, clientId: initialClientId, clients, onClose,
       />
 
       <ResendModal
-
         isOpen={showResendModal}
-
         onClose={() => setShowResendModal(false)}
-
         invoice={invoice}
-
         client={client}
-
         onSend={handleResend}
-
         sending={resending}
-
       />
 
       <ReminderModal
@@ -1247,7 +1106,7 @@ const InvoiceEditor = ({ invoiceId, clientId: initialClientId, clients, onClose,
         sending={sending}
         onConfirm={({ ccEmails } = {}) => handleSend(reviewInvoiceId, ccEmails)}
       />
-    </Box>
+    </Page>
   );
 };
 

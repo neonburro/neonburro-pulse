@@ -1,13 +1,16 @@
 // src/pages/Dashboard/components/TodayHeader.jsx
-// SENTINEL: NB_PULSE_TODAY_HEADER_V2
-// The top of Today, on Paper. Greeting, date, who else is here, and refresh. The
-// clock ticks once a minute, landing on the minute boundary. No oxford, no dashes.
+// SENTINEL: NB_PULSE_TODAY_HEADER_V3
+// The top of Today, on Paper. The house page head, kicker then title, the
+// kicker is the day and the title is the greeting. The clock and refresh sit
+// as the actions, who else is here sits under. The clock ticks once a
+// minute, landing on the minute boundary. No oxford, no dashes.
 
 import { useState, useEffect, useRef } from 'react';
-import { Box, HStack, VStack, Text, IconButton, Tooltip } from '@chakra-ui/react';
+import { HStack, Text, IconButton, Tooltip } from '@chakra-ui/react';
 import { TbRefresh } from 'react-icons/tb';
 import colors from '../../../theme/colors';
-import { TYPE, EASE, FAST } from '../../../theme/layout';
+import { TYPE } from '../../../theme/layout';
+import { PageHead } from '../../../components/common/Page';
 import TeamOnlineStrip from './TeamOnlineStrip';
 
 const P = colors.paper;
@@ -39,27 +42,20 @@ const TodayHeader = ({ name, onRefresh, refreshing }) => {
   const first = name ? String(name).trim().split(/\s+/)[0] : null;
 
   return (
-    <VStack align="stretch" spacing={{ base: 5, md: 7 }}>
-      <HStack justify="space-between" align="flex-start" spacing={4}>
-        <VStack align="start" spacing={2} minW={0} flex={1}>
-          <Text fontFamily="mono" fontSize={TYPE.micro} fontWeight="500" letterSpacing="0.22em" textTransform="uppercase" color={P.limeDeep}>
-            {weekday} · {date}
-          </Text>
-          <Text fontSize={TYPE.title} fontWeight="600" letterSpacing="-0.03em" lineHeight="1.1" color={P.ink} noOfLines={1}>
-            {first ? `${greet(now.getHours())}, ${first}.` : greet(now.getHours())}
-          </Text>
-        </VStack>
-
-        <HStack spacing={3} flexShrink={0} align="center">
+    <PageHead
+      kicker={`${weekday} · ${date}`}
+      title={first ? `${greet(now.getHours())}, ${first}.` : greet(now.getHours())}
+      actions={(
+        <HStack spacing={3} align="center">
           <Text display={{ base: 'none', sm: 'block' }} fontFamily="mono" fontSize={TYPE.small} fontWeight="500" color={P.inkMuted} sx={{ fontVariantNumeric: 'tabular-nums' }}>{time}</Text>
-          <Tooltip label="Refresh" placement="bottom" hasArrow bg={P.ink} color={P.sheet} fontSize="xs" openDelay={400}>
-            <IconButton icon={<TbRefresh size={15} />} onClick={onRefresh} isLoading={refreshing} variant="ghost" h="34px" w="34px" minW="34px" borderRadius="10px" color={P.inkMuted} border="1px solid" borderColor={P.hair} transition={`all ${FAST} ${EASE}`} _hover={{ color: P.limeDeep, borderColor: P.limeDeep, bg: `${P.lime}18` }} aria-label="Refresh" />
+          <Tooltip label="Refresh" placement="bottom" hasArrow bg={P.ink} color={P.sheet} fontSize={TYPE.small} openDelay={400}>
+            <IconButton icon={<TbRefresh size={15} />} onClick={onRefresh} isLoading={refreshing} variant="outline" size="sm" borderRadius="full" aria-label="Refresh" />
           </Tooltip>
         </HStack>
-      </HStack>
-
-      <Box><TeamOnlineStrip /></Box>
-    </VStack>
+      )}
+    >
+      <TeamOnlineStrip />
+    </PageHead>
   );
 };
 

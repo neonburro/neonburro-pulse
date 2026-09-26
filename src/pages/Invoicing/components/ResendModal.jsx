@@ -5,15 +5,18 @@
 // Leave it and the same email goes again as a resend. Change it and the same
 // stored document goes to that address and the history records a forward,
 // see the note in netlify/functions/resend-invoice.js. A paid invoice goes out
-// as the receipt with the stamp on it. No oxford commas, no dashes.
+// as the receipt with the stamp on it. House fields. No oxford commas, no
+// dashes.
 
 import { useState, useEffect } from 'react';
 import {
   Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalFooter,
-  ModalCloseButton, Box, VStack, HStack, Text, Icon, Input, Button, useToast,
+  ModalCloseButton, Box, VStack, HStack, Text, Icon, Button, useToast,
 } from '@chakra-ui/react';
 import { TbRotateClockwise, TbSend, TbCopy, TbCheck } from 'react-icons/tb';
 import colors from '../../../theme/colors';
+import { TYPE, INSET, FIELD_H, FIELD_RADIUS } from '../../../theme/layout';
+import { Field } from '../../../components/common/Page';
 import RecipientsField, { cleanList } from './RecipientsField';
 
 const P = colors.paper;
@@ -61,8 +64,8 @@ const ResendModal = ({ isOpen, onClose, invoice, client, onSend, sending }) => {
               <Icon as={TbRotateClockwise} boxSize={4} />
             </Box>
             <Box>
-              <Text fontSize="md" fontWeight="700">{isPaid ? 'Send the receipt' : 'Resend the invoice'}</Text>
-              <Text fontSize="xs" color={P.inkMuted} fontFamily="mono">{invoice?.invoice_number}</Text>
+              <Text fontSize={TYPE.section} fontWeight="700">{isPaid ? 'Send the receipt' : 'Resend the invoice'}</Text>
+              <Text fontSize={TYPE.small} color={P.inkMuted} fontFamily="mono">{invoice?.invoice_number}</Text>
             </Box>
           </HStack>
         </ModalHeader>
@@ -81,35 +84,28 @@ const ResendModal = ({ isOpen, onClose, invoice, client, onSend, sending }) => {
             />
 
             {link && !isPaid && (
-              <Box>
-                <Text fontSize="2xs" fontWeight="700" color={P.inkMuted} textTransform="uppercase" letterSpacing="0.1em" fontFamily="mono" mb={2}>the pay link</Text>
+              <Field label="the pay link" hint="anyone with it can view and pay, send it the way you would send a cheque">
                 <HStack spacing={2}>
-                  <Box flex={1} px={3} py={2} bg={P.mat} border="1px solid" borderColor={P.hair} borderRadius="lg" minW={0}>
-                    <Text fontSize="xs" fontFamily="mono" color={P.inkSec} isTruncated>{link}</Text>
+                  <Box flex={1} px={INSET} h={FIELD_H} display="flex" alignItems="center" bg={P.mat} border="1px solid" borderColor={P.hair} borderRadius={FIELD_RADIUS} minW={0}>
+                    <Text fontSize={TYPE.small} fontFamily="mono" color={P.inkSec} isTruncated>{link}</Text>
                   </Box>
-                  <Button size="sm" variant="outline" borderColor={P.hair} color={copied ? P.green : P.inkSec} borderRadius="full" leftIcon={<Icon as={copied ? TbCheck : TbCopy} boxSize={3.5} />} onClick={copy} _hover={{ bg: P.sheet, borderColor: P.limeDeep }}>
+                  <Button size="md" variant="outline" color={copied ? P.green : undefined} leftIcon={<Icon as={copied ? TbCheck : TbCopy} boxSize={3.5} />} onClick={copy}>
                     {copied ? 'Copied' : 'Copy'}
                   </Button>
                 </HStack>
-                <Text mt={2} fontSize="xs" color={P.inkMuted}>Anyone with the link can view and pay this invoice. Send it the way you would send a cheque.</Text>
-              </Box>
+              </Field>
             )}
           </VStack>
         </ModalBody>
-        <ModalFooter gap={3}>
-          <Button variant="ghost" color={P.inkMuted} onClick={onClose} borderRadius="full" size="sm">Cancel</Button>
+        <ModalFooter gap={2}>
+          <Button variant="ghost" size="sm" onClick={onClose}>Cancel</Button>
           <Button
             size="sm"
-            bg={P.limeDeep}
-            color="white"
-            fontWeight="700"
-            borderRadius="full"
             leftIcon={<Icon as={TbSend} boxSize={3.5} />}
             onClick={handleSend}
             isDisabled={!valid}
             isLoading={sending}
             loadingText="Sending"
-            _hover={{ bg: '#85953A' }}
           >
             {isPaid ? 'Send receipt' : forwarding ? 'Send a copy' : 'Resend'}
           </Button>

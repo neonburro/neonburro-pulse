@@ -2,14 +2,17 @@
 // Sites tab on ClientDetail, on Paper: connected Netlify sites, a searchable
 // picker to connect more, and a merged deploy feed filterable per site. Deploy
 // state reads as a coloured dot (ready green, error coral, building gold). All
-// logic unchanged. No oxford commas, no dashes.
+// logic unchanged. House fields, house tabs, house empty lines. No oxford
+// commas, no dashes.
 
 import { useState, useEffect, useMemo } from 'react';
-import { Box, VStack, HStack, Text, Icon, Center, Spinner, Input, Button, Checkbox, useToast } from '@chakra-ui/react';
-import { TbWorld, TbPlus, TbExternalLink, TbCheck, TbSearch, TbLink, TbAlertCircle, TbGitBranch, TbGitCommit } from 'react-icons/tb';
+import { Box, VStack, HStack, Text, Icon, Input, Button, Checkbox, useToast } from '@chakra-ui/react';
+import { TbWorld, TbPlus, TbExternalLink, TbCheck, TbLink, TbAlertCircle, TbGitBranch } from 'react-icons/tb';
 import { supabase } from '../../../lib/supabase';
 import colors from '../../../theme/colors';
 import { formatSmart } from '../../../lib/time';
+import { TYPE, INSET, EASE, FAST } from '../../../theme/layout';
+import { Section, Field, Empty, Loading, Tabs, Kicker, SearchBox, Plate } from '../../../components/common/Page';
 
 const P = colors.paper;
 
@@ -161,173 +164,148 @@ const SitesTab = ({ clientId, clientName }) => {
     return counts;
   }, [deploys]);
 
-  if (loading) return <Center py={16}><Spinner color={P.limeDeep} /></Center>;
+  if (loading) return <Loading label="loading sites" />;
 
   const hasSites = sites.length > 0;
   const hasDeploys = deploys.length > 0;
 
-  const sectionLabel = { fontSize: '2xs', fontWeight: '700', color: P.inkMuted, textTransform: 'uppercase', letterSpacing: '0.1em', fontFamily: 'mono' };
-
   return (
-    <VStack spacing={0} align="stretch">
-      {!hasSites && !showPicker && (
-        <Center py={12}><VStack spacing={3}><Icon as={TbWorld} boxSize={8} color={P.inkFaint} /><Text color={P.inkMuted} fontSize="sm">No sites connected yet</Text></VStack></Center>
-      )}
+    <VStack spacing={8} align="stretch">
+      <Section kicker="Connected sites" count={sites.length || undefined}>
+        {!hasSites && !showPicker && (
+          <Empty>No sites connected yet.</Empty>
+        )}
 
-      {sites.map((site) => {
-        const domain = getSiteDomain(site);
-        return (
-          <HStack key={site.id} py={3.5} spacing={3} borderBottom="1px solid" borderColor={P.hairSoft}>
-            <Icon as={TbWorld} boxSize={3.5} color={P.inkMuted} />
-            <Box flex={1} minW={0}>
-              <HStack spacing={2}>
-                <Text color={P.ink} fontSize="sm" fontWeight="600" noOfLines={1}>{domain}</Text>
-                {site.is_internal && <Text fontSize="2xs" color={P.inkFaint} fontFamily="mono" fontWeight="700" textTransform="uppercase" letterSpacing="0.05em">Internal</Text>}
-              </HStack>
-              <HStack spacing={2} mt={0.5} flexWrap="wrap">
-                <Text color={P.inkMuted} fontSize="2xs" fontFamily="mono">{site.netlify_site_name}</Text>
-                {site.framework && (<><Text color={P.inkFaint} fontSize="2xs">·</Text><Text color={P.inkMuted} fontSize="2xs" fontFamily="mono">{site.framework}</Text></>)}
-                {site.last_synced_at && (<><Text color={P.inkFaint} fontSize="2xs">·</Text><Text color={P.inkMuted} fontSize="2xs" fontFamily="mono">synced {formatSmart(site.last_synced_at)}</Text></>)}
-              </HStack>
-            </Box>
-            {site.primary_url && (
-              <Box as="a" href={site.primary_url} target="_blank" rel="noopener noreferrer" color={P.inkMuted} _hover={{ color: P.limeDeep }} transition="color 0.15s"><Icon as={TbExternalLink} boxSize={3.5} /></Box>
-            )}
-            {site.webhook_registered_at && (
-              <HStack spacing={1}><Box w="6px" h="6px" borderRadius="full" bg={P.green} /><Text color={P.inkMuted} fontSize="2xs" fontFamily="mono">live</Text></HStack>
-            )}
-          </HStack>
-        );
-      })}
-
-      {showPicker ? (
-        <Box py={5} borderBottom="1px solid" borderColor={P.hairSoft}>
-          <VStack spacing={4} align="stretch">
-            <HStack justify="space-between">
-              <Text fontSize="2xs" fontWeight="700" color={P.limeDeep} textTransform="uppercase" letterSpacing="0.1em" fontFamily="mono">Pick a Netlify site</Text>
-              <Box as="button" onClick={() => setShowPicker(false)} color={P.inkMuted} _hover={{ color: P.ink }} fontSize="2xs" fontFamily="mono" fontWeight="700" textTransform="uppercase">Cancel</Box>
-            </HStack>
-
-            {loadingNetlify ? (
-              <Center py={8}><VStack spacing={2}><Spinner size="sm" color={P.limeDeep} thickness="2px" /><Text color={P.inkMuted} fontSize="2xs" fontFamily="mono">Loading your Netlify sites</Text></VStack></Center>
-            ) : selectedSite ? (
-              <VStack spacing={4} align="stretch">
-                <Box bg={P.sheet} border="1px solid" borderColor={P.lime} borderRadius="lg" p={4}>
-                  <HStack spacing={3}>
-                    <Icon as={TbWorld} boxSize={5} color={P.limeDeep} />
-                    <Box flex={1}>
-                      <Text color={P.ink} fontSize="sm" fontWeight="700">{selectedSite.name}</Text>
-                      {selectedSite.url && <Text color={P.inkMuted} fontSize="xs" fontFamily="mono">{cleanDomain(selectedSite.url)}</Text>}
-                      <HStack spacing={2} mt={1} flexWrap="wrap">
-                        {selectedSite.framework && <Text color={P.inkMuted} fontSize="2xs" fontFamily="mono">{selectedSite.framework}</Text>}
-                        {selectedSite.published_at && (<><Text color={P.inkFaint} fontSize="2xs">·</Text><Text color={P.inkMuted} fontSize="2xs" fontFamily="mono">deployed {formatSmart(selectedSite.published_at)}</Text></>)}
-                      </HStack>
-                    </Box>
-                    <Box as="button" onClick={() => setSelectedSite(null)} color={P.inkMuted} _hover={{ color: P.ink }} fontSize="2xs" fontFamily="mono" textTransform="uppercase">Change</Box>
-                  </HStack>
-                </Box>
-
-                <Box>
-                  <Text {...sectionLabel} mb={1}>Display name</Text>
-                  <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Production Site" bg={P.sheet} border="1px solid" borderColor={P.hair} borderRadius="lg" color={P.ink} fontSize="md" h="44px" px={3.5} _focus={{ borderColor: P.lime, boxShadow: `0 0 0 3px ${P.lime}33` }} _placeholder={{ color: P.inkFaint }} />
-                  <Text color={P.inkFaint} fontSize="2xs" mt={1}>How this site shows up in Pulse and the client portal</Text>
-                </Box>
-
-                <Checkbox isChecked={isInternal} onChange={(e) => setIsInternal(e.target.checked)} colorScheme="green" size="sm">
-                  <Text color={P.inkSec} fontSize="xs">Internal site (hide from client portal)</Text>
-                </Checkbox>
-
-                {connectError && (
-                  <HStack bg={`${P.coral}12`} border="1px solid" borderColor={`${P.coral}40`} borderRadius="lg" p={3} spacing={2} align="start">
-                    <Icon as={TbAlertCircle} boxSize={4} color={P.coral} mt={0.5} />
-                    <Text color={P.coral} fontSize="xs" flex={1}>{connectError}</Text>
-                  </HStack>
-                )}
-
+        {sites.map((site) => {
+          const domain = getSiteDomain(site);
+          return (
+            <HStack key={site.id} py={3.5} spacing={3} borderBottom="1px solid" borderColor={P.hairSoft}>
+              <Icon as={TbWorld} boxSize={3.5} color={P.inkMuted} />
+              <Box flex={1} minW={0}>
                 <HStack spacing={2}>
-                  <Button size="sm" bg={P.lime} color={P.limeInk} fontWeight="700" borderRadius="full" leftIcon={<TbCheck size={14} />} onClick={handleConnect} isLoading={connecting} loadingText="Connecting" _hover={{ bg: '#D2E26B' }}>Connect site</Button>
+                  <Text color={P.ink} fontSize={TYPE.body} fontWeight="600" noOfLines={1}>{domain}</Text>
+                  {site.is_internal && <Kicker color={P.inkFaint}>Internal</Kicker>}
                 </HStack>
-              </VStack>
-            ) : (
-              <VStack spacing={3} align="stretch">
-                <HStack borderBottom="1px solid" borderColor={P.hair} pb={2} spacing={2}>
-                  <Icon as={TbSearch} boxSize={4} color={P.inkMuted} />
-                  <Input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder={`Search ${netlifySites.length} Netlify sites...`} autoFocus variant="unstyled" color={P.ink} fontSize="sm" h="32px" _placeholder={{ color: P.inkFaint }} />
+                <HStack spacing={2} mt={0.5} flexWrap="wrap">
+                  <Text color={P.inkMuted} fontSize={TYPE.label} fontFamily="mono">{site.netlify_site_name}</Text>
+                  {site.framework && (<><Text color={P.inkFaint} fontSize={TYPE.label}>·</Text><Text color={P.inkMuted} fontSize={TYPE.label} fontFamily="mono">{site.framework}</Text></>)}
+                  {site.last_synced_at && (<><Text color={P.inkFaint} fontSize={TYPE.label}>·</Text><Text color={P.inkMuted} fontSize={TYPE.label} fontFamily="mono">synced {formatSmart(site.last_synced_at)}</Text></>)}
                 </HStack>
+              </Box>
+              {site.primary_url && (
+                <Box as="a" href={site.primary_url} target="_blank" rel="noopener noreferrer" color={P.inkMuted} _hover={{ color: P.limeDeep }} transition={`color ${FAST} ${EASE}`}><Icon as={TbExternalLink} boxSize={3.5} /></Box>
+              )}
+              {site.webhook_registered_at && (
+                <HStack spacing={1}><Box w="6px" h="6px" borderRadius="full" bg={P.green} /><Text color={P.inkMuted} fontSize={TYPE.label} fontFamily="mono">live</Text></HStack>
+              )}
+            </HStack>
+          );
+        })}
 
-                {filteredNetlifySites.length === 0 ? (
-                  <Center py={6}><Text color={P.inkMuted} fontSize="xs" fontFamily="mono">{searchQuery ? 'No matches' : 'No sites available to connect'}</Text></Center>
-                ) : (
-                  <Box maxH="360px" overflowY="auto">
-                    {filteredNetlifySites.map((site) => {
-                      const takenByOther = site.connected && site.connected_to_client_id !== clientId;
-                      return (
-                        <HStack key={site.id} py={2.5} px={2} spacing={3} cursor={takenByOther ? 'not-allowed' : 'pointer'} onClick={() => !takenByOther && handleSelectSite(site)} borderRadius="md" transition="all 0.15s" opacity={takenByOther ? 0.4 : 1} _hover={takenByOther ? {} : { bg: P.sheet }} role="group">
-                          <Icon as={TbLink} boxSize={3} color={P.inkFaint} _groupHover={takenByOther ? {} : { color: P.limeDeep }} />
-                          <Box flex={1} minW={0}>
-                            <HStack spacing={2}>
-                              <Text color={P.ink} fontSize="sm" fontWeight="600" fontFamily="mono">{site.name}</Text>
-                              {takenByOther && <Text fontSize="2xs" color={P.gold} fontFamily="mono" fontWeight="700" textTransform="uppercase">→ {site.connected_to_client}</Text>}
-                            </HStack>
-                            <HStack spacing={2} mt={0.5} flexWrap="wrap">
-                              {site.url && <Text color={P.inkMuted} fontSize="2xs" fontFamily="mono" noOfLines={1}>{cleanDomain(site.url)}</Text>}
-                              {site.framework && (<><Text color={P.inkFaint} fontSize="2xs">·</Text><Text color={P.inkMuted} fontSize="2xs" fontFamily="mono">{site.framework}</Text></>)}
-                              {site.published_at && (<><Text color={P.inkFaint} fontSize="2xs">·</Text><Text color={P.inkMuted} fontSize="2xs" fontFamily="mono">{formatSmart(site.published_at)}</Text></>)}
-                            </HStack>
-                          </Box>
+        {showPicker ? (
+          <Plate>
+            <VStack spacing={4} align="stretch">
+              <HStack justify="space-between">
+                <Kicker color={P.limeDeep}>Pick a Netlify site</Kicker>
+                <Button size="xs" variant="ghost" onClick={() => setShowPicker(false)}>Cancel</Button>
+              </HStack>
+
+              {loadingNetlify ? (
+                <Loading label="loading your Netlify sites" py={2} />
+              ) : selectedSite ? (
+                <VStack spacing={4} align="stretch">
+                  <Box bg={P.sunken} border="1px solid" borderColor={P.limeDeep} borderRadius="lg" p={INSET}>
+                    <HStack spacing={3}>
+                      <Icon as={TbWorld} boxSize={5} color={P.limeDeep} />
+                      <Box flex={1}>
+                        <Text color={P.ink} fontSize={TYPE.body} fontWeight="700">{selectedSite.name}</Text>
+                        {selectedSite.url && <Text color={P.inkMuted} fontSize={TYPE.small} fontFamily="mono">{cleanDomain(selectedSite.url)}</Text>}
+                        <HStack spacing={2} mt={1} flexWrap="wrap">
+                          {selectedSite.framework && <Text color={P.inkMuted} fontSize={TYPE.label} fontFamily="mono">{selectedSite.framework}</Text>}
+                          {selectedSite.published_at && (<><Text color={P.inkFaint} fontSize={TYPE.label}>·</Text><Text color={P.inkMuted} fontSize={TYPE.label} fontFamily="mono">deployed {formatSmart(selectedSite.published_at)}</Text></>)}
                         </HStack>
-                      );
-                    })}
+                      </Box>
+                      <Button size="xs" variant="ghost" onClick={() => setSelectedSite(null)}>Change</Button>
+                    </HStack>
                   </Box>
-                )}
-              </VStack>
-            )}
-          </VStack>
-        </Box>
-      ) : (
-        <HStack py={4} spacing={1.5} cursor="pointer" onClick={openPicker} color={P.limeDeep} _hover={{ color: P.ink }}>
-          <Icon as={TbPlus} boxSize={3} />
-          <Text fontSize="2xs" fontWeight="700" textTransform="uppercase" letterSpacing="0.05em">Connect Netlify site</Text>
-        </HStack>
-      )}
+
+                  <Field label="Display name" hint="how this site shows up in Pulse and the client portal">
+                    <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Production Site" />
+                  </Field>
+
+                  <Checkbox isChecked={isInternal} onChange={(e) => setIsInternal(e.target.checked)} colorScheme="green" size="sm">
+                    <Text color={P.inkSec} fontSize={TYPE.small}>Internal site (hide from client portal)</Text>
+                  </Checkbox>
+
+                  {connectError && (
+                    <HStack bg={`${P.coral}12`} border="1px solid" borderColor={`${P.coral}40`} borderRadius="lg" p={3} spacing={2} align="start">
+                      <Icon as={TbAlertCircle} boxSize={4} color={P.coral} mt={0.5} />
+                      <Text color={P.coral} fontSize={TYPE.small} flex={1}>{connectError}</Text>
+                    </HStack>
+                  )}
+
+                  <HStack spacing={2}>
+                    <Button size="sm" leftIcon={<TbCheck size={14} />} onClick={handleConnect} isLoading={connecting} loadingText="Connecting">Connect site</Button>
+                  </HStack>
+                </VStack>
+              ) : (
+                <VStack spacing={3} align="stretch">
+                  <SearchBox value={searchQuery} onChange={setSearchQuery} placeholder={`Search ${netlifySites.length} Netlify sites`} inputProps={{ autoFocus: true }} />
+
+                  {filteredNetlifySites.length === 0 ? (
+                    <Empty py={2}>{searchQuery ? 'No matches.' : 'No sites available to connect.'}</Empty>
+                  ) : (
+                    <Box maxH="360px" overflowY="auto">
+                      {filteredNetlifySites.map((site) => {
+                        const takenByOther = site.connected && site.connected_to_client_id !== clientId;
+                        return (
+                          <HStack key={site.id} py={2.5} px={2} spacing={3} cursor={takenByOther ? 'not-allowed' : 'pointer'} onClick={() => !takenByOther && handleSelectSite(site)} borderRadius="md" transition={`all ${FAST} ${EASE}`} opacity={takenByOther ? 0.4 : 1} _hover={takenByOther ? {} : { bg: P.sunken }} role="group">
+                            <Icon as={TbLink} boxSize={3} color={P.inkFaint} _groupHover={takenByOther ? {} : { color: P.limeDeep }} />
+                            <Box flex={1} minW={0}>
+                              <HStack spacing={2}>
+                                <Text color={P.ink} fontSize={TYPE.body} fontWeight="600" fontFamily="mono">{site.name}</Text>
+                                {takenByOther && <Text fontSize={TYPE.label} color={P.gold} fontFamily="mono" fontWeight="700" textTransform="uppercase">→ {site.connected_to_client}</Text>}
+                              </HStack>
+                              <HStack spacing={2} mt={0.5} flexWrap="wrap">
+                                {site.url && <Text color={P.inkMuted} fontSize={TYPE.label} fontFamily="mono" noOfLines={1}>{cleanDomain(site.url)}</Text>}
+                                {site.framework && (<><Text color={P.inkFaint} fontSize={TYPE.label}>·</Text><Text color={P.inkMuted} fontSize={TYPE.label} fontFamily="mono">{site.framework}</Text></>)}
+                                {site.published_at && (<><Text color={P.inkFaint} fontSize={TYPE.label}>·</Text><Text color={P.inkMuted} fontSize={TYPE.label} fontFamily="mono">{formatSmart(site.published_at)}</Text></>)}
+                              </HStack>
+                            </Box>
+                          </HStack>
+                        );
+                      })}
+                    </Box>
+                  )}
+                </VStack>
+              )}
+            </VStack>
+          </Plate>
+        ) : (
+          <HStack as="button" type="button" py={2} spacing={1.5} onClick={openPicker} color={P.limeDeep} _hover={{ color: P.ink }}>
+            <Icon as={TbPlus} boxSize={3} />
+            <Kicker color="inherit">Connect Netlify site</Kicker>
+          </HStack>
+        )}
+      </Section>
 
       {hasSites && (
-        <Box pt={8} mt={2}>
-          <HStack justify="space-between" align="baseline" mb={4}>
-            <Text {...sectionLabel}>Recent deploys</Text>
-            <Text fontSize="2xs" color={P.inkFaint} fontFamily="mono">{deploys.length} total</Text>
-          </HStack>
-
+        <Section kicker="Recent deploys" count={`${deploys.length} total`}>
           {sites.length > 1 && (
-            <HStack spacing={4} pb={3} mb={4} borderBottom="1px solid" borderColor={P.hair} overflowX="auto" flexWrap="nowrap">
-              <Box cursor="pointer" onClick={() => setActiveSiteFilter('all')} position="relative" pb={1} flexShrink={0}>
-                <HStack spacing={1.5}>
-                  <Text fontSize="xs" fontWeight="700" color={activeSiteFilter === 'all' ? P.ink : P.inkMuted} _hover={activeSiteFilter !== 'all' ? { color: P.inkSec } : {}}>All</Text>
-                  <Text fontSize="2xs" fontFamily="mono" color={activeSiteFilter === 'all' ? P.limeDeep : P.inkFaint} fontWeight="700">{deployCounts.all || 0}</Text>
-                </HStack>
-                {activeSiteFilter === 'all' && <Box position="absolute" bottom="-13px" left={0} right={0} h="2px" bg={P.lime} borderRadius="full" />}
-              </Box>
-
-              {sites.map((site) => {
-                const active = activeSiteFilter === site.id;
-                const domain = getSiteDomain(site);
-                return (
-                  <Box key={site.id} cursor="pointer" onClick={() => setActiveSiteFilter(site.id)} position="relative" pb={1} flexShrink={0}>
-                    <HStack spacing={1.5}>
-                      <Text fontSize="xs" fontWeight="700" color={active ? P.ink : P.inkMuted} _hover={!active ? { color: P.inkSec } : {}}>{domain}</Text>
-                      <Text fontSize="2xs" fontFamily="mono" color={active ? P.limeDeep : P.inkFaint} fontWeight="700">{deployCounts[site.id] || 0}</Text>
-                    </HStack>
-                    {active && <Box position="absolute" bottom="-13px" left={0} right={0} h="2px" bg={P.lime} borderRadius="full" />}
-                  </Box>
-                );
-              })}
-            </HStack>
+            <Tabs
+              items={[
+                { key: 'all', label: 'All', count: deployCounts.all || 0 },
+                ...sites.map((site) => ({ key: site.id, label: getSiteDomain(site), count: deployCounts[site.id] || 0 })),
+              ]}
+              value={activeSiteFilter}
+              onChange={setActiveSiteFilter}
+            />
           )}
 
           {!hasDeploys ? (
-            <Center py={12}><VStack spacing={2}><Icon as={TbGitCommit} boxSize={6} color={P.inkFaint} /><Text color={P.inkMuted} fontSize="sm">No deploys yet</Text><Text color={P.inkFaint} fontSize="2xs" fontFamily="mono">Push a change to see it here</Text></VStack></Center>
+            <Empty hint="Push a change to see it here.">No deploys yet.</Empty>
           ) : filteredDeploys.length === 0 ? (
-            <Center py={12}><Text color={P.inkMuted} fontSize="xs" fontFamily="mono">No deploys for this site yet</Text></Center>
+            <Empty>No deploys for this site yet.</Empty>
           ) : (
             <VStack spacing={0} align="stretch">
               {filteredDeploys.map((d) => {
@@ -337,26 +315,26 @@ const SitesTab = ({ clientId, clientName }) => {
                 const isError = d.state === 'error';
                 const href = d.deploy_url || site?.primary_url;
                 return (
-                  <HStack key={d.id} py={3.5} spacing={3} borderBottom="1px solid" borderColor={P.hairSoft} cursor={href ? 'pointer' : 'default'} role="group" transition="all 0.15s" _hover={href ? { bg: P.sheet, pl: 2 } : {}} onClick={() => { if (href) window.open(href, '_blank', 'noopener,noreferrer'); }}>
+                  <HStack key={d.id} py={3.5} spacing={3} borderBottom="1px solid" borderColor={P.hairSoft} cursor={href ? 'pointer' : 'default'} role="group" transition={`all ${FAST} ${EASE}`} _hover={href ? { bg: P.sheet } : {}} onClick={() => { if (href) window.open(href, '_blank', 'noopener,noreferrer'); }}>
                     <Box w="6px" h="6px" borderRadius="full" bg={stateColor} flexShrink={0} />
                     <Box flex={1} minW={0}>
-                      <Text color={isError ? P.coral : P.ink} fontSize="sm" fontWeight="600" noOfLines={1}>{d.commit_message || (isError ? 'Deploy failed' : 'Deploy')}</Text>
+                      <Text color={isError ? P.coral : P.ink} fontSize={TYPE.body} fontWeight="600" noOfLines={1}>{d.commit_message || (isError ? 'Deploy failed' : 'Deploy')}</Text>
                       <HStack spacing={2} mt={0.5} flexWrap="wrap">
-                        <Text color={P.inkMuted} fontSize="2xs" fontFamily="mono" noOfLines={1}>{domain}</Text>
-                        {d.branch && (<><Text color={P.inkFaint} fontSize="2xs">·</Text><HStack spacing={1}><Icon as={TbGitBranch} boxSize={2.5} color={P.inkFaint} /><Text color={P.inkMuted} fontSize="2xs" fontFamily="mono">{d.branch}</Text></HStack></>)}
-                        {d.commit_ref && (<><Text color={P.inkFaint} fontSize="2xs">·</Text><Text color={P.inkMuted} fontSize="2xs" fontFamily="mono">{d.commit_ref.slice(0, 7)}</Text></>)}
+                        <Text color={P.inkMuted} fontSize={TYPE.label} fontFamily="mono" noOfLines={1}>{domain}</Text>
+                        {d.branch && (<><Text color={P.inkFaint} fontSize={TYPE.label}>·</Text><HStack spacing={1}><Icon as={TbGitBranch} boxSize={2.5} color={P.inkFaint} /><Text color={P.inkMuted} fontSize={TYPE.label} fontFamily="mono">{d.branch}</Text></HStack></>)}
+                        {d.commit_ref && (<><Text color={P.inkFaint} fontSize={TYPE.label}>·</Text><Text color={P.inkMuted} fontSize={TYPE.label} fontFamily="mono">{d.commit_ref.slice(0, 7)}</Text></>)}
                       </HStack>
                     </Box>
                     <VStack align="end" spacing={0} flexShrink={0}>
-                      <Text color={P.inkMuted} fontSize="2xs" fontFamily="mono">{formatSmart(d.published_at || d.created_at)}</Text>
-                      {d.deploy_time > 0 && <Text color={P.inkFaint} fontSize="2xs" fontFamily="mono">{formatDuration(d.deploy_time)}</Text>}
+                      <Text color={P.inkMuted} fontSize={TYPE.label} fontFamily="mono">{formatSmart(d.published_at || d.created_at)}</Text>
+                      {d.deploy_time > 0 && <Text color={P.inkFaint} fontSize={TYPE.label} fontFamily="mono">{formatDuration(d.deploy_time)}</Text>}
                     </VStack>
                   </HStack>
                 );
               })}
             </VStack>
           )}
-        </Box>
+        </Section>
       )}
     </VStack>
   );

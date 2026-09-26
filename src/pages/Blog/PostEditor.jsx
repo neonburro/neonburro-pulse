@@ -1,5 +1,5 @@
 // src/pages/Blog/PostEditor.jsx
-// SENTINEL: NB_PULSE_BLOG_EDITOR_V1
+// SENTINEL: NB_PULSE_BLOG_EDITOR_V2
 //
 // One post, the whole life of it. Draft the words, save as often as you
 // like, publish when it is ready, and the socials panel underneath hands
@@ -25,12 +25,14 @@
 // published the slug is the url, changing it breaks the shared link, so the
 // field locks after first publish.
 //
-// Paper system page. No oxford commas, no em dashes.
+// V2, 2026-09-25. A form, so it sits on MEASURE, the width the post reads
+// at on the studio site. The fields are the house fields. No oxford commas,
+// no em dashes.
 
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  Box, VStack, HStack, Text, Icon, Container, Input, Textarea, Spinner,
+  Box, VStack, HStack, Text, Icon, Input, Textarea, Button, SimpleGrid,
 } from '@chakra-ui/react';
 import {
   TbArrowLeft, TbCopy, TbCheck, TbExternalLink, TbSparkles, TbTrash,
@@ -38,6 +40,7 @@ import {
 import { supabase } from '../../lib/supabase';
 import colors from '../../theme/colors';
 import { TYPE, EASE, FAST } from '../../theme/layout';
+import { Page, Field, Section, Plate, Empty, Loading } from '../../components/common/Page';
 
 const P = colors.paper;
 
@@ -57,32 +60,6 @@ const EMPTY = {
   categories: ['news'], tags: [], meta_title: '', meta_description: '',
   cover_image: '', image_alt: '', featured: false, status: 'draft',
   published_at: null,
-};
-
-const Field = ({ label, hint, children }) => (
-  <VStack align="stretch" spacing={1.5}>
-    <HStack justify="space-between" align="baseline">
-      <Text fontFamily="mono" fontSize={TYPE.micro} fontWeight="600" letterSpacing="0.18em" textTransform="uppercase" color={P.inkMuted}>
-        {label}
-      </Text>
-      {hint && <Text fontFamily="mono" fontSize={TYPE.micro} color={P.inkFaint}>{hint}</Text>}
-    </HStack>
-    {children}
-  </VStack>
-);
-
-const inputProps = {
-  bg: P.sheet,
-  border: '1px solid',
-  borderColor: P.hair,
-  borderRadius: '12px',
-  color: P.ink,
-  fontSize: TYPE.body,
-  h: '42px',
-  px: 3.5,
-  _placeholder: { color: P.inkFaint },
-  _hover: { borderColor: P.inkFaint },
-  _focus: { borderColor: P.limeDeep, boxShadow: 'none', outline: 'none' },
 };
 
 const PostEditor = () => {
@@ -216,7 +193,7 @@ const PostEditor = () => {
 
   if (loading) {
     return (
-      <Box minH="100vh" bg={P.mat}><HStack py={24} justify="center"><Spinner color={P.limeDeep} /></HStack></Box>
+      <Page measure><Loading label="loading the post" /></Page>
     );
   }
 
@@ -226,210 +203,183 @@ const PostEditor = () => {
   const posted = socials.filter((s) => s.status === 'posted');
 
   return (
-    <Box position="relative" minH="100vh" bg={P.mat}>
-      <Container maxW="900px" mx={0} px={{ base: 5, md: 8 }} py={{ base: 6, md: 10 }} position="relative">
-        <VStack spacing={{ base: 6, md: 8 }} align="stretch">
-
-          <HStack justify="space-between" align="center" gap={3} flexWrap="wrap">
-            <HStack spacing={3}>
-              <HStack as="button" onClick={() => navigate('/blog/')} spacing={1} color={P.inkMuted} _hover={{ color: P.ink }} transition={`color ${FAST} ${EASE}`}>
-                <Icon as={TbArrowLeft} boxSize={4} />
-                <Text fontSize={TYPE.small} fontWeight="600">Blog</Text>
-              </HStack>
-              <HStack spacing={1.5}>
-                <Box boxSize="7px" borderRadius="full" bg={published ? P.lime : P.inkFaint} />
-                <Text fontFamily="mono" fontSize={TYPE.label} color={published ? P.limeDeep : P.inkMuted}>{post.status}</Text>
-              </HStack>
-              {published && (
-                <HStack as="a" href={liveUrl} target="_blank" rel="noopener" spacing={1} color={P.inkMuted} _hover={{ color: P.limeDeep }} transition={`color ${FAST} ${EASE}`}>
-                  <Icon as={TbExternalLink} boxSize={3.5} />
-                  <Text fontFamily="mono" fontSize={TYPE.label}>live</Text>
-                </HStack>
-              )}
-            </HStack>
-
-            <HStack spacing={2.5}>
-              {!isNew && !published && (
-                <HStack as="button" onClick={removeDraft} spacing={1} px={3} h="36px" color={P.inkFaint} _hover={{ color: P.coral }} transition={`color ${FAST} ${EASE}`}>
-                  <Icon as={TbTrash} boxSize={3.5} />
-                </HStack>
-              )}
-              <HStack as="button" onClick={save} spacing={1.5} bg={P.sheet} border="1px solid" borderColor={P.hair} color={P.ink} borderRadius="full" px={4} h="38px" fontWeight="700" fontSize="sm" opacity={busy ? 0.6 : 1} pointerEvents={busy ? 'none' : 'auto'} transition={`all 0.18s ${EASE}`} _hover={{ borderColor: P.limeDeep }}>
-                <Text>{busy === 'saving' ? 'Saving' : dirty ? 'Save' : 'Saved'}</Text>
-              </HStack>
-              {published ? (
-                <HStack as="button" onClick={() => callPublish('unpublish')} spacing={1.5} bg={P.sheet} border="1px solid" borderColor={P.hair} color={P.inkSec} borderRadius="full" px={4} h="38px" fontWeight="700" fontSize="sm" opacity={busy ? 0.6 : 1} pointerEvents={busy ? 'none' : 'auto'} transition={`all 0.18s ${EASE}`} _hover={{ borderColor: P.coral, color: P.coral }}>
-                  <Text>{busy === 'unpublish' ? 'Working' : 'Unpublish'}</Text>
-                </HStack>
-              ) : null}
-              <HStack as="button" onClick={() => callPublish('publish')} spacing={1.5} bg={P.lime} color={P.limeInk} borderRadius="full" px={5} h="38px" fontWeight="700" fontSize="sm" opacity={busy ? 0.6 : 1} pointerEvents={busy ? 'none' : 'auto'} transition={`all 0.18s ${EASE}`} _hover={{ bg: '#D2E26B', transform: 'translateY(-1px)' }} _active={{ transform: 'scale(0.98)' }}>
-                <Text>{busy === 'publish' ? 'Publishing' : published ? 'Republish' : 'Publish'}</Text>
-              </HStack>
-            </HStack>
+    <Page measure spacing={6}>
+      <HStack justify="space-between" align="center" gap={3} flexWrap="wrap">
+        <HStack spacing={3}>
+          <HStack as="button" type="button" onClick={() => navigate('/blog/')} spacing={1} color={P.inkMuted} _hover={{ color: P.ink }} transition={`color ${FAST} ${EASE}`}>
+            <Icon as={TbArrowLeft} boxSize={4} />
+            <Text fontSize={TYPE.small} fontWeight="600">Blog</Text>
           </HStack>
+          <HStack spacing={1.5}>
+            <Box boxSize="7px" borderRadius="full" bg={published ? P.lime : P.inkFaint} />
+            <Text fontFamily="mono" fontSize={TYPE.label} color={published ? P.limeDeep : P.inkMuted}>{post.status}</Text>
+          </HStack>
+          {published && (
+            <HStack as="a" href={liveUrl} target="_blank" rel="noopener" spacing={1} color={P.inkMuted} _hover={{ color: P.limeDeep }} transition={`color ${FAST} ${EASE}`}>
+              <Icon as={TbExternalLink} boxSize={3.5} />
+              <Text fontFamily="mono" fontSize={TYPE.label}>live</Text>
+            </HStack>
+          )}
+        </HStack>
 
-          {note && (
-            <Text fontFamily="mono" fontSize={TYPE.small} color={P.limeDeep}>{note}</Text>
+        <HStack spacing={2}>
+          {!isNew && !published && (
+            <Button size="sm" variant="ghost" px={2} onClick={removeDraft} aria-label="Remove draft" _hover={{ color: P.coral, bg: P.sunken }}>
+              <Icon as={TbTrash} boxSize={3.5} />
+            </Button>
+          )}
+          <Button size="sm" variant="outline" onClick={save} isDisabled={Boolean(busy)}>
+            {busy === 'saving' ? 'Saving' : dirty ? 'Save' : 'Saved'}
+          </Button>
+          {published ? (
+            <Button size="sm" variant="outline" onClick={() => callPublish('unpublish')} isDisabled={Boolean(busy)} _hover={{ borderColor: P.coral, color: P.coral }}>
+              {busy === 'unpublish' ? 'Working' : 'Unpublish'}
+            </Button>
+          ) : null}
+          <Button size="sm" onClick={() => callPublish('publish')} isDisabled={Boolean(busy)}>
+            {busy === 'publish' ? 'Publishing' : published ? 'Republish' : 'Publish'}
+          </Button>
+        </HStack>
+      </HStack>
+
+      {note && (
+        <Text fontFamily="mono" fontSize={TYPE.small} color={P.limeDeep}>{note}</Text>
+      )}
+
+      <Field label="Title">
+        <Input
+          fontSize={TYPE.section}
+          fontWeight="700"
+          h="52px"
+          value={post.title}
+          placeholder="lowercase, the house way"
+          onChange={(e) => {
+            const title = e.target.value;
+            set(slugTouched ? { title } : { title, slug: kebab(title) });
+          }}
+        />
+      </Field>
+
+      <Field label="Slug" hint={published ? 'locked, it is the url now' : 'lowercase letters, numbers and hyphens'}>
+        <Input
+          fontFamily="mono"
+          fontSize={TYPE.small}
+          value={post.slug}
+          isDisabled={published}
+          onChange={(e) => { setSlugTouched(true); set({ slug: kebab(e.target.value) }); }}
+        />
+      </Field>
+
+      <Field label="Excerpt" hint="one or two sentences, feeds the list card and the share text">
+        <Textarea minH="72px" value={post.excerpt || ''} onChange={(e) => set({ excerpt: e.target.value })} />
+      </Field>
+
+      <Field label="Body" hint="plain markdown">
+        <Textarea
+          fontFamily="mono"
+          fontSize={TYPE.small}
+          lineHeight="1.7"
+          minH="440px"
+          value={post.body_mdx || ''}
+          onChange={(e) => set({ body_mdx: e.target.value })}
+        />
+      </Field>
+
+      <SimpleGrid columns={{ base: 1, sm: 3 }} spacing={4}>
+        <Field label="Burro" hint="lowercase, no period">
+          <Input fontFamily="mono" fontSize={TYPE.small} value={post.burro || ''} onChange={(e) => set({ burro: e.target.value })} />
+        </Field>
+        <Field label="Categories" hint="comma separated">
+          <Input fontFamily="mono" fontSize={TYPE.small} value={csv(post.categories)} onChange={(e) => set({ categories: uncsv(e.target.value) })} />
+        </Field>
+        <Field label="Tags" hint="comma separated">
+          <Input fontFamily="mono" fontSize={TYPE.small} value={csv(post.tags)} onChange={(e) => set({ tags: uncsv(e.target.value) })} />
+        </Field>
+      </SimpleGrid>
+
+      <SimpleGrid columns={{ base: 1, sm: 2 }} spacing={4}>
+        <Field label="Cover image" hint="a path on the studio site, like /blog/name.webp">
+          <Input fontFamily="mono" fontSize={TYPE.small} value={post.cover_image || ''} onChange={(e) => set({ cover_image: e.target.value })} />
+        </Field>
+        <Field label="Image alt">
+          <Input fontSize={TYPE.small} value={post.image_alt || ''} onChange={(e) => set({ image_alt: e.target.value })} />
+        </Field>
+      </SimpleGrid>
+
+      <SimpleGrid columns={{ base: 1, sm: 2 }} spacing={4}>
+        <Field label="Meta title" hint="falls back to the title">
+          <Input fontSize={TYPE.small} value={post.meta_title || ''} onChange={(e) => set({ meta_title: e.target.value })} />
+        </Field>
+        <Field label="Meta description" hint="falls back to the excerpt">
+          <Input fontSize={TYPE.small} value={post.meta_description || ''} onChange={(e) => set({ meta_description: e.target.value })} />
+        </Field>
+      </SimpleGrid>
+
+      <HStack as="button" type="button" onClick={() => set({ featured: !post.featured })} spacing={2.5} alignSelf="start">
+        <Box w="34px" h="20px" borderRadius="full" bg={post.featured ? P.lime : P.hair} position="relative" transition={`background ${FAST} ${EASE}`}>
+          <Box boxSize="16px" borderRadius="full" bg={P.sheet} position="absolute" top="2px" left={post.featured ? '16px' : '2px'} transition={`left ${FAST} ${EASE}`} boxShadow="0 1px 3px rgba(36,26,22,0.3)" />
+        </Box>
+        <Text fontSize={TYPE.small} color={P.inkSec}>Featured on the blog page</Text>
+      </HStack>
+
+      {!isNew && (
+        <Section
+          kicker="The social run"
+          action={(
+            <Button size="xs" variant="outline" leftIcon={<Icon as={TbSparkles} boxSize={3.5} />} onClick={() => callPublish('redraft')} isDisabled={Boolean(busy)}>
+              {busy === 'redraft' ? 'Drafting' : 'Redraft'}
+            </Button>
+          )}
+        >
+          <Text fontSize={TYPE.small} color={P.inkSec}>
+            One paste ready draft per platform. Copy, post it there, mark it posted.
+          </Text>
+
+          {drafts.length === 0 && posted.length === 0 && (
+            <Empty py={2}>Nothing drafted yet. Publish drafts them on its own, or press redraft.</Empty>
           )}
 
-          <Field label="Title">
-            <Input
-              {...inputProps}
-              fontSize={TYPE.section}
-              fontWeight="700"
-              h="50px"
-              value={post.title}
-              placeholder="lowercase, the house way"
-              onChange={(e) => {
-                const title = e.target.value;
-                set(slugTouched ? { title } : { title, slug: kebab(title) });
-              }}
-            />
-          </Field>
-
-          <Field label="Slug" hint={published ? 'locked, it is the url now' : 'lowercase letters, numbers and hyphens'}>
-            <Input
-              {...inputProps}
-              fontFamily="mono"
-              fontSize={TYPE.small}
-              value={post.slug}
-              isDisabled={published}
-              onChange={(e) => { setSlugTouched(true); set({ slug: kebab(e.target.value) }); }}
-            />
-          </Field>
-
-          <Field label="Excerpt" hint="one or two sentences, feeds the list card and the share text">
-            <Textarea {...inputProps} h="auto" minH="70px" py={2.5} value={post.excerpt || ''} onChange={(e) => set({ excerpt: e.target.value })} />
-          </Field>
-
-          <Field label="Body" hint="plain markdown">
-            <Textarea
-              {...inputProps}
-              fontFamily="mono"
-              fontSize={TYPE.small}
-              lineHeight="1.7"
-              h="auto"
-              minH="440px"
-              py={3}
-              value={post.body_mdx || ''}
-              onChange={(e) => set({ body_mdx: e.target.value })}
-            />
-          </Field>
-
-          <HStack align="start" spacing={4} flexWrap="wrap">
-            <Box flex={1} minW="200px">
-              <Field label="Burro" hint="lowercase, no period">
-                <Input {...inputProps} fontFamily="mono" fontSize={TYPE.small} value={post.burro || ''} onChange={(e) => set({ burro: e.target.value })} />
-              </Field>
-            </Box>
-            <Box flex={1} minW="200px">
-              <Field label="Categories" hint="comma separated">
-                <Input {...inputProps} fontFamily="mono" fontSize={TYPE.small} value={csv(post.categories)} onChange={(e) => set({ categories: uncsv(e.target.value) })} />
-              </Field>
-            </Box>
-            <Box flex={1} minW="200px">
-              <Field label="Tags" hint="comma separated">
-                <Input {...inputProps} fontFamily="mono" fontSize={TYPE.small} value={csv(post.tags)} onChange={(e) => set({ tags: uncsv(e.target.value) })} />
-              </Field>
-            </Box>
-          </HStack>
-
-          <HStack align="start" spacing={4} flexWrap="wrap">
-            <Box flex={1} minW="260px">
-              <Field label="Cover image" hint="a path on the studio site, like /blog/name.webp">
-                <Input {...inputProps} fontFamily="mono" fontSize={TYPE.small} value={post.cover_image || ''} onChange={(e) => set({ cover_image: e.target.value })} />
-              </Field>
-            </Box>
-            <Box flex={1} minW="260px">
-              <Field label="Image alt">
-                <Input {...inputProps} fontSize={TYPE.small} value={post.image_alt || ''} onChange={(e) => set({ image_alt: e.target.value })} />
-              </Field>
-            </Box>
-          </HStack>
-
-          <HStack align="start" spacing={4} flexWrap="wrap">
-            <Box flex={1} minW="260px">
-              <Field label="Meta title" hint="falls back to the title">
-                <Input {...inputProps} fontSize={TYPE.small} value={post.meta_title || ''} onChange={(e) => set({ meta_title: e.target.value })} />
-              </Field>
-            </Box>
-            <Box flex={1} minW="260px">
-              <Field label="Meta description" hint="falls back to the excerpt">
-                <Input {...inputProps} fontSize={TYPE.small} value={post.meta_description || ''} onChange={(e) => set({ meta_description: e.target.value })} />
-              </Field>
-            </Box>
-          </HStack>
-
-          <HStack as="button" onClick={() => set({ featured: !post.featured })} spacing={2.5} alignSelf="start">
-            <Box w="34px" h="20px" borderRadius="full" bg={post.featured ? P.lime : P.hair} position="relative" transition={`background ${FAST} ${EASE}`}>
-              <Box boxSize="16px" borderRadius="full" bg={P.sheet} position="absolute" top="2px" left={post.featured ? '16px' : '2px'} transition={`left ${FAST} ${EASE}`} boxShadow="0 1px 3px rgba(36,26,22,0.3)" />
-            </Box>
-            <Text fontSize={TYPE.small} color={P.inkSec}>Featured on the blog page</Text>
-          </HStack>
-
-          {!isNew && (
-            <VStack align="stretch" spacing={4} pt={4} borderTop="1px solid" borderColor={P.hair}>
-              <HStack justify="space-between" align="center" flexWrap="wrap" gap={3}>
-                <VStack align="start" spacing={0.5}>
-                  <Text fontFamily="mono" fontSize={TYPE.micro} fontWeight="600" letterSpacing="0.22em" textTransform="uppercase" color={P.inkMuted}>
-                    The social run
+          {drafts.map((s) => (
+            <Plate key={s.id}>
+              <VStack align="stretch" spacing={2.5}>
+                <HStack justify="space-between">
+                  <Text fontFamily="mono" fontSize={TYPE.label} fontWeight="700" color={P.limeDeep}>
+                    {PLATFORM_LABELS[s.platform] || s.platform}
                   </Text>
-                  <Text fontSize={TYPE.small} color={P.inkSec}>
-                    One paste ready draft per platform. Copy, post it there, mark it posted.
-                  </Text>
-                </VStack>
-                <HStack as="button" onClick={() => callPublish('redraft')} spacing={1.5} bg={P.sheet} border="1px solid" borderColor={P.hair} color={P.ink} borderRadius="full" px={4} h="36px" fontWeight="700" fontSize="xs" opacity={busy ? 0.6 : 1} pointerEvents={busy ? 'none' : 'auto'} transition={`all 0.18s ${EASE}`} _hover={{ borderColor: P.limeDeep }}>
-                  <Icon as={TbSparkles} boxSize={3.5} />
-                  <Text>{busy === 'redraft' ? 'Drafting' : 'Redraft'}</Text>
+                  <HStack spacing={2}>
+                    <Button size="xs" variant="outline" leftIcon={<Icon as={copied === s.id ? TbCheck : TbCopy} boxSize={3.5} />} onClick={() => copyDraft(s)} color={copied === s.id ? P.limeDeep : P.inkSec}>
+                      {copied === s.id ? 'copied' : 'copy'}
+                    </Button>
+                    <Button size="xs" variant="outline" onClick={() => markPosted(s)}>
+                      mark posted
+                    </Button>
+                  </HStack>
                 </HStack>
-              </HStack>
-
-              {drafts.length === 0 && posted.length === 0 && (
-                <Text fontSize={TYPE.small} color={P.inkFaint}>
-                  Nothing drafted yet. Publish drafts them on its own, or press redraft.
+                <Text fontSize={TYPE.small} color={P.ink} whiteSpace="pre-wrap" lineHeight="1.65">
+                  {s.body}
                 </Text>
-              )}
+              </VStack>
+            </Plate>
+          ))}
 
-              {drafts.map((s) => (
-                <VStack key={s.id} align="stretch" spacing={2.5} bg={P.sheet} border="1px solid" borderColor={P.hair} borderRadius="16px" p={4}>
-                  <HStack justify="space-between">
-                    <Text fontFamily="mono" fontSize={TYPE.label} fontWeight="700" color={P.limeDeep}>
-                      {PLATFORM_LABELS[s.platform] || s.platform}
-                    </Text>
-                    <HStack spacing={2}>
-                      <HStack as="button" onClick={() => copyDraft(s)} spacing={1} px={2.5} h="28px" borderRadius="full" border="1px solid" borderColor={P.hair} color={copied === s.id ? P.limeDeep : P.inkSec} transition={`all ${FAST} ${EASE}`} _hover={{ borderColor: P.limeDeep }}>
-                        <Icon as={copied === s.id ? TbCheck : TbCopy} boxSize={3.5} />
-                        <Text fontFamily="mono" fontSize={TYPE.micro}>{copied === s.id ? 'copied' : 'copy'}</Text>
-                      </HStack>
-                      <HStack as="button" onClick={() => markPosted(s)} spacing={1} px={2.5} h="28px" borderRadius="full" border="1px solid" borderColor={P.hair} color={P.inkSec} transition={`all ${FAST} ${EASE}`} _hover={{ borderColor: P.limeDeep }}>
-                        <Text fontFamily="mono" fontSize={TYPE.micro}>mark posted</Text>
-                      </HStack>
-                    </HStack>
-                  </HStack>
-                  <Text fontSize={TYPE.small} color={P.ink} whiteSpace="pre-wrap" lineHeight="1.65">
-                    {s.body}
+          {posted.map((s) => (
+            <Plate key={s.id} sunken py={2.5} opacity={0.75}>
+              <HStack justify="space-between">
+                <HStack spacing={2.5}>
+                  <Icon as={TbCheck} boxSize={3.5} color={P.green} />
+                  <Text fontFamily="mono" fontSize={TYPE.label} color={P.inkMuted}>
+                    {PLATFORM_LABELS[s.platform] || s.platform} posted
                   </Text>
-                </VStack>
-              ))}
-
-              {posted.map((s) => (
-                <HStack key={s.id} justify="space-between" px={4} py={2.5} borderRadius="12px" bg={P.sunken} opacity={0.75}>
-                  <HStack spacing={2.5}>
-                    <Icon as={TbCheck} boxSize={3.5} color={P.green} />
-                    <Text fontFamily="mono" fontSize={TYPE.label} color={P.inkMuted}>
-                      {PLATFORM_LABELS[s.platform] || s.platform} posted
-                    </Text>
-                  </HStack>
-                  <HStack as="button" onClick={() => copyDraft(s)} spacing={1} color={P.inkFaint} _hover={{ color: P.limeDeep }} transition={`color ${FAST} ${EASE}`}>
-                    <Icon as={TbCopy} boxSize={3.5} />
-                  </HStack>
                 </HStack>
-              ))}
-            </VStack>
-          )}
-        </VStack>
-      </Container>
-    </Box>
+                <HStack as="button" type="button" onClick={() => copyDraft(s)} spacing={1} color={P.inkFaint} _hover={{ color: P.limeDeep }} transition={`color ${FAST} ${EASE}`}>
+                  <Icon as={TbCopy} boxSize={3.5} />
+                </HStack>
+              </HStack>
+            </Plate>
+          ))}
+        </Section>
+      )}
+    </Page>
   );
 };
 

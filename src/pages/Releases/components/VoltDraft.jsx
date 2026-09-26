@@ -1,5 +1,5 @@
 // src/pages/Releases/components/VoltDraft.jsx
-// SENTINEL: NB_PULSE_SOCIALS_VOLT_DRAFT_V2
+// SENTINEL: NB_PULSE_SOCIALS_VOLT_DRAFT_V3
 //
 // The draft door in the release drawer. One line from the operator about
 // what the post is for and one button. Volt writes a draft onto the row
@@ -19,14 +19,16 @@
 // verbatim and keeps no copy of the numbers, the copy that drifts is the
 // copy a person reads.
 //
-// No oxford commas, no em dashes.
+// V3, the house small field and the house small button. No oxford commas,
+// no em dashes.
 
 import { useState } from 'react';
-import { Box, VStack, HStack, Text, Input, Icon, Spinner } from '@chakra-ui/react';
+import { VStack, HStack, Text, Input, Icon, Button } from '@chakra-ui/react';
 import { TbSparkles } from 'react-icons/tb';
-import { P, inputProps, VoiceDisc } from './shared';
+import { P, VoiceDisc } from './shared';
 import { draftRelease } from './connectors';
-import { TYPE, EASE, FAST } from '../../../theme/layout';
+import { TYPE } from '../../../theme/layout';
+import { Plate } from '../../../components/common/Page';
 
 const INTENT_CHARS = 500;
 const TONE = { lime: P.limeDeep, gold: P.gold, coral: P.coral };
@@ -76,7 +78,7 @@ const VoltDraft = ({ releaseId, channel, voice, pictureUrl, alt, disabled, onBef
   };
 
   return (
-    <Box bg={P.sunken} border="1px solid" borderColor={P.hair} borderRadius="14px" p={4}>
+    <Plate sunken>
       <VStack align="stretch" spacing={3}>
         <HStack spacing={2} align="baseline">
           <VoiceDisc voice="volt" size="16px" />
@@ -87,38 +89,25 @@ const VoltDraft = ({ releaseId, channel, voice, pictureUrl, alt, disabled, onBef
         </HStack>
         <HStack spacing={2}>
           <Input
-            {...inputProps}
-            h="38px"
-            fontSize={TYPE.small}
+            size="sm"
             value={intent}
             maxLength={INTENT_CHARS}
             placeholder="what is this post for, one line"
             onChange={(event) => setIntent(event.target.value)}
             onKeyDown={(event) => event.key === 'Enter' && draft()}
           />
-          <HStack
-            as="button"
-            type="button"
+          <Button
+            size="sm"
+            variant="outline"
             onClick={draft}
-            spacing={1.5}
-            bg={P.sheet}
-            border="1px solid"
-            borderColor={P.hair}
-            color={P.ink}
-            borderRadius="full"
-            px={3.5}
-            h="38px"
+            isLoading={busy}
+            loadingText="drafting"
+            isDisabled={disabled}
+            leftIcon={<Icon as={TbSparkles} boxSize={3.5} />}
             flexShrink={0}
-            fontSize={TYPE.small}
-            fontWeight="600"
-            opacity={busy || disabled ? 0.6 : 1}
-            pointerEvents={busy || disabled ? 'none' : 'auto'}
-            _hover={{ borderColor: P.limeDeep }}
-            transition={`border-color ${FAST} ${EASE}`}
           >
-            {busy ? <Spinner size="xs" color={P.inkMuted} /> : <Icon as={TbSparkles} boxSize={3.5} />}
-            <Text>{busy ? 'drafting' : 'draft'}</Text>
-          </HStack>
+            draft
+          </Button>
         </HStack>
         {note && (
           <Text fontFamily="mono" fontSize={TYPE.label} color={TONE[tone]} lineHeight="1.55">{note}</Text>
@@ -127,7 +116,7 @@ const VoltDraft = ({ releaseId, channel, voice, pictureUrl, alt, disabled, onBef
           {pictureUrl ? 'the picked plate and its alt line ride along.' : 'no plate is picked yet, the draft speaks without one.'} the draft lands below with approval off. it never stages and the door counts.
         </Text>
       </VStack>
-    </Box>
+    </Plate>
   );
 };
 

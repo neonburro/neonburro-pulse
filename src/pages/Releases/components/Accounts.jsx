@@ -1,5 +1,5 @@
 // src/pages/Releases/components/Accounts.jsx
-// SENTINEL: NB_PULSE_SOCIALS_ACCOUNTS_V3
+// SENTINEL: NB_PULSE_SOCIALS_ACCOUNTS_V4
 //
 // This is the account map, not the voice map. Neonburro and every council
 // member may own a publishing account while any council voice may write through
@@ -23,6 +23,7 @@
 // creation, permissions and token rotation still happen in Telegram, in
 // Meta and in Netlify because Pulse must never ask for a secret.
 //
+// V4, the house section, the house small fields and the house small button.
 // No oxford commas, no em dashes.
 
 import { useState, useEffect, useCallback } from 'react';
@@ -34,8 +35,8 @@ import {
   Input,
   Select,
   Switch,
-  Spinner,
   Icon,
+  Button,
 } from '@chakra-ui/react';
 import { TbPlus, TbChevronDown, TbChevronRight } from 'react-icons/tb';
 import { supabase } from '../../../lib/supabase';
@@ -48,22 +49,13 @@ import {
   isMeta,
   VoiceDisc,
   Kicker,
-  inputProps,
 } from './shared';
 import { useConnectors, connectorLine } from './connectors';
 import { TYPE, EASE, FAST } from '../../../theme/layout';
+import { Plate, Empty, Loading } from '../../../components/common/Page';
 
 const STUDIO_SITE = '15e4962d-1edc-4a86-8386-008c2d3e03f1';
 const PULSE_SITE = '1554d7eb-08ea-4e53-ac72-c035681eb384';
-
-const small = {
-  ...inputProps,
-  h: '34px',
-  px: 2.5,
-  fontFamily: 'mono',
-  fontSize: TYPE.small,
-  borderRadius: '9px',
-};
 
 const guessEnv = (owner, channel) => {
   if (channel === 'telegram') return `TELEGRAM_BOT_TOKEN_${owner.toUpperCase()}`;
@@ -85,13 +77,13 @@ const Draft = ({ value, onCommit, placeholder, w, isReadOnly = false }) => {
 
   return (
     <Input
-      {...small}
+      size="sm"
+      fontFamily="mono"
       value={draft}
       placeholder={placeholder}
       w={w}
       isReadOnly={isReadOnly}
       cursor={isReadOnly ? 'default' : 'text'}
-      color={isReadOnly ? P.inkMuted : P.ink}
       onChange={(event) => setDraft(event.target.value)}
       onBlur={() => {
         if (isReadOnly) return;
@@ -123,16 +115,7 @@ const AccountRow = ({ account, onPatch, canManage, probe }) => {
         <Text fontSize={TYPE.body} color={P.ink} fontWeight="600" minW="82px">
           {account.burro}
         </Text>
-        <Text
-          fontFamily="mono"
-          fontSize={TYPE.label}
-          color={P.inkMuted}
-          border="1px solid"
-          borderColor={P.hair}
-          borderRadius="full"
-          px={2.5}
-          py={0.5}
-        >
+        <Text fontFamily="mono" fontSize={TYPE.label} color={P.inkMuted}>
           {account.channel}
         </Text>
         <Box flex="1" />
@@ -165,7 +148,8 @@ const AccountRow = ({ account, onPatch, canManage, probe }) => {
           onCommit={(value) => onPatch(account.id, { chat_id: value })}
         />
         <Input
-          {...small}
+          size="sm"
+          fontFamily="mono"
           value={account.token_env || ''}
           placeholder="environment variable"
           w={{ base: '100%', sm: '280px' }}
@@ -300,34 +284,33 @@ const Accounts = () => {
   const automatic = (rows || []).filter((account) => isAutomatic(account.channel)).length;
 
   return (
-    <Box>
-      <HStack
-        as="button"
-        type="button"
-        onClick={() => setOpen((value) => !value)}
-        spacing={2}
-        mb={open ? 2 : 0}
-        _hover={{ opacity: 0.75 }}
-        transition={`opacity ${FAST} ${EASE}`}
-      >
-        <Icon as={open ? TbChevronDown : TbChevronRight} boxSize={3.5} color={P.inkMuted} />
-        <Kicker>account map{rows ? ` · ${live} of ${automatic} live` : ''}</Kicker>
+    <VStack align="stretch" spacing={4}>
+      <HStack spacing={3} align="center">
+        <HStack
+          as="button"
+          type="button"
+          onClick={() => setOpen((value) => !value)}
+          spacing={2}
+          _hover={{ opacity: 0.75 }}
+          transition={`opacity ${FAST} ${EASE}`}
+        >
+          <Icon as={open ? TbChevronDown : TbChevronRight} boxSize={3.5} color={P.inkMuted} />
+          <Kicker>account map</Kicker>
+        </HStack>
+        <Box flex={1} h="1px" bg={P.hair} />
+        {rows && <Text fontFamily="mono" fontSize={TYPE.kicker} color={P.inkFaint}>{live} of {automatic} live</Text>}
       </HStack>
 
       {open && (
         <VStack align="stretch" spacing={3}>
-          {rows === null && !missing && (
-            <HStack justify="center" py={8}>
-              <Spinner size="sm" color={P.inkMuted} />
-            </HStack>
-          )}
+          {rows === null && !missing && <Loading label="loading the map" py={2} />}
 
           {missing && (
-            <Box bg={P.sunken} border="1px solid" borderColor={P.hair} borderRadius="14px" p={5}>
+            <Plate sunken>
               <Text fontSize={TYPE.body} color={P.inkSec}>
                 The social account map is not available yet. Apply the Socials migrations and reload.
               </Text>
-            </Box>
+            </Plate>
           )}
 
           {rows !== null && !missing && (
@@ -343,16 +326,15 @@ const Accounts = () => {
                   />
                 ))}
                 {rows.length === 0 && (
-                  <Text fontSize={TYPE.body} color={P.inkFaint} py={6}>
-                    No accounts on the record yet.
-                  </Text>
+                  <Empty>No accounts on the record yet.</Empty>
                 )}
               </VStack>
 
               {canManage ? (
                 <HStack spacing={2} flexWrap="wrap" rowGap={2}>
                   <Select
-                    {...small}
+                    size="sm"
+                    fontFamily="mono"
                     w={{ base: '46%', sm: '160px' }}
                     value={owner}
                     onChange={(event) => setOwner(event.target.value)}
@@ -362,7 +344,8 @@ const Accounts = () => {
                     ))}
                   </Select>
                   <Select
-                    {...small}
+                    size="sm"
+                    fontFamily="mono"
                     w={{ base: '46%', sm: '150px' }}
                     value={channel}
                     onChange={(event) => setChannel(event.target.value)}
@@ -371,26 +354,9 @@ const Accounts = () => {
                       <option key={value} value={value}>{value}</option>
                     ))}
                   </Select>
-                  <HStack
-                    as="button"
-                    type="button"
-                    onClick={add}
-                    spacing={1.5}
-                    bg={P.sheet}
-                    border="1px solid"
-                    borderColor={P.hair}
-                    color={P.ink}
-                    borderRadius="full"
-                    px={3.5}
-                    h="34px"
-                    fontSize={TYPE.small}
-                    fontWeight="600"
-                    _hover={{ borderColor: P.limeDeep }}
-                    transition={`border-color ${FAST} ${EASE}`}
-                  >
-                    <Icon as={TbPlus} boxSize={3.5} />
-                    <Text>add account</Text>
-                  </HStack>
+                  <Button size="sm" variant="outline" leftIcon={<Icon as={TbPlus} boxSize={3.5} />} onClick={add}>
+                    add account
+                  </Button>
                 </HStack>
               ) : (
                 <Text fontFamily="mono" fontSize={TYPE.label} color={P.inkFaint}>
@@ -409,7 +375,7 @@ const Accounts = () => {
           </Text>
         </VStack>
       )}
-    </Box>
+    </VStack>
   );
 };
 

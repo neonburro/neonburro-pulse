@@ -5,20 +5,24 @@
 // 2026-09-17, the link is the thing most often needed from a row. The link is
 // built by payLinkFor in ResendModal.jsx so the row and the editor agree. The
 // status dot warms toward lime as the invoice progresses. Lime is the paid win
-// state and is not spent elsewhere in the row. No oxford commas, no dashes.
+// state and is not spent elsewhere in the row. Rows bleed the inset so the
+// number sits on the column edge, the empty state is the house line. No
+// oxford commas, no dashes.
 
 import { useState } from 'react';
 import {
-  Box, HStack, VStack, Text, Icon, Center, Spinner, Button,
+  Box, HStack, VStack, Text, Icon, Button,
 } from '@chakra-ui/react';
 import {
-  TbCash, TbBolt, TbTrash, TbAlertTriangle, TbEye, TbCopy, TbCheck,
+  TbBolt, TbTrash, TbAlertTriangle, TbEye, TbCopy, TbCheck,
 } from 'react-icons/tb';
 import { timeAgo } from '../../../utils/phone';
 import Avatar from '../../../components/common/Avatar';
 import InvoiceSnapshotModal from './InvoiceSnapshotModal';
 import { payLinkFor } from './ResendModal';
 import colors from '../../../theme/colors';
+import { TYPE, INSET, EASE, FAST } from '../../../theme/layout';
+import { Empty, Loading } from '../../../components/common/Page';
 
 const P = colors.paper;
 
@@ -85,19 +89,18 @@ const InvoiceRow = ({ invoice, onSelect, onQuickDelete, onViewSnapshot }) => {
   return (
     <Box
       py={3.5}
-      px={4}
+      px={INSET}
       borderBottom="1px solid"
       borderColor={P.hairSoft}
       borderLeft="2px solid"
       borderLeftColor="transparent"
       cursor="pointer"
-      transition="all 0.15s ease-out"
+      transition={`all ${FAST} ${EASE}`}
       role="group"
       onClick={() => onSelect(invoice.id)}
       _hover={{
         borderLeftColor: status.color,
         bg: P.sheet,
-        transform: 'translateX(2px)',
       }}
     >
       <HStack spacing={4} align="center">
@@ -107,14 +110,14 @@ const InvoiceRow = ({ invoice, onSelect, onQuickDelete, onViewSnapshot }) => {
 
         <VStack align="start" spacing={0} flex={1} minW={0}>
           <HStack spacing={2}>
-            <Text color={P.ink} fontSize="sm" fontWeight="700" fontFamily="mono">
+            <Text color={P.ink} fontSize={TYPE.body} fontWeight="700" fontFamily="mono">
               {invoice.invoice_number || 'NEW'}
             </Text>
-            <Text fontSize="2xs" fontWeight="700" color={status.color} letterSpacing="0.05em" fontFamily="mono">
+            <Text fontSize={TYPE.kicker} fontWeight="500" color={status.color} letterSpacing="0.1em" fontFamily="mono">
               {status.label}
             </Text>
           </HStack>
-          <Text color={P.inkMuted} fontSize="xs" noOfLines={1}>
+          <Text color={P.inkMuted} fontSize={TYPE.small} noOfLines={1}>
             {client?.name || 'No client'}
             {client?.company && ` · ${client.company}`}
           </Text>
@@ -148,7 +151,7 @@ const InvoiceRow = ({ invoice, onSelect, onQuickDelete, onViewSnapshot }) => {
                   />
                 ))}
               </HStack>
-              <Text fontSize="2xs" fontFamily="mono" color={openedUnpaid ? P.gold : P.inkMuted} whiteSpace="nowrap">
+              <Text fontSize={TYPE.label} fontFamily="mono" color={openedUnpaid ? P.gold : P.inkMuted} whiteSpace="nowrap">
                 {last ? `${last[0]} ${day}` : 'not sent'}
               </Text>
             </VStack>
@@ -157,17 +160,17 @@ const InvoiceRow = ({ invoice, onSelect, onQuickDelete, onViewSnapshot }) => {
 
         <HStack spacing={1.5} display={{ base: 'none', md: 'flex' }}>
           <Icon as={TbBolt} boxSize={3} color={P.inkFaint} />
-          <Text color={P.inkSec} fontSize="xs" fontFamily="mono" fontWeight="700">
+          <Text color={P.inkSec} fontSize={TYPE.small} fontFamily="mono" fontWeight="700">
             {paidCount}/{sprintCount}
           </Text>
         </HStack>
 
         <VStack align="end" spacing={0} minW="80px">
-          <Text color={P.ink} fontSize="sm" fontFamily="mono" fontWeight="700">
+          <Text color={P.ink} fontSize={TYPE.body} fontFamily="mono" fontWeight="700">
             {currency(invoice.total)}
           </Text>
           {outstanding > 0 && invoice.status !== 'draft' && (
-            <Text color={P.gold} fontSize="2xs" fontFamily="mono">
+            <Text color={P.gold} fontSize={TYPE.label} fontFamily="mono">
               {currency(outstanding)} due
             </Text>
           )}
@@ -175,7 +178,7 @@ const InvoiceRow = ({ invoice, onSelect, onQuickDelete, onViewSnapshot }) => {
 
         <Text
           color={P.inkFaint}
-          fontSize="2xs"
+          fontSize={TYPE.label}
           fontFamily="mono"
           minW="60px"
           textAlign="right"
@@ -188,12 +191,13 @@ const InvoiceRow = ({ invoice, onSelect, onQuickDelete, onViewSnapshot }) => {
           {payLink ? (
             <Box
               as="button"
+              type="button"
               onClick={handleCopyClick}
               opacity={copied ? 1 : 0}
               color={copied ? P.limeDeep : P.inkFaint}
               p={1.5}
               borderRadius="md"
-              transition="all 0.15s"
+              transition={`all ${FAST} ${EASE}`}
               _groupHover={{ opacity: copied ? 1 : 0.6 }}
               _hover={{ opacity: '1 !important', color: P.limeDeep, bg: `${P.lime}22` }}
               title={copied ? 'Copied' : 'Copy the pay link'}
@@ -208,12 +212,13 @@ const InvoiceRow = ({ invoice, onSelect, onQuickDelete, onViewSnapshot }) => {
           {wasSent ? (
             <Box
               as="button"
+              type="button"
               onClick={handleEyeClick}
               opacity={0}
               color={P.inkFaint}
               p={1.5}
               borderRadius="md"
-              transition="all 0.15s"
+              transition={`all ${FAST} ${EASE}`}
               _groupHover={{ opacity: 0.6 }}
               _hover={{ opacity: '1 !important', color: P.limeDeep, bg: `${P.lime}22` }}
               title="View sent email"
@@ -227,12 +232,13 @@ const InvoiceRow = ({ invoice, onSelect, onQuickDelete, onViewSnapshot }) => {
           {isDraft ? (
             <Box
               as="button"
+              type="button"
               onClick={handleTrashClick}
               opacity={confirmDelete ? 1 : 0}
               color={confirmDelete ? P.coral : P.inkFaint}
               p={1.5}
               borderRadius="md"
-              transition="all 0.15s"
+              transition={`all ${FAST} ${EASE}`}
               _groupHover={{ opacity: confirmDelete ? 1 : 0.6 }}
               _hover={{ opacity: '1 !important', color: P.coral, bg: `${P.coral}14` }}
               title={confirmDelete ? 'Click again to confirm' : 'Delete draft'}
@@ -251,46 +257,19 @@ const InvoiceRow = ({ invoice, onSelect, onQuickDelete, onViewSnapshot }) => {
 const InvoiceList = ({ invoices, loading, onSelect, onNew, onQuickDelete }) => {
   const [snapshotInvoiceId, setSnapshotInvoiceId] = useState(null);
 
-  if (loading) {
-    return (
-      <Center py={16}>
-        <VStack spacing={3}>
-          <Spinner size="md" color={P.limeDeep} thickness="2px" />
-          <Text color={P.inkMuted} fontSize="xs" fontFamily="mono">Loading invoices</Text>
-        </VStack>
-      </Center>
-    );
-  }
+  if (loading) return <Loading label="loading invoices" />;
 
   if (invoices.length === 0) {
     return (
-      <Box py={20} textAlign="center">
-        <VStack spacing={4}>
-          <Icon as={TbCash} boxSize={10} color={P.inkFaint} />
-          <VStack spacing={1}>
-            <Text color={P.ink} fontSize="md" fontWeight="700">No invoices yet</Text>
-            <Text color={P.inkMuted} fontSize="xs">Create your first invoice to start billing</Text>
-          </VStack>
-          <Button
-            size="sm"
-            bg={P.lime}
-            color={P.limeInk}
-            fontWeight="700"
-            borderRadius="full"
-            onClick={onNew}
-            mt={2}
-            _hover={{ bg: '#D2E26B' }}
-          >
-            Create invoice
-          </Button>
-        </VStack>
-      </Box>
+      <Empty hint="Create the first one to start billing." action={<Button size="sm" onClick={onNew}>Create invoice</Button>}>
+        No invoices yet.
+      </Empty>
     );
   }
 
   return (
     <>
-      <Box borderTop="1px solid" borderColor={P.hair}>
+      <Box borderTop="1px solid" borderColor={P.hair} mx={-INSET}>
         {invoices.map((inv) => (
           <InvoiceRow
             key={inv.id}

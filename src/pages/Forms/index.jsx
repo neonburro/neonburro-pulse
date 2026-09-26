@@ -1,27 +1,30 @@
 // src/pages/Forms/index.jsx
-// Forms inbox, on Paper. Every submission type in one place, a split-pane on
-// desktop (list ~420px, detail flex), a full-screen sheet on a phone. Realtime
+// Forms inbox, on Paper. Every submission type in one place, a split pane on
+// desktop (list 420px, detail flex), a full screen sheet on a phone. Realtime
 // on both submissions and replies. The reply modal has a Write and a Preview so
 // nothing goes to a lead without the team seeing the exact email first, the same
-// buildReplyEmailHTML the function sends. Form-type colors carry meaning and are
-// kept. No oxford commas, no dashes.
+// buildReplyEmailHTML the function sends. Form type colours carry meaning and
+// are kept, they tint the type tabs. House column, head, tabs, search and
+// empty lines. No oxford commas, no dashes.
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
-  Box, VStack, HStack, Text, Icon, Input, Center, Spinner,
+  Box, VStack, HStack, Text, Icon, Input,
   Modal, ModalOverlay, ModalContent, ModalBody, ModalCloseButton,
-  Textarea, Button, useToast, Divider, IconButton, Tooltip, Container,
+  Textarea, Button, useToast, Divider, IconButton, Tooltip,
 } from '@chakra-ui/react';
 import {
-  TbInbox, TbSearch, TbArchive, TbArchiveOff, TbSend, TbArrowLeft,
+  TbSearch, TbArchive, TbArchiveOff, TbSend, TbArrowLeft,
   TbCircleCheck, TbCircleDashed, TbHistory, TbEdit, TbEye, TbTrash, TbAlertTriangle,
 } from 'react-icons/tb';
 import { formatDistanceToNow, format } from 'date-fns';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
 import colors from '../../theme/colors';
+import { TYPE, INSET, EASE, FAST, PLATE_RADIUS } from '../../theme/layout';
 import { FORM_TYPE_LABELS, FORM_TYPE_COLORS } from '../../lib/uiConstants';
 import { buildReplyEmailHTML } from '../../lib/replyEmailTemplate';
+import { Page, PageHead, Tabs, SearchBox, Empty, Loading, Plate, Kicker, Field } from '../../components/common/Page';
 
 const P = colors.paper;
 const FALLBACK_COLOR = P.inkMuted;
@@ -50,7 +53,7 @@ const Forms = () => {
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState(null);
   const [statusFilter, setStatusFilter] = useState('all');
-  const [typeFilter, setTypeFilter] = useState(null);
+  const [typeFilter, setTypeFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [mobileDetailOpen, setMobileDetailOpen] = useState(false);
   const [replyOpen, setReplyOpen] = useState(false);
@@ -98,7 +101,7 @@ const Forms = () => {
     if (statusFilter === 'responded' && s.status !== 'responded') return false;
     if (statusFilter === 'archived' && !s.archived_at) return false;
     if (statusFilter === 'all' && s.archived_at) return false;
-    if (typeFilter && s.form_type !== typeFilter) return false;
+    if (typeFilter !== 'all' && s.form_type !== typeFilter) return false;
     if (search.trim()) {
       const q = search.toLowerCase();
       const haystack = [s.name, s.email, s.message, s.phone, s.company, s.metadata?.name, s.metadata?.email, s.metadata?.message, s.metadata?.description, s.metadata?.brief]
@@ -176,71 +179,57 @@ const Forms = () => {
     setSubmissions((prev) => prev.map((s) => (s.id === id ? { ...s, status: 'unread' } : s)));
   };
 
+  const detailProps = selected ? {
+    submission: selected,
+    replies: selectedReplies,
+    onReply: () => setReplyOpen(true),
+    onArchive: () => handleArchive(selected.id),
+    onUnarchive: () => handleUnarchive(selected.id),
+    onMarkUnread: () => handleMarkUnread(selected.id),
+    onDeleteForever: () => handleDeleteForever(selected.id),
+  } : null;
+
   return (
-    <Box position="relative" minH="100vh" bg={P.mat}>
-      <Box position="absolute" top={0} left={0} right={0} h="300px" bg={`radial-gradient(ellipse at top center, ${P.lime}12, transparent 70%)`} pointerEvents="none" />
+    <Page>
+      <PageHead
+        kicker="Forms"
+        title={`${counts.unread} unread`}
+        lede="Everything that came in through the site, newest first. Reply from here and the lead gets the letterhead."
+      />
 
-      <Container maxW="1500px" mx={0} px={{ base: 5, md: 8 }} py={{ base: 6, md: 10 }} position="relative">
-        <VStack align="stretch" spacing={5} mb={6}>
-          <VStack align="start" spacing={2}>
-            <Text fontFamily="mono" fontSize="2xs" fontWeight="600" letterSpacing="0.22em" textTransform="uppercase" color={P.inkMuted}>Forms</Text>
-            <HStack align="baseline" spacing={3}>
-              <Text fontFamily="display" fontSize={{ base: '4xl', md: '5xl' }} fontWeight="500" color={P.ink} lineHeight="1">{counts.unread}</Text>
-              <Text fontFamily="mono" fontSize="sm" color={P.inkMuted} pb={1}>unread</Text>
-            </HStack>
-          </VStack>
-
-          <HStack spacing={2} flexWrap="wrap" rowGap={2}>
-            {STATUS_FILTERS.map((f) => (
-              <FilterPill key={f.key} active={statusFilter === f.key} onClick={() => setStatusFilter(f.key)} count={counts[f.key]}>{f.label}</FilterPill>
-            ))}
-            {typesPresent.length > 0 && (
-              <>
-                <Box w="1px" h="20px" bg={P.hair} mx={2} alignSelf="center" />
-                <FilterPill active={typeFilter === null} onClick={() => setTypeFilter(null)}>All types</FilterPill>
-                {typesPresent.map((t) => (
-                  <FilterPill key={t} active={typeFilter === t} onClick={() => setTypeFilter(t === typeFilter ? null : t)} color={FORM_TYPE_COLORS[t]}>{FORM_TYPE_LABELS[t] || t}</FilterPill>
-                ))}
-              </>
-            )}
-          </HStack>
-
-          <HStack bg={P.sheet} border="1px solid" borderColor={P.hair} borderRadius="full" px={5} h="50px" spacing={2} _focusWithin={{ borderColor: P.lime, boxShadow: `0 0 0 3px ${P.lime}22` }}>
-            <Icon as={TbSearch} color={P.inkMuted} boxSize={4} />
-            <Input placeholder="Search by name, email, or message..." variant="unstyled" fontSize="sm" color={P.ink} value={search} onChange={(e) => setSearch(e.target.value)} _placeholder={{ color: P.inkFaint }} />
-          </HStack>
-        </VStack>
-
-        {loading ? (
-          <Center py={20}><Spinner size="md" color={P.limeDeep} thickness="2px" /></Center>
-        ) : (
-          <HStack align="start" spacing={6} minH="60vh">
-            <Box w={{ base: '100%', lg: '420px' }} flexShrink={0} borderTop="1px solid" borderColor={P.hair} maxH="calc(100vh - 280px)" overflowY="auto">
-              {filtered.length === 0 ? (
-                <VStack py={16} spacing={2}>
-                  <Icon as={TbInbox} boxSize={8} color={P.inkFaint} />
-                  <Text color={P.inkMuted} fontSize="sm" fontWeight="700">Nothing here</Text>
-                  <Text color={P.inkFaint} fontSize="xs">
-                    {statusFilter === 'unread' ? "You're all caught up" : statusFilter === 'archived' ? 'No archived submissions' : 'No submissions match these filters'}
-                  </Text>
-                </VStack>
-              ) : (
-                filtered.map((s) => (
-                  <ListRow key={s.id} submission={s} replyCount={s.reply_count || 0} selected={s.id === selectedId} onClick={() => handleSelect(s)} />
-                ))
-              )}
-            </Box>
-
-            <Box display={{ base: 'none', lg: 'block' }} flex={1} minW={0}>
-              {selected ? (
-                <DetailPane submission={selected} replies={selectedReplies} onReply={() => setReplyOpen(true)} onArchive={() => handleArchive(selected.id)} onUnarchive={() => handleUnarchive(selected.id)} onMarkUnread={() => handleMarkUnread(selected.id)} onDeleteForever={() => handleDeleteForever(selected.id)} />
-              ) : (
-                <EmptyDetail />
-              )}
-            </Box>
-          </HStack>
+      <VStack align="stretch" spacing={5}>
+        <SearchBox value={search} onChange={setSearch} placeholder="Search by name, email or message" />
+        <Tabs items={STATUS_FILTERS.map((f) => ({ ...f, count: counts[f.key] }))} value={statusFilter} onChange={setStatusFilter} />
+        {typesPresent.length > 0 && (
+          <Tabs
+            items={[{ key: 'all', label: 'All types' }, ...typesPresent.map((t) => ({ key: t, label: FORM_TYPE_LABELS[t] || t, color: FORM_TYPE_COLORS[t] }))]}
+            value={typeFilter}
+            onChange={setTypeFilter}
+          />
         )}
-      </Container>
+      </VStack>
+
+      {loading ? (
+        <Loading label="loading the inbox" />
+      ) : (
+        <HStack align="start" spacing={6} minH="60vh">
+          <Box w={{ base: '100%', lg: '420px' }} flexShrink={0} borderTop="1px solid" borderColor={P.hair} maxH="calc(100vh - 280px)" overflowY="auto" mx={-INSET}>
+            {filtered.length === 0 ? (
+              <Empty px={INSET}>
+                {statusFilter === 'unread' ? 'Nothing unread. You are caught up.' : statusFilter === 'archived' ? 'No archived submissions.' : 'No submissions match these filters.'}
+              </Empty>
+            ) : (
+              filtered.map((s) => (
+                <ListRow key={s.id} submission={s} replyCount={s.reply_count || 0} selected={s.id === selectedId} onClick={() => handleSelect(s)} />
+              ))
+            )}
+          </Box>
+
+          <Box display={{ base: 'none', lg: 'block' }} flex={1} minW={0}>
+            {selected ? <DetailPane {...detailProps} /> : <EmptyDetail />}
+          </Box>
+        </HStack>
+      )}
 
       <Modal isOpen={mobileDetailOpen && !!selected} onClose={() => setMobileDetailOpen(false)} size="full" motionPreset="slideInRight">
         <ModalOverlay />
@@ -249,11 +238,11 @@ const Forms = () => {
             {selected && (
               <Box>
                 <HStack p={4} borderBottom="1px solid" borderColor={P.hair}>
-                  <IconButton icon={<TbArrowLeft />} variant="ghost" color={P.inkSec} onClick={() => setMobileDetailOpen(false)} aria-label="Back" size="sm" _hover={{ bg: P.sunken, color: P.ink }} />
-                  <Text color={P.ink} fontWeight="700" fontSize="sm">Submission</Text>
+                  <IconButton icon={<TbArrowLeft />} variant="ghost" onClick={() => setMobileDetailOpen(false)} aria-label="Back" size="sm" />
+                  <Text color={P.ink} fontWeight="700" fontSize={TYPE.body}>Submission</Text>
                 </HStack>
                 <Box p={5}>
-                  <DetailPane submission={selected} replies={selectedReplies} onReply={() => setReplyOpen(true)} onArchive={() => handleArchive(selected.id)} onUnarchive={() => handleUnarchive(selected.id)} onMarkUnread={() => handleMarkUnread(selected.id)} onDeleteForever={() => handleDeleteForever(selected.id)} />
+                  <DetailPane {...detailProps} />
                 </Box>
               </Box>
             )}
@@ -275,19 +264,9 @@ const Forms = () => {
           }}
         />
       )}
-    </Box>
+    </Page>
   );
 };
-
-// ============================================================
-// FILTER PILL
-// ============================================================
-const FilterPill = ({ active, onClick, children, count, color = P.limeDeep }) => (
-  <Box as="button" onClick={onClick} px={3} py={1.5} borderRadius="full" bg={active ? P.sheet : 'transparent'} border="1px solid" borderColor={active ? color : P.hair} color={active ? P.ink : P.inkMuted} fontSize="xs" fontFamily="mono" fontWeight="700" textTransform="uppercase" letterSpacing="0.05em" transition="all 0.15s" _hover={{ color: P.ink, borderColor: active ? color : P.inkFaint }} display="flex" alignItems="center" gap={1.5}>
-    {children}
-    {typeof count === 'number' && count > 0 && <Box as="span" color={active ? color : P.inkFaint} fontWeight="800">{count}</Box>}
-  </Box>
-);
 
 // ============================================================
 // LIST ROW
@@ -304,25 +283,25 @@ const ListRow = ({ submission, replyCount, selected, onClick }) => {
   const timeAgo = formatDistanceToNow(new Date(submission.created_at), { addSuffix: true });
 
   return (
-    <Box as="button" w="100%" textAlign="left" onClick={onClick} px={4} py={3.5} borderBottom="1px solid" borderColor={P.hairSoft} borderLeft="2px solid" borderLeftColor={selected ? typeColor : isUnread ? typeColor : 'transparent'} bg={selected ? P.sheet : 'transparent'} _hover={{ bg: P.sheet }} transition="all 0.15s">
+    <Box as="button" type="button" w="100%" textAlign="left" onClick={onClick} px={INSET} py={3.5} borderBottom="1px solid" borderColor={P.hairSoft} borderLeft="2px solid" borderLeftColor={selected ? typeColor : isUnread ? typeColor : 'transparent'} bg={selected ? P.sheet : 'transparent'} _hover={{ bg: P.sheet }} transition={`all ${FAST} ${EASE}`}>
       <HStack justify="space-between" mb={1}>
         <HStack spacing={2}>
-          <Text fontSize="2xs" fontWeight="700" color={typeColor} textTransform="uppercase" letterSpacing="0.08em" fontFamily="mono">{typeLabel}</Text>
+          <Text fontFamily="mono" fontSize={TYPE.kicker} fontWeight="500" color={typeColor} textTransform="uppercase" letterSpacing="0.1em">{typeLabel}</Text>
           {isResponded && (
             <HStack spacing={0.5}>
               <Icon as={TbCircleCheck} boxSize={3} color={P.green} />
-              {replyCount > 1 && <Text color={P.green} fontSize="2xs" fontFamily="mono" fontWeight="800">×{replyCount}</Text>}
+              {replyCount > 1 && <Text color={P.green} fontSize={TYPE.label} fontFamily="mono" fontWeight="700">×{replyCount}</Text>}
             </HStack>
           )}
         </HStack>
         <HStack spacing={1.5}>
           {isUnread && <Box w="6px" h="6px" borderRadius="full" bg={typeColor} />}
-          <Text color={P.inkFaint} fontSize="2xs" fontFamily="mono">{timeAgo}</Text>
+          <Text color={P.inkFaint} fontSize={TYPE.label} fontFamily="mono">{timeAgo}</Text>
         </HStack>
       </HStack>
-      <Text color={isUnread ? P.ink : P.inkSec} fontSize="sm" fontWeight={isUnread ? '700' : '500'} noOfLines={1}>{senderName}</Text>
-      {senderEmail && <Text color={P.inkMuted} fontSize="xs" noOfLines={1} fontFamily="mono">{senderEmail}</Text>}
-      {previewMessage && <Text color={P.inkMuted} fontSize="xs" noOfLines={1} mt={1}>{previewMessage}</Text>}
+      <Text color={isUnread ? P.ink : P.inkSec} fontSize={TYPE.body} fontWeight={isUnread ? '700' : '500'} noOfLines={1}>{senderName}</Text>
+      {senderEmail && <Text color={P.inkMuted} fontSize={TYPE.small} noOfLines={1} fontFamily="mono">{senderEmail}</Text>}
+      {previewMessage && <Text color={P.inkMuted} fontSize={TYPE.small} noOfLines={1} mt={1}>{previewMessage}</Text>}
     </Box>
   );
 };
@@ -365,43 +344,43 @@ const DetailPane = ({ submission, replies, onReply, onArchive, onUnarchive, onMa
       <VStack align="stretch" spacing={3}>
         <HStack justify="space-between" align="start">
           <VStack align="start" spacing={1}>
-            <Text fontSize="2xs" fontWeight="700" color={typeColor} textTransform="uppercase" letterSpacing="0.15em" fontFamily="mono">{typeLabel}</Text>
-            <Text color={P.ink} fontSize="2xl" fontWeight="700" letterSpacing="-0.01em">{senderName}</Text>
-            {senderEmail && <Text color={P.inkMuted} fontSize="sm" fontFamily="mono">{senderEmail}</Text>}
+            <Kicker color={typeColor}>{typeLabel}</Kicker>
+            <Text color={P.ink} fontSize={TYPE.title} fontWeight="600" letterSpacing="-0.02em" lineHeight="1.1">{senderName}</Text>
+            {senderEmail && <Text color={P.inkMuted} fontSize={TYPE.body} fontFamily="mono">{senderEmail}</Text>}
           </VStack>
-          <Text color={P.inkFaint} fontSize="2xs" fontFamily="mono" flexShrink={0} pt={1}>{formatDistanceToNow(new Date(submission.created_at), { addSuffix: true })}</Text>
+          <Text color={P.inkFaint} fontSize={TYPE.label} fontFamily="mono" flexShrink={0} pt={1}>{formatDistanceToNow(new Date(submission.created_at), { addSuffix: true })}</Text>
         </HStack>
 
-        <HStack spacing={2} flexWrap="wrap">
+        <HStack spacing={4} flexWrap="wrap">
           {isResponded && (
-            <HStack spacing={1.5} px={2.5} py={1} borderRadius="full" bg={`${P.green}18`} border="1px solid" borderColor={`${P.green}40`}>
+            <HStack spacing={1.5}>
               <Icon as={TbCircleCheck} boxSize={3} color={P.green} />
-              <Text color={P.green} fontSize="2xs" fontWeight="700" fontFamily="mono" letterSpacing="0.05em" textTransform="uppercase">{replyCount > 1 ? `Replied ${replyCount}×` : 'Responded'}</Text>
+              <Kicker color={P.green}>{replyCount > 1 ? `Replied ${replyCount}×` : 'Responded'}</Kicker>
             </HStack>
           )}
           {isArchived && (
-            <HStack spacing={1.5} px={2.5} py={1} borderRadius="full" bg={P.sheet} border="1px solid" borderColor={P.hair}>
+            <HStack spacing={1.5}>
               <Icon as={TbArchive} boxSize={3} color={P.inkMuted} />
-              <Text color={P.inkMuted} fontSize="2xs" fontWeight="700" fontFamily="mono" letterSpacing="0.05em" textTransform="uppercase">Archived</Text>
+              <Kicker>Archived</Kicker>
             </HStack>
           )}
         </HStack>
       </VStack>
 
       <HStack spacing={2} flexWrap="wrap" rowGap={2}>
-        <ActionButton icon={TbSend} label={replyCount === 0 ? 'Reply' : 'Send follow-up'} onClick={onReply} disabled={!senderEmail} primary />
+        <ActionButton icon={TbSend} label={replyCount === 0 ? 'Reply' : 'Send follow up'} onClick={onReply} disabled={!senderEmail} primary />
         <ActionButton icon={TbCircleDashed} label="Mark unread" onClick={onMarkUnread} />
         {isArchived ? <ActionButton icon={TbArchiveOff} label="Unarchive" onClick={onUnarchive} /> : <ActionButton icon={TbArchive} label="Archive" onClick={onArchive} />}
         {isArchived && !confirming && <ActionButton icon={TbTrash} label="Delete forever" onClick={() => setConfirming(true)} destructive />}
       </HStack>
 
       {isArchived && confirming && (
-        <HStack spacing={3} bg={`${P.coral}10`} border="1px solid" borderColor={`${P.coral}44`} borderRadius="14px" p={3.5} flexWrap="wrap" rowGap={2}>
+        <HStack spacing={3} bg={`${P.coral}10`} border="1px solid" borderColor={`${P.coral}44`} borderRadius="14px" p={INSET} flexWrap="wrap" rowGap={2}>
           <Icon as={TbAlertTriangle} boxSize={4} color={P.coral} flexShrink={0} />
-          <Text fontSize="sm" color={P.ink} fontWeight="600" flex={1} minW="180px">Delete this forever? It leaves the database and cannot be recovered.</Text>
+          <Text fontSize={TYPE.body} color={P.ink} fontWeight="600" flex={1} minW="180px">Delete this forever? It leaves the database and cannot be recovered.</Text>
           <HStack spacing={2}>
-            <Button size="sm" variant="ghost" color={P.inkMuted} onClick={() => setConfirming(false)} _hover={{ bg: P.sunken, color: P.ink }}>Cancel</Button>
-            <Button size="sm" bg={P.coral} color={P.sheet} fontWeight="700" leftIcon={<TbTrash size={14} />} onClick={onDeleteForever} _hover={{ bg: '#A8362A' }}>Delete forever</Button>
+            <Button size="sm" variant="ghost" onClick={() => setConfirming(false)}>Cancel</Button>
+            <Button size="sm" variant="destructive" leftIcon={<TbTrash size={14} />} onClick={onDeleteForever}>Delete forever</Button>
           </HStack>
         </HStack>
       )}
@@ -411,8 +390,8 @@ const DetailPane = ({ submission, replies, onReply, onArchive, onUnarchive, onMa
       <VStack align="stretch" spacing={0} divider={<Box h="1px" bg={P.hairSoft} />}>
         {fields.map(({ label, value }) => (
           <HStack key={label} align="start" spacing={6} py={3}>
-            <Text color={P.inkMuted} fontSize="2xs" fontWeight="700" fontFamily="mono" textTransform="uppercase" letterSpacing="0.08em" minW="120px" flexShrink={0} pt={0.5}>{label}</Text>
-            <Text color={P.inkSec} fontSize="sm" flex={1} whiteSpace="pre-wrap" wordBreak="break-word" lineHeight={1.6}>{value}</Text>
+            <Kicker minW="120px" flexShrink={0} pt={0.5}>{label}</Kicker>
+            <Text color={P.inkSec} fontSize={TYPE.body} flex={1} whiteSpace="pre-wrap" wordBreak="break-word" lineHeight={1.6}>{value}</Text>
           </HStack>
         ))}
       </VStack>
@@ -422,9 +401,9 @@ const DetailPane = ({ submission, replies, onReply, onArchive, onUnarchive, onMa
           <Divider borderColor={P.hair} />
           <VStack align="stretch" spacing={3}>
             <HStack spacing={2}>
-              <Icon as={TbHistory} boxSize={3.5} color={P.limeDeep} />
-              <Text color={P.limeDeep} fontSize="2xs" fontWeight="700" fontFamily="mono" textTransform="uppercase" letterSpacing="0.12em">Reply history</Text>
-              <Text color={P.inkFaint} fontSize="2xs" fontFamily="mono">{replies.length} {replies.length === 1 ? 'reply' : 'replies'}</Text>
+              <Icon as={TbHistory} boxSize={3.5} color={P.inkMuted} />
+              <Kicker>Reply history</Kicker>
+              <Text color={P.inkFaint} fontSize={TYPE.kicker} fontFamily="mono">{replies.length} {replies.length === 1 ? 'reply' : 'replies'}</Text>
             </HStack>
             <VStack align="stretch" spacing={3}>
               {replies.map((reply, idx) => <ReplyCard key={reply.id} reply={reply} index={replies.length - idx} />)}
@@ -434,8 +413,8 @@ const DetailPane = ({ submission, replies, onReply, onArchive, onUnarchive, onMa
       )}
 
       <HStack spacing={4} pt={2}>
-        <Text color={P.inkFaint} fontSize="2xs" fontFamily="mono">ID {String(submission.id).slice(0, 8)}</Text>
-        {submission.last_replied_at && <Text color={P.inkFaint} fontSize="2xs" fontFamily="mono">Last reply {formatDistanceToNow(new Date(submission.last_replied_at), { addSuffix: true })}</Text>}
+        <Text color={P.inkFaint} fontSize={TYPE.label} fontFamily="mono">ID {String(submission.id).slice(0, 8)}</Text>
+        {submission.last_replied_at && <Text color={P.inkFaint} fontSize={TYPE.label} fontFamily="mono">Last reply {formatDistanceToNow(new Date(submission.last_replied_at), { addSuffix: true })}</Text>}
       </HStack>
     </VStack>
   );
@@ -447,19 +426,19 @@ const DetailPane = ({ submission, replies, onReply, onArchive, onUnarchive, onMa
 const ReplyCard = ({ reply, index }) => {
   const sentAt = format(new Date(reply.created_at), "MMM d 'at' h:mma");
   return (
-    <Box border="1px solid" borderColor={P.hair} borderRadius="lg" bg={P.sheet} p={4}>
+    <Plate>
       <HStack justify="space-between" mb={2}>
         <HStack spacing={2}>
           <Box w="20px" h="20px" borderRadius="full" bg={`${P.lime}2E`} border="1px solid" borderColor={`${P.lime}55`} display="flex" alignItems="center" justifyContent="center">
-            <Text color={P.limeDeep} fontSize="3xs" fontWeight="800" fontFamily="mono">{index}</Text>
+            <Text color={P.limeDeep} fontSize={TYPE.micro} fontWeight="800" fontFamily="mono">{index}</Text>
           </Box>
-          <Text color={P.ink} fontSize="xs" fontWeight="700">{reply.sender_name || 'Admin'}</Text>
+          <Text color={P.ink} fontSize={TYPE.small} fontWeight="700">{reply.sender_name || 'Admin'}</Text>
         </HStack>
-        <Text color={P.inkFaint} fontSize="2xs" fontFamily="mono">{sentAt}</Text>
+        <Text color={P.inkFaint} fontSize={TYPE.label} fontFamily="mono">{sentAt}</Text>
       </HStack>
-      {reply.subject && <Text color={P.inkMuted} fontSize="xs" fontFamily="mono" mb={2}>{reply.subject}</Text>}
-      <Text color={P.inkSec} fontSize="xs" whiteSpace="pre-wrap" wordBreak="break-word" lineHeight={1.6}>{reply.body}</Text>
-    </Box>
+      {reply.subject && <Text color={P.inkMuted} fontSize={TYPE.small} fontFamily="mono" mb={2}>{reply.subject}</Text>}
+      <Text color={P.inkSec} fontSize={TYPE.small} whiteSpace="pre-wrap" wordBreak="break-word" lineHeight={1.6}>{reply.body}</Text>
+    </Plate>
   );
 };
 
@@ -467,20 +446,25 @@ const ReplyCard = ({ reply, index }) => {
 // ACTION BUTTON
 // ============================================================
 const ActionButton = ({ icon, label, onClick, disabled, primary, destructive }) => (
-  <Tooltip label={disabled ? 'No email address' : null} isDisabled={!disabled} placement="top" hasArrow bg={P.ink} color={P.sheet} fontSize="xs">
-    <HStack as="button" onClick={disabled ? undefined : onClick} spacing={1.5} px={3.5} py={2} border="1px solid" borderColor={destructive ? `${P.coral}55` : (primary ? P.lime : P.hair)} bg={primary ? P.lime : 'transparent'} borderRadius="full" color={destructive ? P.coral : (primary ? P.limeInk : P.inkSec)} fontSize="xs" fontFamily="mono" fontWeight="700" textTransform="uppercase" letterSpacing="0.05em" opacity={disabled ? 0.4 : 1} cursor={disabled ? 'not-allowed' : 'pointer'} transition="all 0.15s" _hover={disabled ? {} : (primary ? { bg: '#D2E26B' } : destructive ? { bg: `${P.coral}14`, borderColor: P.coral } : { color: P.ink, bg: P.sheet, borderColor: P.inkFaint })}>
-      <Icon as={icon} boxSize={3.5} />
-      <Text>{label}</Text>
-    </HStack>
+  <Tooltip label={disabled ? 'No email address' : null} isDisabled={!disabled} placement="top" hasArrow bg={P.ink} color={P.sheet} fontSize={TYPE.small}>
+    <Button
+      size="sm"
+      variant={primary ? 'solid' : 'outline'}
+      leftIcon={<Icon as={icon} boxSize={3.5} />}
+      onClick={disabled ? undefined : onClick}
+      isDisabled={disabled}
+      color={destructive ? P.coral : undefined}
+      _hover={destructive ? { bg: `${P.coral}14`, borderColor: P.coral } : undefined}
+    >
+      {label}
+    </Button>
   </Tooltip>
 );
 
 const EmptyDetail = () => (
-  <Center h="100%" minH="400px" border="1px dashed" borderColor={P.hair} borderRadius="xl" flexDirection="column" gap={3} bg={P.sheet}>
-    <Icon as={TbInbox} boxSize={8} color={P.inkFaint} />
-    <Text color={P.inkMuted} fontSize="sm" fontWeight="600">Select a submission</Text>
-    <Text color={P.inkFaint} fontSize="xs" textAlign="center" maxW="280px">Pick any row on the left to see the full message and reply.</Text>
-  </Center>
+  <Plate>
+    <Empty py={2} hint="Pick any row on the left to see the full message and reply.">Select a submission.</Empty>
+  </Plate>
 );
 
 // ============================================================
@@ -503,10 +487,10 @@ const ReplyModal = ({ isOpen, onClose, submission, replyCount, userId, onSuccess
     setMode('write');
     const typeLabel = FORM_TYPE_LABELS[submission.form_type] || 'your message';
     if (isFollowUp) {
-      setSubject('Following up — Neon Burro');
+      setSubject('Following up, Neon Burro');
       setBody(`Hi ${senderName},\n\nWanted to follow up on our last message. `);
     } else {
-      setSubject(`Re: ${typeLabel} — Neon Burro`);
+      setSubject(`Re: ${typeLabel}, Neon Burro`);
       setBody(`Hi ${senderName},\n\nThanks for reaching out. `);
     }
     if (userId) {
@@ -537,7 +521,7 @@ const ReplyModal = ({ isOpen, onClose, submission, replyCount, userId, onSuccess
       });
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || 'Send failed');
-      toast({ title: isFollowUp ? 'Follow-up sent' : 'Reply sent', description: `Email delivered to ${senderEmail}`, status: 'success', duration: 2500 });
+      toast({ title: isFollowUp ? 'Follow up sent' : 'Reply sent', description: `Email delivered to ${senderEmail}`, status: 'success', duration: 2500 });
       onSuccess({
         id: submission.id, status: 'responded',
         responded_at: submission.responded_at || new Date().toISOString(),
@@ -552,43 +536,36 @@ const ReplyModal = ({ isOpen, onClose, submission, replyCount, userId, onSuccess
     }
   };
 
-  const Tab = ({ value, icon, children }) => (
-    <HStack as="button" onClick={() => setMode(value)} spacing={1.5} pb={2} position="relative" color={mode === value ? P.ink : P.inkMuted} _hover={{ color: P.ink }}>
-      <Icon as={icon} boxSize={3.5} />
-      <Text fontSize="xs" fontWeight="700" textTransform="uppercase" letterSpacing="0.05em">{children}</Text>
-      {mode === value && <Box position="absolute" bottom="-1px" left={0} right={0} h="2px" bg={P.lime} borderRadius="full" />}
-    </HStack>
-  );
-
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="xl" motionPreset="slideInBottom" scrollBehavior="inside" isCentered>
       <ModalOverlay bg="rgba(23,17,12,0.6)" backdropFilter="blur(6px)" />
-      <ModalContent bg={P.sheet} border="1px solid" borderColor={P.hair} borderRadius="18px" color={P.ink} mx={4} overflow="hidden">
+      <ModalContent bg={P.sheet} border="1px solid" borderColor={P.hair} borderRadius={PLATE_RADIUS} color={P.ink} mx={4} overflow="hidden">
         <ModalCloseButton color={P.inkMuted} _hover={{ color: P.ink, bg: P.sunken }} />
         <ModalBody p={0}>
           <Box px={6} pt={6} pb={4}>
             <VStack align="start" spacing={1}>
-              <Text fontFamily="mono" fontSize="2xs" fontWeight="600" letterSpacing="0.2em" textTransform="uppercase" color={P.limeDeep}>{isFollowUp ? `Follow-up #${replyCount + 1}` : 'Reply'}</Text>
-              <Text color={P.ink} fontSize="xl" fontWeight="600" letterSpacing="-0.01em">Sending to {senderName}</Text>
-              <Text color={P.inkMuted} fontSize="sm" fontFamily="mono">{senderEmail}</Text>
+              <Kicker color={P.limeDeep}>{isFollowUp ? `Follow up #${replyCount + 1}` : 'Reply'}</Kicker>
+              <Text color={P.ink} fontSize={TYPE.section} fontWeight="600" letterSpacing="-0.01em">Sending to {senderName}</Text>
+              <Text color={P.inkMuted} fontSize={TYPE.body} fontFamily="mono">{senderEmail}</Text>
             </VStack>
           </Box>
 
-          <HStack spacing={6} px={6} borderBottom="1px solid" borderColor={P.hair}>
-            <Tab value="write" icon={TbEdit}>Write</Tab>
-            <Tab value="preview" icon={TbEye}>Preview</Tab>
-          </HStack>
+          <Box px={6}>
+            <Tabs
+              items={[{ key: 'write', label: 'Write' }, { key: 'preview', label: 'Preview' }]}
+              value={mode}
+              onChange={setMode}
+            />
+          </Box>
 
           {mode === 'write' ? (
             <VStack align="stretch" spacing={4} px={6} py={5}>
-              <VStack align="stretch" spacing={1.5}>
-                <Text fontFamily="mono" fontSize="2xs" fontWeight="600" letterSpacing="0.14em" textTransform="uppercase" color={P.inkMuted}>Subject</Text>
-                <Input value={subject} onChange={(e) => setSubject(e.target.value)} bg={P.mat} border="1px solid" borderColor={P.hair} borderRadius="lg" color={P.ink} fontSize="sm" h="44px" _focus={{ borderColor: P.lime, boxShadow: `0 0 0 3px ${P.lime}33` }} _placeholder={{ color: P.inkFaint }} />
-              </VStack>
-              <VStack align="stretch" spacing={1.5}>
-                <Text fontFamily="mono" fontSize="2xs" fontWeight="600" letterSpacing="0.14em" textTransform="uppercase" color={P.inkMuted}>Message</Text>
-                <Textarea value={body} onChange={(e) => setBody(e.target.value)} bg={P.mat} border="1px solid" borderColor={P.hair} borderRadius="lg" color={P.ink} fontSize="sm" minH="200px" _focus={{ borderColor: P.lime, boxShadow: `0 0 0 3px ${P.lime}33` }} _placeholder={{ color: P.inkFaint }} />
-              </VStack>
+              <Field label="Subject">
+                <Input value={subject} onChange={(e) => setSubject(e.target.value)} bg={P.mat} />
+              </Field>
+              <Field label="Message">
+                <Textarea value={body} onChange={(e) => setBody(e.target.value)} bg={P.mat} minH="200px" />
+              </Field>
             </VStack>
           ) : (
             <Box px={6} py={5}>
@@ -605,10 +582,10 @@ const ReplyModal = ({ isOpen, onClose, submission, replyCount, userId, onSuccess
           )}
 
           <HStack justify="space-between" px={6} py={4} borderTop="1px solid" borderColor={P.hair} bg={P.mat} flexWrap="wrap" rowGap={2}>
-            <Text color={P.inkFaint} fontSize="2xs" fontFamily="mono">Warm paper email · they can reply straight back</Text>
+            <Text color={P.inkFaint} fontSize={TYPE.label} fontFamily="mono">Warm paper email · they can reply straight back</Text>
             <HStack spacing={2}>
-              <Button variant="ghost" color={P.inkMuted} onClick={onClose} size="sm" isDisabled={sending} _hover={{ color: P.ink, bg: P.sunken }}>Cancel</Button>
-              <Button onClick={handleSend} isLoading={sending} loadingText="Sending..." leftIcon={<TbSend />} bg={P.lime} color={P.limeInk} size="sm" fontWeight="700" borderRadius="full" _hover={{ bg: '#D2E26B' }}>{isFollowUp ? 'Send follow-up' : 'Send reply'}</Button>
+              <Button variant="ghost" onClick={onClose} size="sm" isDisabled={sending}>Cancel</Button>
+              <Button onClick={handleSend} isLoading={sending} loadingText="Sending" leftIcon={<TbSend />} size="sm">{isFollowUp ? 'Send follow up' : 'Send reply'}</Button>
             </HStack>
           </HStack>
         </ModalBody>

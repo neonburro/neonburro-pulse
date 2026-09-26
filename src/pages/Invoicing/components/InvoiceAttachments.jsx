@@ -33,12 +33,15 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import {
-  Box, VStack, HStack, Text, Icon, Input, Button, Spinner, useToast,
+  Box, VStack, HStack, Text, Icon, Input, Button, useToast,
 } from '@chakra-ui/react';
 import { TbPaperclip, TbTrash, TbEye, TbUpload } from 'react-icons/tb';
 import { supabase } from '../../../lib/supabase';
 import colors from '../../../theme/colors';
+import { TYPE, PLACEHOLDER } from '../../../theme/layout';
+import { Section, Empty, Loading } from '../../../components/common/Page';
 
+const P = colors.paper;
 const BUCKET = 'invoice-attachments';
 const MAX_BYTES = 10 * 1024 * 1024;
 
@@ -145,54 +148,34 @@ export default function InvoiceAttachments({ invoiceId, readOnly = false }) {
     window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
   };
 
-  const labelStyle = {
-    fontFamily: 'mono',
-    fontSize: '2xs',
-    fontWeight: '700',
-    letterSpacing: '0.1em',
-    textTransform: 'uppercase',
-    color: 'paper.inkMuted',
-  };
-
   return (
-    <Box>
-      <HStack justify="space-between" align="center" mb={3}>
-        <Text {...labelStyle}>
-          Attached {rows.length > 0 && `(${rows.length})`}
-        </Text>
-        {!readOnly && invoiceId && (
-          <Button
-            as="label"
-            size="xs"
-            variant="ghost"
-            cursor="pointer"
-            leftIcon={<Icon as={TbUpload} boxSize={3.5} />}
-            isDisabled={busy}
-            color="paper.inkSec"
-            _hover={{ color: 'paper.ink', bg: 'paper.raised' }}
-          >
-            {busy ? 'Uploading…' : 'Add a file'}
-            <Input
-              type="file"
-              display="none"
-              onChange={onPick}
-              accept=".pdf,.png,.jpg,.jpeg,.webp,.csv"
-            />
-          </Button>
-        )}
-      </HStack>
-
+    <Section
+      kicker={`Attached${rows.length > 0 ? ` (${rows.length})` : ''}`}
+      action={!readOnly && invoiceId ? (
+        <Button
+          as="label"
+          size="xs"
+          variant="outline"
+          cursor="pointer"
+          leftIcon={<Icon as={TbUpload} boxSize={3.5} />}
+          isDisabled={busy}
+        >
+          {busy ? 'Uploading' : 'Add a file'}
+          <Input
+            type="file"
+            display="none"
+            onChange={onPick}
+            accept=".pdf,.png,.jpg,.jpeg,.webp,.csv"
+          />
+        </Button>
+      ) : undefined}
+    >
       {!invoiceId ? (
-        <Text fontSize="sm" color="paper.inkFaint">
-          Save the draft first and you can attach backup documents to it.
-        </Text>
+        <Empty py={2}>Save the draft first and you can attach backup documents to it.</Empty>
       ) : loading ? (
-        <Spinner size="sm" color="paper.inkMuted" />
+        <Loading label="loading attachments" py={2} />
       ) : rows.length === 0 ? (
-        <Text fontSize="sm" color="paper.inkFaint" maxW="60ch">
-          Nothing attached. A supplier invoice here is what turns a line billed at
-          cost into a line the client can check.
-        </Text>
+        <Empty py={2} hint="A supplier invoice here is what turns a line billed at cost into a line the client can check.">Nothing attached.</Empty>
       ) : (
         <VStack align="stretch" spacing={0}>
           {rows.map((row) => (
@@ -201,45 +184,46 @@ export default function InvoiceAttachments({ invoiceId, readOnly = false }) {
               spacing={3}
               py={3}
               borderTop="1px solid"
-              borderColor="paper.hair"
+              borderColor={P.hair}
               align="center"
             >
-              <Icon as={TbPaperclip} boxSize={4} color="paper.inkMuted" flexShrink={0} />
+              <Icon as={TbPaperclip} boxSize={4} color={P.inkMuted} flexShrink={0} />
               <Box flex="1" minW={0}>
                 <Input
                   defaultValue={row.label || ''}
                   onBlur={(e) => setLabel(row, e.target.value.trim())}
                   placeholder="what this is, e.g. camera hardware, billed at cost"
                   variant="unstyled"
-                  fontSize="sm"
+                  h="auto"
+                  fontSize={TYPE.body}
                   fontWeight="600"
-                  color="paper.ink"
+                  color={P.ink}
                   isReadOnly={readOnly}
-                  _placeholder={{ color: 'paper.inkFaint', fontWeight: '400' }}
+                  _placeholder={{ color: PLACEHOLDER, fontWeight: '400' }}
                 />
-                <Text fontFamily="mono" fontSize="2xs" color="paper.inkMuted" mt={0.5} noOfLines={1}>
+                <Text fontFamily="mono" fontSize={TYPE.label} color={P.inkMuted} mt={0.5} noOfLines={1}>
                   {row.filename} · {prettySize(row.size_bytes)}
                 </Text>
               </Box>
               <Icon
                 as={TbEye}
                 boxSize={4}
-                color="paper.inkMuted"
+                color={P.inkMuted}
                 cursor="pointer"
                 flexShrink={0}
                 onClick={() => peek(row)}
-                _hover={{ color: 'paper.ink' }}
+                _hover={{ color: P.ink }}
                 aria-label={`Preview ${row.filename}`}
               />
               {!readOnly && (
                 <Icon
                   as={TbTrash}
                   boxSize={4}
-                  color="paper.inkMuted"
+                  color={P.inkMuted}
                   cursor="pointer"
                   flexShrink={0}
                   onClick={() => remove(row)}
-                  _hover={{ color: colors.accent?.coral || 'red.400' }}
+                  _hover={{ color: P.coral }}
                   aria-label={`Remove ${row.filename}`}
                 />
               )}
@@ -247,6 +231,6 @@ export default function InvoiceAttachments({ invoiceId, readOnly = false }) {
           ))}
         </VStack>
       )}
-    </Box>
+    </Section>
   );
 }
