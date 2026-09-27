@@ -28,6 +28,13 @@
 // moving it above the line would push Orders off a phone's primary bar and
 // money already taken outranks money not yet sent.
 //
+// REPORTS SITS LAST, UNDER ANALYTICS, 2026-09-27. It is the same kind of
+// thing, what the work produced read back, and it is the one page nobody
+// needs to open on a given morning because the schedule does the work. It
+// stays below the mobile line on purpose. Putting it any higher would push
+// Orders off a phone's primary bar, and a report that goes out on its own is
+// worth less attention per day than money already taken.
+//
 // HOW TO ADD A PAGE
 // Add it to NAV once. It appears in the sidebar automatically. If it belongs on
 // a phone's primary bar, move it above the MOBILE_PRIMARY_COUNT line. Everything
@@ -38,7 +45,7 @@
 import {
   TbSunrise, TbUsers, TbFileInvoice, TbInbox,
   TbPencil, TbHorse, TbCoins, TbWallet, TbMessageCircle, TbCalendar, TbChartBar, TbSettings,
-  TbBroadcast, TbCoin, TbMap2, TbArrowsSplit2,
+  TbBroadcast, TbCoin, TbMap2, TbArrowsSplit2, TbReportAnalytics,
 } from 'react-icons/tb';
 
 export const NAV = [
@@ -57,6 +64,7 @@ export const NAV = [
   { path: '/messages/',  label: 'Messages',   icon: TbMessageCircle, desc: 'Threads with clients' },
   { path: '/calendar/',  label: 'Calendar',   icon: TbCalendar,      desc: 'Scheduling and sprints' },
   { path: '/analytics/', label: 'Analytics',  icon: TbChartBar,      desc: 'Traffic and trends' },
+  { path: '/reports/',   label: 'Reports',    icon: TbReportAnalytics, desc: 'What each client gets on the 1st' },
 ];
 
 export const SETTINGS_ITEM = {

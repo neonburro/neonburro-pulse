@@ -56,6 +56,7 @@ const Messages      = lazy(() => import('./pages/Messages'));
 const Calendar      = lazy(() => import('./pages/Calendar'));
 const Socials       = lazy(() => import('./pages/Releases'));
 const Analytics     = lazy(() => import('./pages/Analytics'));
+const Reports       = lazy(() => import('./pages/Reports'));
 const Settings      = lazy(() => import('./pages/Settings'));
 
 const Quiet = () => <Box minH="100vh" bg={colors.paper.mat} />;
@@ -106,6 +107,7 @@ function App() {
               <Route path="socials/" element={<Socials />} />
               <Route path="releases/" element={<Navigate to="/socials/" replace />} />
               <Route path="analytics/" element={<Analytics />} />
+              <Route path="reports/" element={<Reports />} />
               <Route path="settings/" element={<Settings />} />
               {/* Projects redirect to clients, the source of truth now. */}
               <Route path="projects/" element={<Navigate to="/clients/" replace />} />

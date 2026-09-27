@@ -69,6 +69,26 @@
 [functions."release-meta"]
   schedule = "*/5 * * * *"
 
+# client-report-monthly  the 1st at 14:00 UTC, 8am in Ridgway in summer and
+#                        7am in winter. Builds the month that just closed for
+#                        every client where clients.report_approved is true
+#                        and mails it to that client in their own colours,
+#                        with a notice to the studio inbox per send.
+#                        It fails closed three ways. The column defaults to
+#                        false so a client is skipped until a hand approves
+#                        them on /reports/, a client with no address is
+#                        skipped, and a month with nothing to report is
+#                        skipped rather than mailed. Until
+#                        supabase/migrations/20260927150000_client_reports.sql
+#                        is applied the approved select errors and the run
+#                        sends nothing and logs why, which is the honest
+#                        state of an unapplied migration.
+#                        The schedule is also in an inline export const config
+#                        in the function, see the note above, and the two must
+#                        agree.
+[functions."client-report-monthly"]
+  schedule = "0 14 1 * *"
+
 # The studio library, proxied. neonburro.com sends no CORS header on
 # /library/index.json so the Socials picture picker cannot fetch it across
 # origins. This rewrite serves it from the Pulse origin, status 200 is a

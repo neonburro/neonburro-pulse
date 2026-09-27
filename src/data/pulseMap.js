@@ -101,6 +101,12 @@ export const PULSE_MAP = [
     can: 'read',
   },
   {
+    path: '/reports/',
+    name: 'Reports',
+    holds: 'the monthly client report. every client on the books with two pips each, approved or waiting and their own palette or the house one, and beside the list the rendered report for whichever client is picked, exactly the bytes that client would receive',
+    can: 'read any client\'s report for any of the last twelve closed months, approve a client once so the schedule carries them from the 1st on, and send one now which takes two presses and prints the addresses before it goes. the studio inbox hears about every send',
+  },
+  {
     path: '/settings/',
     name: 'Settings',
     holds: 'the profile, the avatar, the password and for admins the team',
