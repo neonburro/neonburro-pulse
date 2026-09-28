@@ -10,7 +10,7 @@
 //   4. Backfill last 20 deploys into netlify_deploys
 //   5. Log activity_log entry
 
-const { createClient } = require('@supabase/supabase-js');
+import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -40,7 +40,7 @@ const netlifyFetch = async (path, opts = {}) => {
   return res.json();
 };
 
-exports.handler = async (event) => {
+export const handler = async (event) => {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: JSON.stringify({ error: 'Method not allowed' }) };
   }

@@ -14,7 +14,7 @@
 // Does NOT log to activity_log - we don't want hundreds of fake notifications
 // for old deploys. Webhook handles activity_log for live deploys going forward.
 
-const { createClient } = require('@supabase/supabase-js');
+import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -99,7 +99,7 @@ const fetchAllDeploysForSite = async (siteId, cutoffMs) => {
   return all;
 };
 
-exports.handler = async (event) => {
+export const handler = async (event) => {
   const startedAt = Date.now();
   const params = event.queryStringParameters || {};
   const daysBack = parseInt(params.days || '90', 10);

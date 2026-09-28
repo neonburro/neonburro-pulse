@@ -7,7 +7,7 @@
 //   - Admins can revoke sessions they started
 //   - Owners can revoke any session (enforced inside the RPC)
 
-const { createClient } = require('@supabase/supabase-js');
+import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -23,7 +23,7 @@ const CORS_HEADERS = {
   'Content-Type': 'application/json',
 };
 
-exports.handler = async (event) => {
+export const handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 204, headers: CORS_HEADERS, body: '' };
   }

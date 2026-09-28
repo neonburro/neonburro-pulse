@@ -5,14 +5,14 @@
 // Wired in netlify.toml as a scheduled function (cron: "0 6 * * *" = 6am UTC daily).
 // Logs flipped count + IDs to activity_log so the team has a paper trail.
 
-const { createClient } = require('@supabase/supabase-js');
+import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL     = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE);
 
-exports.handler = async () => {
+export const handler = async () => {
   try {
     const startedAt = new Date().toISOString();
 

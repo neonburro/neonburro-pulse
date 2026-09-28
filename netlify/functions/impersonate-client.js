@@ -16,8 +16,8 @@
 // The raw token exists only in this response and the admin's browser tab.
 // The DB only ever sees the hash.
 
-const { createClient } = require('@supabase/supabase-js');
-const crypto = require('crypto');
+import { createClient } from '@supabase/supabase-js';
+import crypto from 'crypto';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -52,7 +52,7 @@ const log = (level, step, data = {}) => {
   }));
 };
 
-exports.handler = async (event) => {
+export const handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 204, headers: CORS_HEADERS, body: '' };
   }

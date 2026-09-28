@@ -12,8 +12,8 @@
 //
 // Either way, we resolve to a client_id and return only THAT client's data.
 
-const { createClient } = require('@supabase/supabase-js');
-const crypto = require('crypto');
+import { createClient } from '@supabase/supabase-js';
+import crypto from 'crypto';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -71,7 +71,7 @@ const resolveClientId = async (event) => {
   return { error: 'No authentication provided', status: 401 };
 };
 
-exports.handler = async (event) => {
+export const handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 204, headers: CORS_HEADERS, body: '' };
   }
