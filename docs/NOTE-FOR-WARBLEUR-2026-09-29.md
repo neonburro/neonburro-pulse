@@ -130,6 +130,19 @@ report pulled off coloradogirlcoffee.com earlier today and he agreed with the re
 then. The data should stay on Pulse. The edge function is the smaller change and the
 better boundary.
 
+## Cimarron has the same problem, it just has not bitten yet
+
+Tyler asked us to copy how cimarron-pulse does this because Jonathan gets a lot of
+shared links from there. I looked. **It does not solve it.** `index.html` there carries
+one hardcoded `og:image`, `pulse-cimarron-eng-index-sms.png`, there are no edge functions
+and no prerender in its netlify.toml. Every plan room card Jonathan has ever been sent
+previewed as the same generic Cimarron image. Nobody noticed because nobody was looking
+at the preview.
+
+So there is no working pattern to copy anywhere in the estate. The edge function on this
+branch is the first real fix, and when it is proven here it should go to cimarron-pulse
+for the plan room links too.
+
 ## How the link is meant to arrive
 
 Tyler wants these going out by text, and SMS changes the security shape. A texted link is
