@@ -6,8 +6,23 @@
 // holds what they share, the database, the claim and write pattern copied
 // from the Telegram hand on the studio site (neonburro/netlify/functions/
 // release-social.js), the session gate for the manual door and the Meta env
-// reader. The underscore keeps Netlify from deploying it as a function, the
-// same convention as _letterhead.js beside it.
+// reader.
+//
+// ── THE UNDERSCORE DOES NOT HIDE THIS FILE ──────────────────────────────────
+// This header said until 2026-09-28 that the underscore keeps Netlify from
+// deploying it as a function. It does not. Netlify packages every js file in
+// this directory, leading underscore or not, and the proof is the artifact
+// rather than the config. A production build lists _client-report.zip,
+// _desk.zip, _letterhead.zip and _social.zip in .netlify/functions beside the
+// real ones, and all four answer 502 Runtime.HandlerNotFound on the live site
+// because they export no handler. Four wasted slots, no secret in the reply
+// and no route anybody calls, so it is untidy rather than dangerous.
+//
+// The real fix is to move the shared modules out of the functions directory,
+// which touches every importer, so it is a deliberate job and not a drive by.
+// Until somebody does it, do not add a file here expecting the underscore to
+// hide it, and do not give a shared module a handler export, because that is
+// what would turn four dead slots into four open doors.
 //
 // ── WHY THE META HAND LIVES ON PULSE ────────────────────────────────────────
 // A token lives in exactly one place. The Telegram bot tokens were set on the
