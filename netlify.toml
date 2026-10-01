@@ -99,6 +99,21 @@
   to = "https://neonburro.com/library/:splat"
   status = 200
 
+# ── link previews for shared reports ───────────────────────────────────
+# report-og.js runs on /r/* BEFORE the SPA catch all below, takes the
+# index.html that catch all would have served and rewrites the og tags for
+# that one report. It exists because index.html carries a single hardcoded
+# og block and this catch all serves it for every url on the domain, so
+# every shared link previewed as the portal's boardroom card no matter what
+# it pointed at. A crawler does not run our javascript, so React cannot fix
+# this after mount, it has to happen in the response.
+#
+# It falls through to the untouched page on any error. A broken preview is
+# a bad day, a broken page is a worse one.
+[[edge_functions]]
+  function = "report-og"
+  path = "/r/*"
+
 # SPA rewrite - all routes serve index.html
 [[redirects]]
   from = "/*"

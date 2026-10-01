@@ -1,0 +1,338 @@
+<title>Building Reports</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+  /* neonburro's own tokens, src/theme/colors.js. This is a studio document so it
+     wears the studio's clothes, which is the inverse of a client report. Geist
+     leads the stack because the brand is self hosted on it, Instrument Sans is
+     the loaded stand in for everywhere else. Single theme on purpose. */
+  :root {
+    --base:#0B0B0C; --raised:#141416; --sunken:#070708;
+    --ink:#F4F3F1; --ink-2:#A8A7A4; --muted:#6E6E6B;
+    --ember:#C5D957; --ember-hi:#D2E26B; --ember-dim:#A6B84A;
+    --dusk:#5B4E7D; --chokecherry:#B5462F; --copper:#C8893B; --moss:#5E8C61;
+    --line:#22222A; --line-2:#2E2E38;
+    --sans:'Geist Sans','Instrument Sans',-apple-system,BlinkMacSystemFont,sans-serif;
+    --mono:'Geist Mono','IBM Plex Mono',ui-monospace,monospace;
+  }
+  * { box-sizing: border-box; }
+  body { background: var(--base); color: var(--ink); font-family: var(--sans);
+    font-size: 16px; line-height: 1.65; -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 0 22px 90px; }
+
+  .kicker { font-family: var(--mono); font-size: 10.5px; font-weight: 500;
+    letter-spacing: .2em; text-transform: uppercase; color: var(--ember); }
+
+  header { padding: 52px 0 34px; border-bottom: 1px solid var(--line); }
+  .wordmark { font-size: 15px; font-weight: 600; letter-spacing: -.02em; color: var(--ink);
+    text-decoration: none; }
+  .wordmark span { color: var(--ember); }
+  h1 { font-size: clamp(2.1rem,5.4vw,3.2rem); font-weight: 600; letter-spacing: -.035em;
+    line-height: 1.05; margin: 26px 0 0; text-wrap: balance; }
+  .lede { font-size: clamp(1rem,2.2vw,1.15rem); color: var(--ink-2); max-width: 62ch; margin: 16px 0 0; }
+  .stamp { font-family: var(--mono); font-size: 11.5px; color: var(--muted); margin-top: 18px; }
+
+  section { margin-top: 56px; }
+  h2 { font-size: clamp(1.3rem,2.8vw,1.6rem); font-weight: 600; letter-spacing: -.02em;
+    margin: 10px 0 0; line-height: 1.2; }
+  section > p, li > p { color: var(--ink-2); max-width: 64ch; }
+  section > p { margin: 13px 0 0; }
+  strong { color: var(--ink); font-weight: 600; }
+
+  /* the law, three of them, numbered because they are a sequence of refusals */
+  .laws { display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line);
+    border-radius: 10px; overflow: hidden; margin-top: 22px; }
+  .law { background: var(--raised); padding: 20px 22px; display: grid;
+    grid-template-columns: 30px 1fr; gap: 16px; align-items: start; }
+  .law-n { font-family: var(--mono); font-size: 12px; color: var(--ember); padding-top: 4px; }
+  .law-t { font-size: 16.5px; font-weight: 600; }
+  .law-b { color: var(--ink-2); font-size: 15px; margin-top: 6px; max-width: 62ch; }
+
+  .rule-card { background: var(--raised); border: 1px solid var(--line);
+    border-left: 3px solid var(--ember); border-radius: 0 10px 10px 0; padding: 20px 22px; margin-top: 22px; }
+  .rule-card p { margin: 0; color: var(--ink-2); max-width: 64ch; }
+  .rule-card p + p { margin-top: 11px; }
+
+  .warn { border-left-color: var(--copper); }
+  .warn .kicker { color: var(--copper); }
+
+  ol.steps { counter-reset: s; list-style: none; padding: 0; margin: 22px 0 0;
+    display: grid; gap: 2px; }
+  ol.steps li { counter-increment: s; background: var(--raised); padding: 15px 20px 15px 56px;
+    position: relative; border-radius: 4px; }
+  ol.steps li::before { content: counter(s,decimal-leading-zero);
+    position: absolute; left: 20px; top: 16px; font-family: var(--mono); font-size: 11.5px;
+    color: var(--ember-dim); }
+  ol.steps .t { font-weight: 600; font-size: 15.5px; }
+  ol.steps .b { color: var(--ink-2); font-size: 14.5px; margin-top: 3px; max-width: 60ch; }
+
+  pre { background: var(--sunken); border: 1px solid var(--line); border-radius: 8px;
+    padding: 17px 19px; overflow-x: auto; margin: 18px 0 0; }
+  code { font-family: var(--mono); font-size: 13px; color: var(--ember-hi); }
+  pre code { color: var(--ink-2); line-height: 1.7; }
+  pre code b { color: var(--ember); font-weight: 400; }
+  p code, li code, td code { background: var(--raised); padding: 2px 6px; border-radius: 4px;
+    font-size: 12.5px; color: var(--ember-hi); }
+
+  .tablewrap { overflow-x: auto; margin-top: 20px; border: 1px solid var(--line); border-radius: 10px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14.5px; min-width: 460px; }
+  th { font-family: var(--mono); font-size: 10.5px; font-weight: 500; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--muted); text-align: left;
+    padding: 13px 18px; background: var(--sunken); border-bottom: 1px solid var(--line); }
+  td { padding: 13px 18px; border-bottom: 1px solid var(--line); color: var(--ink-2);
+    vertical-align: top; }
+  tr:last-child td { border-bottom: 0; }
+  td:first-child { color: var(--ink); font-weight: 500; white-space: nowrap; }
+  .sw { display: inline-block; width: 13px; height: 13px; border-radius: 3px;
+    border: 1px solid var(--line-2); vertical-align: -2px; margin-right: 8px; }
+
+  ul.checks { list-style: none; padding: 0; margin: 22px 0 0; display: grid; gap: 2px; }
+  ul.checks li { background: var(--raised); padding: 14px 18px 14px 48px; position: relative;
+    border-radius: 4px; color: var(--ink-2); font-size: 15px; }
+  ul.checks li::before { content: ""; position: absolute; left: 18px; top: 17px;
+    width: 14px; height: 14px; border: 1.5px solid var(--ember-dim); border-radius: 3px; }
+  ul.checks li.hard { color: var(--ink); font-weight: 600; }
+  ul.checks li.hard::before { border-color: var(--ember); background: rgba(197,217,87,.14); }
+
+  .todo { display: grid; gap: 2px; margin-top: 20px; }
+  .todo div { background: var(--raised); padding: 13px 18px; border-radius: 4px;
+    color: var(--ink-2); font-size: 14.5px; border-left: 2px solid var(--dusk); }
+
+  footer { margin-top: 64px; padding-top: 24px; border-top: 1px solid var(--line);
+    display: flex; flex-wrap: wrap; gap: 14px; justify-content: space-between;
+    align-items: baseline; font-family: var(--mono); font-size: 11.5px; color: var(--muted); }
+  footer a { color: var(--ink-2); text-decoration: none; }
+  footer a:hover { color: var(--ember); }
+  a:focus-visible { outline: 2px solid var(--ember); outline-offset: 3px; border-radius: 2px; }
+
+  @media (min-width: 1000px) { body { font-size: 17px; } .wrap { max-width: 980px; } }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+
+  <header>
+    <a class="wordmark" href="https://neonburro.com/" target="_blank" rel="noopener noreferrer">neonburro<span>.</span></a>
+    <div class="kicker" style="margin-top:22px">Studio handbook</div>
+    <h1>How we build a client report.</h1>
+    <p class="lede">Written after the first one, for Colorado Girl Coffee. The shape works for
+      anything we send a client on a schedule, monthly numbers, a quarterly review, a project
+      close out. What changes per client is everything except the footer and the discipline.</p>
+    <p class="stamp">29 September 2026 &middot; Aster</p>
+  </header>
+
+  <section>
+    <div class="kicker">The one fixed thing</div>
+    <h2>Client on top, studio at the bottom.</h2>
+    <p>The footer is always Neon Burro. Everything above it is always the client's. The shape
+      carries it as well as the colour, the client's letterhead is full bleed and square across
+      the top of the sheet with the corners rounded below, and the studio footer mirrors it,
+      rounded above and square at the foot.</p>
+    <p>Nothing else is fixed. Palette, photography, which figures lead, how many recommendations,
+      all of that is per client and should look like them and not like us.</p>
+  </section>
+
+  <section>
+    <div class="kicker">The discipline</div>
+    <h2>Three refusals, and they matter more than the design.</h2>
+    <p>A report that looks beautiful and says something untrue costs the client's trust, and it is
+      their staff who see it, not ours. These are worth more than any layout decision in here.</p>
+    <div class="laws">
+      <div class="law">
+        <div class="law-n">01</div>
+        <div>
+          <div class="law-t">A figure we cannot derive gets left out, never estimated</div>
+          <div class="law-b">Not zeroed, not dashed, not filled with something plausible. The
+            section does not render and the report says in words why. Colorado Girl's September
+            report carries a block headed <em>two numbers are missing on purpose</em>, and it reads
+            better than a guess would have.</div>
+        </div>
+      </div>
+      <div class="law">
+        <div class="law-n">02</div>
+        <div>
+          <div class="law-t">Never type a timestamp</div>
+          <div class="law-b">It was hand written four times while the first report was built and it
+            was wrong every time, because whoever types it is guessing. Tyler caught it. Render it
+            from an ISO value filled by the row, so the document and the database cannot disagree.</div>
+        </div>
+      </div>
+      <div class="law">
+        <div class="law-n">03</div>
+        <div>
+          <div class="law-t">The narrative is written by rule, never by a model</div>
+          <div class="law-b">Each sentence restates a figure printed beside it, so a reader can
+            check it against the number. Already the law in
+            <code>netlify/functions/_client-report.js</code> and it applies to anything hand
+            written too.</div>
+        </div>
+      </div>
+    </div>
+    <pre><code>&lt;div class="meta-stamp" id="updated" <b>data-iso</b>="2026-09-29T17:02:09Z"&gt;&lt;/div&gt;</code></pre>
+  </section>
+
+  <section>
+    <div class="kicker">Anatomy</div>
+    <h2>What goes in, and in what order.</h2>
+    <p>Numbers first. A client opens this to find out how the month went, not to read about us.
+      Everything we want from them comes after we have told them something they wanted to know.</p>
+    <ol class="steps">
+      <li><span class="t">Cover</span><span class="b">Client mark, the period, a title. Nothing else inside the colour band.</span></li>
+      <li><span class="t">Prepared by and prepared for</span><span class="b">Below the band, on the client's paper, where it is readable.</span></li>
+      <li><span class="t">The money</span><span class="b">Revenue and labour lead. Anything genuinely unknown is a question mark with a sentence saying why.</span></li>
+      <li><span class="t">What sold</span><span class="b">Top three each side. This is where data problems surface, and a real one argues better than we can.</span></li>
+      <li><span class="t">The score</span><span class="b">Five measured parts, no judgement. See below.</span></li>
+      <li><span class="t">What shipped</span><span class="b">Broad strokes with the reason attached. Never a change log, nobody outside the work cares about seven photographs.</span></li>
+      <li><span class="t">Included either way</span><span class="b">The groundwork that needs no approving, so the cheapest tier never feels thin.</span></li>
+      <li><span class="t">Recommendations, in phases</span><span class="b">Each with a Why line and three answers. Yes, not this month, let us talk.</span></li>
+      <li><span class="t">The amount</span><span class="b">Framed as a question, never as a price menu. Be generous, either answer is fine.</span></li>
+      <li><span class="t">What are you thinking about</span><span class="b">Open, theirs, with a microphone. Tell them not to type.</span></li>
+      <li><span class="t">Submit</span><span class="b">One button, no name field, recipients pre ticked. We know who we sent it to.</span></li>
+    </ol>
+  </section>
+
+  <section>
+    <div class="kicker">The figures</div>
+    <h2>Every number traced to a query.</h2>
+    <p>For a Square client the money section is three calls. Run them against that client's own
+      token and location, never a shared one.</p>
+    <pre><code><b>// completed orders in the period</b>
+client.orders.search({ locationIds: [LOC], query: { filter: {
+  dateTimeFilter: { closedAt: { startAt: BEGIN, endAt: END } },
+  stateFilter: { states: ['COMPLETED'] } } } })
+
+<b>// wages, off the timecards</b>
+client.labor.shifts.search({ query: { filter: {
+  start: { startAt: BEGIN, endAt: END } } } })
+
+<b>// the menu, and how much of it has a photograph</b>
+client.catalog.list({ types: 'ITEM' })</code></pre>
+    <div class="rule-card warn">
+      <div class="kicker">Two things learned the hard way</div>
+      <p><strong>The SDK is v43 and it dropped <code>Client</code> and <code>Environment</code>.</strong>
+        It is <code>SquareClient</code> and <code>SquareEnvironment</code> now, and the namespaces
+        moved too, <code>client.orders.search</code> rather than
+        <code>client.ordersApi.searchOrders</code>. Colorado Girl's own netlify functions still
+        import the old names and will throw when they next run.</p>
+      <p><strong>Wages off timecards are not payroll.</strong> No taxes, no employer burden, nobody
+        salaried. Label it wages and say so in the report, or the client reads it as their full
+        cost of staff and makes a decision on a number that is too small.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="kicker">The score</div>
+    <h2>Five measured parts, averaged in the open.</h2>
+    <p>Colorado Girl's came to <strong>73</strong>, not the low eighties that was asked for. The
+      honest number was the better pitch, because seventy three today and ninety in October with
+      one job in between is a story, and eighty two is a shrug. If a part cannot be measured for a
+      client, drop it and average the rest. Never invent a component to fill the shape.</p>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Part</th><th>Measured from</th></tr></thead>
+        <tbody>
+          <tr><td>Reputation</td><td>Google rating and review count</td></tr>
+          <tr><td>Site health</td><td>PageSpeed, and what shipped this period</td></tr>
+          <tr><td>Findability</td><td>Titles, descriptions and schema coverage</td></tr>
+          <tr><td>Measurement</td><td>Whether traffic can be read at all</td></tr>
+          <tr><td>Menu depth</td><td>Items carrying a photo and a description, as a percentage</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="kicker">The share card</div>
+    <h2>1200 by 630, client's ground, studio's mark.</h2>
+    <p>Built the way <code>coloradogirlcoffee/scripts/og-cards.mjs</code> builds its own. Set the
+      studio wordmark as one typeset piece and trim it, so the lime period lands where the type
+      puts it rather than where a guessed offset puts it.</p>
+    <pre><code>magick -background none -fill '#F4F3F1' -font dm-sans-500.ttf -pointsize 25 \
+  label:'neonburro' -trim +repage wm-a.png
+magick -background none -fill '<b>#C5D957</b>' -font dm-sans-500.ttf -pointsize 25 \
+  label:'.' -trim +repage wm-b.png
+magick wm-a.png wm-b.png -background none <b>+append</b> wm.png</code></pre>
+    <div class="rule-card">
+      <p><strong>A card cannot contain a link.</strong> A link preview is one image and one
+        destination. The studio mark sits on the card as a mark, and the card itself links to the
+        report. ImageMagick is not on Netlify, so cards are rendered by hand and committed, the
+        same arrangement <code>og-cards.mjs</code> already documents.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="kicker">The footer palette</div>
+    <h2>Never eyeball these.</h2>
+    <p>Straight from <code>neonburro/src/theme/colors.js</code>. The ground token is literally
+      named for this job.</p>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Token</th><th>Value</th><th>Use</th></tr></thead>
+        <tbody>
+          <tr><td>sunken</td><td><span class="sw" style="background:#070708"></span><code>#070708</code></td><td>The footer ground. Their theme names it for footers.</td></tr>
+          <tr><td>raised</td><td><span class="sw" style="background:#141416"></span><code>#141416</code></td><td>Opt in box, tooltips</td></tr>
+          <tr><td>ink</td><td><span class="sw" style="background:#F4F3F1"></span><code>#F4F3F1</code></td><td>The name. Warm white, never pure white.</td></tr>
+          <tr><td>secondary</td><td><span class="sw" style="background:#A8A7A4"></span><code>#A8A7A4</code></td><td>Role, contact marks</td></tr>
+          <tr><td>muted</td><td><span class="sw" style="background:#6E6E6B"></span><code>#6E6E6B</code></td><td>Tagline</td></tr>
+          <tr><td>ember</td><td><span class="sw" style="background:#C5D957"></span><code>#C5D957</code></td><td>The period, hovers. One accent only.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Tyler's avatar leads and the burros on the account follow, one row, one size, slightly
+      tucked. Contact marks carry their own tooltips. The role line reads Product and Systems
+      Developer.</p>
+  </section>
+
+  <section>
+    <div class="kicker">The owner's link</div>
+    <h2>No account, no password, one token.</h2>
+    <p><code>/report/:token/</code> sits above the <code>ProtectedRoute</code> block in
+      <code>src/App.jsx</code>, beside login and accept invite, which is already proof that Pulse
+      serves pages to people with no session. <code>netlify/functions/report-public.js</code> is
+      the door. Read its header before changing it.</p>
+    <div class="rule-card warn">
+      <div class="kicker">Four refusals in that door</div>
+      <p>It takes <strong>no client id, no report id and no period</strong>. The token is the only
+        way in. A door that accepts a row id is a way to read every client's revenue by guessing
+        numbers.</p>
+      <p><strong>The timestamp is the server's clock</strong>, never the request body. A time we
+        rely on to say what work was authorised must not be settable by the person it binds.</p>
+      <p><strong>First submit wins.</strong> A second is refused, because the point of keeping the
+        signed copy is that it cannot change afterwards.</p>
+      <p><strong>Every failure answers identically.</strong> A door that says expired has told an
+        unknown caller they guessed a real one.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="kicker">Before it goes</div>
+    <h2>The check.</h2>
+    <ul class="checks">
+      <li>Every figure traced to a query, none typed</li>
+      <li>Anything underivable left out, with a sentence saying why</li>
+      <li>Timestamp rendering from an ISO value, not written by hand</li>
+      <li>Footer untouched, client brand everywhere above it</li>
+      <li>Share card rendered and committed</li>
+      <li class="hard">Link to Tyler first. Every finished report, before it reaches an owner. No exceptions, including routine months.</li>
+    </ul>
+  </section>
+
+  <section>
+    <div class="kicker">Not built yet</div>
+    <h2>What is still open.</h2>
+    <div class="todo">
+      <div>The studio notification to hello@neonburro.com on submit, filling <code>notified_at</code></div>
+      <div>The owner's own confirmation email</div>
+      <div>The client portal and its read policy, deliberately its own migration</div>
+      <div>Blurred sample reports, to show a new client what an included monthly report looks like. A <code>.redact</code> class with a css blur over the money tiles covers the html</div>
+      <div>Two migrations written and unapplied, <code>20260927150000_client_reports.sql</code> then <code>20260929170000_client_report_submittals.sql</code>. First one first</div>
+    </div>
+  </section>
+
+  <footer>
+    <a href="https://neonburro.com/" target="_blank" rel="noopener noreferrer">neonburro.com</a>
+    <span>Studio handbook &middot; reports</span>
+  </footer>
+</div>
