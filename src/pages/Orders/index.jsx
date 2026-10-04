@@ -38,9 +38,9 @@
 //   ready     delivered. Done.
 //   failed    an automated kind broke. A person has to look.
 //
-// Marking an order ready is the only write this page makes, and it is a status
-// change, never a send. Nothing on this page emails anybody, which is the same
-// rule the whole of Pulse follows.
+// A legacy non-signature order may still be marked ready here. A Custom Brand
+// Kit may not. Its review desk is read-only until a staff-authenticated server
+// endpoint can persist the artifact, checklist and provider delivery receipt.
 //
 // V2, 2026-09-25. The house column, head, search, tabs and empty lines. No
 // oxford commas, no em dashes.
@@ -55,6 +55,8 @@ import {
 } from 'react-icons/tb';
 import { formatDistanceToNow, format } from 'date-fns';
 import { supabase } from '../../lib/supabase';
+import { isBrandKitOrder } from '../../lib/brandKitReview';
+import BrandKitReviewDesk from './BrandKitReviewDesk';
 import colors from '../../theme/colors';
 import { TYPE, INSET, EASE, FAST, PLATE_PAD } from '../../theme/layout';
 import { Page, PageHead, SearchBox, Tabs, Plate, Empty, Loading, Kicker } from '../../components/common/Page';
@@ -63,11 +65,11 @@ const P = colors.paper;
 
 // Mirror of KINDS in neonburro/netlify/functions/_reads.js. Change both.
 const KINDS = {
-  signatures: { label: 'Email signatures', manual: true, hint: 'Five directions, a page they copy from. Deliver at /signatures/{slug}/.' },
-  sounding: { label: 'The Sounding', manual: false, hint: 'Runs itself. If it is sitting on paid, the run did not fire.' },
-  replies: { label: 'The Reply Desk', manual: false, hint: 'Runs itself. If it is sitting on paid, the run did not fire.' },
+  signatures: { key: 'signatures', label: 'Custom Brand Kit', manual: true, hint: 'One reviewed working page with five signature directions. Delivery stays held until the receipt endpoint exists.' },
+  sounding: { key: 'sounding', label: 'The Sounding', manual: false, hint: 'Runs itself. If it is sitting on paid, the run did not fire.' },
+  replies: { key: 'replies', label: 'The Reply Desk', manual: false, hint: 'Runs itself. If it is sitting on paid, the run did not fire.' },
 };
-const kindOf = (row) => KINDS[row?.inputs?.service || row?.kind] || { label: row?.kind || 'unknown', manual: true, hint: '' };
+const kindOf = (row) => KINDS[row?.inputs?.service || row?.kind] || { key: row?.kind || 'unknown', label: row?.kind || 'unknown', manual: true, hint: '' };
 
 const STATUS = {
   paid: { label: 'needs you', color: P.gold, icon: TbClock },
@@ -134,6 +136,7 @@ const Field = ({ label, children }) => (
 const Detail = ({ row, onMarkReady, working }) => {
   const kind = kindOf(row);
   const s = statusOf(row);
+  const isBrandKit = isBrandKitOrder(row);
   return (
     <Box p={PLATE_PAD}>
       <HStack justify="space-between" align="start" spacing={4} flexWrap="wrap" rowGap={3}>
@@ -158,6 +161,8 @@ const Detail = ({ row, onMarkReady, working }) => {
           <Text fontSize={TYPE.small} color={P.inkSec} lineHeight="1.6">{kind.hint}</Text>
         </Box>
       )}
+
+      {isBrandKit && <BrandKitReviewDesk row={row} />}
 
       <Box mt={5}>
         <Field label="who">
@@ -191,7 +196,7 @@ const Detail = ({ row, onMarkReady, working }) => {
         </Field>
       </Box>
 
-      {row.status === 'paid' && (
+      {row.status === 'paid' && !isBrandKit && (
         <HStack mt={6} spacing={3} flexWrap="wrap" rowGap={3}>
           <Button size="md" onClick={() => onMarkReady(row)} isDisabled={working} isLoading={working} loadingText="Marking">
             Mark delivered
@@ -251,6 +256,15 @@ const Orders = () => {
   }), [rows]);
 
   const markReady = async (row) => {
+    if (isBrandKitOrder(row)) {
+      toast({
+        title: 'Delivery held',
+        description: 'A Custom Brand Kit needs the reviewed server receipt path. No order was changed.',
+        status: 'warning',
+        duration: 5000,
+      });
+      return;
+    }
     setWorking(true);
     const { error } = await supabase
       .from('reads')

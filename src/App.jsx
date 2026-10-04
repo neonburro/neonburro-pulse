@@ -58,6 +58,11 @@ const Socials       = lazy(() => import('./pages/Releases'));
 const Analytics     = lazy(() => import('./pages/Analytics'));
 const Reports       = lazy(() => import('./pages/Reports'));
 const Settings      = lazy(() => import('./pages/Settings'));
+// This route is stripped from production. It lets Warbleur inspect the exact
+// read-only Brand Kit desk without fabricating a paid row or signing in.
+const BrandKitReviewFixture = import.meta.env.DEV
+  ? lazy(() => import('./pages/Orders/BrandKitReviewFixture'))
+  : null;
 
 const Quiet = () => <Box minH="100vh" bg={colors.paper.mat} />;
 
@@ -80,6 +85,9 @@ function App() {
           <Route path="/accept-invite/" element={<AcceptInvite />} />
           <Route path="/pin-approval/" element={<PinApproval />} />
           <Route path="/pin-approval" element={<PinApproval />} />
+          {BrandKitReviewFixture && (
+            <Route path="/__review/custom-brand-kit/" element={<BrandKitReviewFixture />} />
+          )}
 
           {/* Protected admin routes */}
           <Route element={<ProtectedRoute />}>
