@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "check:brand-kit-review": "node scripts/check-brand-kit-review.mjs"
+    "check:brand-kit-review": "node scripts/check-brand-kit-review.mjs",
+    "check:brand-kit-delivery": "node scripts/check-brand-kit-delivery-gate.mjs"
   },
   "dependencies": {
     "@chakra-ui/react": "2.8.2",

@@ -16,6 +16,26 @@ when the order changes.
 That is rehearsal, not a receipt. No migration, mail, payment or order status
 change belongs to this slice.
 
+## the named endpoint is held too
+
+`netlify/functions/deliver-service-order.js` now owns the staff gate and the
+pure request validation for the future delivery call. It accepts only an order
+id, a candidate Neon Burro artifact URL, a claimed revision, a lowercase
+SHA-256 and the exact six true checks. This syntax check is not artifact proof.
+
+It still returns `409 delivery_contract_not_ready` for every valid request,
+with `schema_not_applied`, `verified_payment_receipt_missing` and
+`immutable_artifact_not_verified` as the exact hold reasons. Every response is
+`no-store`. It contains no database write, artifact fetch or mail call. The
+browser cannot send a reviewer id or recipient. This keeps the named server
+door as honest as the disabled button while the shared schema and signed
+payment bridge remain under review.
+
+The shared migration belongs in the main Neon Burro repository beside
+`service_runs` and `service_events`. Pulse must not create a second copy of
+those tables. That migration must be prepared and reviewed separately. It is
+not part of this release.
+
 ## one order, four separate states
 
 The existing `reads` row remains the order root and payment reference. It must
@@ -34,56 +54,89 @@ append-only record.
 ## the reviewed shared records
 
 The reviewed migration should connect the existing order to `service_runs` and
-`service_events`. It should add two append-only receipt tables rather than add
-more meanings to `reads.status`.
+`service_events`. It should not add more meanings to `reads.status`.
 
-### `service_delivery_receipts`
+`service_runs` receives one unique `read_id` foreign key to `reads`, the four
+state projections above and a unique `(id, read_id)` pair for receipt foreign
+keys. Its existing operating `status` remains separate. The migration seeds
+`custom-brand-kit` as `testing` with `holder_ready = false`.
 
-One successful receipt per service run and delivery revision.
+Before delivery can leave held, the signed studio Stripe webhook must create or
+link the run and append one confirmed `customer_payment` event with the provider
+event id, provider payment id, amount, currency and live mode. A paid label in
+`reads` is not that receipt.
+
+### `service_delivery_requests`
+
+One immutable preparation and outbox row per logical send.
 
 | field | rule |
 |---|---|
 | `id` | UUID primary key |
-| `run_id` | required foreign key to `service_runs` |
-| `order_id` | required foreign key to `reads` |
-| `artifact_url` | required HTTPS URL on an approved Neon Burro host |
-| `artifact_revision` | required commit, deploy id or immutable build revision |
-| `artifact_sha256` | required lowercase SHA-256 of the reviewed bytes |
-| `reviewer_id` | required staff user id taken from the verified session |
-| `checklist_version` | required value, first version `brand-kit-v1` |
-| `checklist` | required JSON object containing exactly the six named boolean checks |
-| `recipient_email` | copied from the order by the server, never accepted from the browser |
+| `run_id`, `order_id` | required composite reference to one linked run and order |
+| `idempotency_key` | required and unique per logical send |
+| `artifact_url` | mutable canonical Neon Burro URL copied from the reviewed request |
+| `artifact_snapshot_url` | required immutable deploy or signed manifest URL verified by the server |
+| `artifact_revision` | required reviewed revision label |
+| `artifact_sha256` | required lowercase SHA-256 of the verified snapshot bytes |
+| `reviewer_id` | verified staff user id, never accepted from the browser |
+| `checklist_version`, `checklist` | `brand-kit-v1` and exactly the six named booleans, all true |
+| `recipient_email` | copied from the order by the server |
+| `provider`, `created_at` | server-owned provider and immutable server time |
+
+The prepared request survives a provider timeout. An unresolved send stops for
+manual reconciliation rather than making a second send after provider
+idempotency expires.
+
+### `service_delivery_receipts`
+
+One immutable provider acceptance per prepared request.
+
+| field | rule |
+|---|---|
+| `id` | UUID primary key |
+| `request_id` | required and unique reference to the prepared request |
+| `run_id`, `order_id` | required and must match the request pair |
 | `provider` | required value, first value `resend` |
-| `provider_message_id` | required provider receipt returned after send |
+| `provider_message_id` | required and unique with provider |
 | `delivered_at` | provider-accepted delivery time |
-| `guarantee_ends_at` | exactly 30 days after `delivered_at` when the public policy is approved |
+| `guarantee_policy_version`, `guarantee_ends_at` | both null until approved, then both required and the end is exactly 30 days after delivery |
 | `created_at` | immutable server time |
 
 Rows are insert-only. A correction creates a new revision and receipt. It does
 not overwrite the artifact that was already delivered.
 
+### `service_refund_requests`
+
+One immutable row per logical refund request. It carries the matching run,
+order and delivery receipt, a unique idempotency key, positive amount, verified
+currency, bounded reason, verified requester and server time. A trusted
+transaction must lock the payment projection and refuse more than the verified
+paid or remaining refundable amount.
+
 ### `service_refund_receipts`
 
-One row for every refund attempt and one row for every signed provider result.
+One immutable row for every signed provider result.
 
 | field | rule |
 |---|---|
 | `id` | UUID primary key |
-| `run_id` | required foreign key to `service_runs` |
-| `order_id` | required foreign key to `reads` |
-| `delivery_receipt_id` | the delivery covered by the request |
-| `state` | `requested`, `submitted`, `succeeded`, `failed` or `cancelled` |
-| `amount_cents` | positive and no greater than verified paid cents |
-| `currency` | copied from the verified payment |
-| `reason` | bounded staff note, never public by default |
-| `requested_by` | verified staff user id or verified client reply identity |
-| `provider_refund_id` | required after provider submission |
-| `provider_event_id` | required on signed webhook result |
-| `idempotency_key` | required and unique per logical request |
+| `request_id` | required reference to the logical refund request |
+| `provider`, `provider_refund_id` | required provider identity |
+| `provider_event_id` | required and unique signed webhook event id |
+| `provider_status` | required raw provider status |
+| `state` | `submitted`, `succeeded`, `failed` or `cancelled` |
 | `created_at` | immutable server time |
 
 The payment receipt remains in history. A refund receipt reverses or adjusts
 the current projection. Partial and full refunds never share one label.
+
+All four tables have RLS enabled, no `public`, `anon` or `authenticated`
+privileges and only the narrow `service_role` grants they need. Update and
+delete guards keep every row immutable. The delivery finalizer is one trusted
+transaction that adds the receipt, appends the delivered service event and
+updates the fulfillment projection together. Any finalizer revokes execution
+from `PUBLIC` and grants it only to `service_role`.
 
 ## the staff-authenticated endpoint
 
@@ -119,24 +172,26 @@ The server does every consequential check again:
    `signatures`.
 4. Require a verified positive external payment and no full refund or dispute.
 5. Require the current fulfillment state `review` or `ready`.
-6. Fetch the artifact from the approved host and confirm its revision and hash.
+6. Resolve an immutable deploy or signed manifest, fetch it from the approved
+   host and compute the reviewed bytes hash on the server.
 7. Require all six booleans and ignore any reviewer id sent by the browser.
 8. Read the recipient from the order.
-9. Insert a prepared delivery event with one idempotency key.
+9. Insert or read back the prepared delivery request with one idempotency key.
 10. Send the delivery email and capture the provider message id.
 11. Insert the immutable delivery receipt and append the delivered event.
 12. Return only the receipt id, state and accepted time.
 
-If mail fails, no delivered receipt is written and fulfillment remains
-retryable. If the same idempotency key returns, the function reads back the
-original result. It never sends twice.
+If mail fails, no delivered receipt is written. The prepared request remains
+for retry or manual reconciliation. If the same idempotency key returns during
+the supported provider window, the function reads back the original result.
+An uncertain request outside that window stops for manual review.
 
 ## refund endpoint and test boundary
 
 The future staff function `netlify/functions/refund-service-order.js` creates a
-`requested` receipt, validates the refundable amount and submits to Stripe with
-an idempotency key. It records `submitted`. Only the signed Neon Burro Stripe
-webhook may append `succeeded` or `failed` and change the payment projection.
+refund request, validates the refundable amount and submits to Stripe with an
+idempotency key. Only the signed Neon Burro Stripe webhook may append refund
+receipts and change the payment projection.
 
 Test proof runs on an isolated preview with Stripe test credentials, a test
 webhook endpoint and a seeded test order. It proves success, duplicate webhook,
