@@ -3,7 +3,13 @@
 // from edits, the role select offers admin/manager/team, the invite flow accepts
 // the same. super_admin promotion stays SQL only. Role tones carry meaning and
 // are kept, deepened for cream. A section like the others, house fields in
-// the invite modal. No oxford commas, no dashes.
+// the invite modal.
+//
+// The invite door, netlify/functions/send-team-invite.js, answers only a
+// signed in super_admin or admin since 2026-10-05, so the call carries the
+// session token as Authorization: Bearer, the way the Reports page does.
+// INVITABLE_ROLES here and INVITABLE in that function are the same list, move
+// both together. No oxford commas, no dashes.
 
 import { useState, useEffect } from 'react';
 import {
@@ -85,8 +91,10 @@ const InviteModal = ({ isOpen, onClose, onInvited }) => {
     if (!email.trim() || !email.includes('@')) { toast({ title: 'Valid email required', status: 'warning', duration: 2000 }); return; }
     setSending(true);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
       const res = await fetch('/.netlify/functions/send-team-invite', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` },
         body: JSON.stringify({ email: email.trim().toLowerCase(), display_name: displayName.trim(), role }),
       });
       if (!res.ok) { const err = await res.json(); throw new Error(err.error || 'Invite failed'); }

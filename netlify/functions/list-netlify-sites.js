@@ -1,21 +1,27 @@
 // netlify/functions/list-netlify-sites.js
-// Lists all Netlify sites on your account via the PAT
-// Used by SitesTab to populate the site picker dropdown
+// SENTINEL: NB_PULSE_LIST_SITES_V2
+//
+// Lists all Netlify sites on the account via the PAT. The one caller is the
+// site picker in src/pages/Clients/components/SitesTab.jsx. Staff only.
 //
 // GET /.netlify/functions/list-netlify-sites
 //
 // Returns: { sites: [{ id, name, url, framework, updated_at, published_at, connected }], count }
 // `connected` = true if this site is already linked in client_sites table
+//
+// ── WHY THIS DOOR IS LOCKED, 2026-10-05 ─────────────────────────────────────
+// Until this date it had no authentication and it answered anybody with every
+// site on the account, its url, its last commit title and the name of the
+// client it is connected to. That is the client list, confidential clients
+// included, to a stranger with a browser. gate() in _social.js is the lock
+// now, super_admin, admin or manager, and SitesTab sends the session token.
+// connect-netlify-site.js was locked in the same commit.
+//
+// No oxford commas, no em dashes.
 
-import { createClient } from '@supabase/supabase-js';
+import { createDb, gate, json } from './_social.js';
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const NETLIFY_PAT = process.env.NETLIFY_PAT;
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-  auth: { autoRefreshToken: false, persistSession: false },
-});
 
 const NETLIFY_API = 'https://api.netlify.com/api/v1';
 
@@ -34,16 +40,13 @@ const netlifyFetch = async (path) => {
 };
 
 export const handler = async (event) => {
-  if (event.httpMethod !== 'GET') {
-    return { statusCode: 405, body: JSON.stringify({ error: 'Method not allowed' }) };
-  }
+  if (event.httpMethod !== 'GET') return json(405, { error: 'Method not allowed' });
 
-  if (!NETLIFY_PAT) {
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: 'NETLIFY_PAT environment variable not set' }),
-    };
-  }
+  const supabase = createDb();
+  const gated = await gate(supabase, event);
+  if (gated.error) return json(gated.status, { error: gated.error });
+
+  if (!NETLIFY_PAT) return json(500, { error: 'NETLIFY_PAT environment variable not set' });
 
   try {
     // Fetch sites (Netlify paginates at 100 by default; enough for most accounts)
@@ -83,18 +86,12 @@ export const handler = async (event) => {
       // Already sorted by Netlify via sort_by=updated_at, but ensure newest first
       .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
 
-    return {
-      statusCode: 200,
-      body: JSON.stringify({
-        sites,
-        count: sites.length,
-      }),
-    };
+    return json(200, {
+      sites,
+      count: sites.length,
+    });
   } catch (err) {
     console.error('list-netlify-sites error:', err);
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: err.message || 'Failed to list sites' }),
-    };
+    return json(500, { error: err.message || 'Failed to list sites' });
   }
 };

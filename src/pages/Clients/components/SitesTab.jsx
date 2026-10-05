@@ -2,8 +2,11 @@
 // Sites tab on ClientDetail, on Paper: connected Netlify sites, a searchable
 // picker to connect more, and a merged deploy feed filterable per site. Deploy
 // state reads as a coloured dot (ready green, error coral, building gold). All
-// logic unchanged. House fields, house tabs, house empty lines. No oxford
-// commas, no dashes.
+// logic unchanged. House fields, house tabs, house empty lines.
+//
+// list-netlify-sites and connect-netlify-site answer staff only since
+// 2026-10-05, so both calls carry the session token as Authorization: Bearer
+// through authHeaders below. No oxford commas, no dashes.
 
 import { useState, useEffect, useMemo } from 'react';
 import { Box, VStack, HStack, Text, Icon, Input, Button, Checkbox, useToast } from '@chakra-ui/react';
@@ -15,6 +18,11 @@ import { TYPE, INSET, EASE, FAST } from '../../../theme/layout';
 import { Section, Field, Empty, Loading, Tabs, Kicker, SearchBox, Plate } from '../../../components/common/Page';
 
 const P = colors.paper;
+
+const authHeaders = async () => {
+  const { data: { session } } = await supabase.auth.getSession();
+  return { Authorization: `Bearer ${session?.access_token || ''}` };
+};
 
 const cleanDomain = (url) => {
   if (!url) return '';
@@ -84,7 +92,7 @@ const SitesTab = ({ clientId, clientName }) => {
 
     setLoadingNetlify(true);
     try {
-      const res = await fetch('/.netlify/functions/list-netlify-sites');
+      const res = await fetch('/.netlify/functions/list-netlify-sites', { headers: await authHeaders() });
       if (!res.ok) throw new Error(`Failed to load Netlify sites (${res.status})`);
       const data = await res.json();
       setNetlifySites(data.sites || []);
@@ -123,7 +131,7 @@ const SitesTab = ({ clientId, clientName }) => {
     setConnectError(null);
     try {
       const res = await fetch('/.netlify/functions/connect-netlify-site', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
         body: JSON.stringify({ siteName: selectedSite.name, clientId, isInternal, displayName: displayName.trim() || null }),
       });
       const data = await res.json();
