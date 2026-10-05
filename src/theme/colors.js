@@ -138,17 +138,40 @@ const colors = {
   // Pages convert to this one at a time. The login page is the first. Until a
   // given authed page is converted it still reads the dark surface/text tokens
   // above, both are valid while the migration is underway.
+  //
+  // ── V5, 2026-10-05, LIGHTER PAPER AND INK THAT POPS ───────────────────────
+  // Tyler, that day: "make better contrast and easier to read things. Maybe
+  // the cream becomes a little lighter, so the dark text pops more." V4 had
+  // the ground at E7DFD1 and the faint meta at 9A8574, which measured 2.9 to 1
+  // on that ground, under the 4.5 any reading text needs, and it was used for
+  // dates, counts and hints all over the tool. V5 lifts every surface onto the
+  // invoice document's own warm paper set (src/lib/emailTokens.js sheet,
+  // sheet2, hair and hairSoft), so the tool and the thing it sends are one
+  // material again, and darkens the two lighter inks until both pass.
+  //
+  //   token     V4        V5        on the new mat
+  //   mat       E7DFD1    F0EBE1    the ground, still a cream and never white
+  //   sheet     F4EEE2    FBF9F4    the document's sheet exactly
+  //   sunken    EDE6D7    F5F0E6    the document's sheet2
+  //   hair      E1D7C6    E4DBCB    the document's hair
+  //   hairSoft  EBE3D4    EFE9DC    the document's hairSoft
+  //   inkMuted  6B5245    5E473B    labels, about 7.5 to 1
+  //   inkFaint  9A8574    7A6556    meta, about 4.6 to 1, was 2.9
+  //
+  // ink and inkSec did not move, they were never the problem. The email
+  // tokens did not move either, a client's inbox is unchanged. If the mat is
+  // ever taken back toward E7DFD1, re-measure inkFaint against it.
   paper: {
-    mat:      '#E7DFD1',  // page ground, cream as dark as cream goes
-    sheet:    '#F4EEE2',  // cards and surfaces, a lighter warm cream, NEVER white
-    sunken:   '#EDE6D7',  // inset panels and wells, a hair below sheet
-    hair:     '#E1D7C6',  // borders and real rules
-    hairSoft: '#EBE3D4',  // faintest inner rules
+    mat:      '#F0EBE1',  // page ground, a light warm cream, never white
+    sheet:    '#FBF9F4',  // cards and surfaces, the document's sheet, NEVER #FFF
+    sunken:   '#F5F0E6',  // inset panels and wells, the document's sheet2
+    hair:     '#E4DBCB',  // borders and real rules
+    hairSoft: '#EFE9DC',  // faintest inner rules
 
     ink:      '#241A16',  // Night Tack, primary text
     inkSec:   '#4A382F',  // Canyon Stitch, supporting text
-    inkMuted: '#6B5245',  // Burro Hide, labels
-    inkFaint: '#9A8574',  // faintest meta
+    inkMuted: '#5E473B',  // Burro Hide, a step darker, labels
+    inkFaint: '#7A6556',  // faintest meta, still passes 4.5 to 1 on mat
 
     lime:     '#C5D957',  // the one accent, Topo Lime
     limeDeep: '#6E7A30',  // lime dark enough to read as small text on cream

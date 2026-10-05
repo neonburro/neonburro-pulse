@@ -4,6 +4,12 @@
 // state reads as a coloured dot (ready green, error coral, building gold). All
 // logic unchanged. House fields, house tabs, house empty lines. No oxford
 // commas, no dashes.
+//
+// 2026-10-05, Volt. This renders on the open client page now, not behind a
+// Sites tab (see ClientDetail.jsx), so the deploy feed shows the latest
+// DEPLOYS_SHOWN and a quiet line opens the rest. It used to draw every row it
+// fetched, up to 200, which on an open page buried everything below it. The
+// heading reads Websites because that is the word Tyler uses for these.
 
 import { useState, useEffect, useMemo } from 'react';
 import { Box, VStack, HStack, Text, Icon, Input, Button, Checkbox, useToast } from '@chakra-ui/react';
@@ -42,11 +48,14 @@ const DEPLOY_STATE_COLORS = {
   new:      P.inkFaint,
 };
 
+const DEPLOYS_SHOWN = 8;
+
 const SitesTab = ({ clientId, clientName }) => {
   const [sites, setSites] = useState([]);
   const [deploys, setDeploys] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeSiteFilter, setActiveSiteFilter] = useState('all');
+  const [showAllDeploys, setShowAllDeploys] = useState(false);
 
   const [showPicker, setShowPicker] = useState(false);
   const [netlifySites, setNetlifySites] = useState([]);
@@ -171,9 +180,9 @@ const SitesTab = ({ clientId, clientName }) => {
 
   return (
     <VStack spacing={8} align="stretch">
-      <Section kicker="Connected sites" count={sites.length || undefined}>
+      <Section kicker="Websites" count={sites.length || undefined}>
         {!hasSites && !showPicker && (
-          <Empty>No sites connected yet.</Empty>
+          <Empty py={2}>No websites connected yet. Connect each Netlify site this client owns, as many as they have.</Empty>
         )}
 
         {sites.map((site) => {
@@ -308,7 +317,7 @@ const SitesTab = ({ clientId, clientName }) => {
             <Empty>No deploys for this site yet.</Empty>
           ) : (
             <VStack spacing={0} align="stretch">
-              {filteredDeploys.map((d) => {
+              {(showAllDeploys ? filteredDeploys : filteredDeploys.slice(0, DEPLOYS_SHOWN)).map((d) => {
                 const site = siteLookup[d.site_id];
                 const domain = site ? getSiteDomain(site) : d.netlify_site_id;
                 const stateColor = DEPLOY_STATE_COLORS[d.state] || P.inkFaint;
@@ -322,7 +331,7 @@ const SitesTab = ({ clientId, clientName }) => {
                       <HStack spacing={2} mt={0.5} flexWrap="wrap">
                         <Text color={P.inkMuted} fontSize={TYPE.label} fontFamily="mono" noOfLines={1}>{domain}</Text>
                         {d.branch && (<><Text color={P.inkFaint} fontSize={TYPE.label}>·</Text><HStack spacing={1}><Icon as={TbGitBranch} boxSize={2.5} color={P.inkFaint} /><Text color={P.inkMuted} fontSize={TYPE.label} fontFamily="mono">{d.branch}</Text></HStack></>)}
-                        {d.commit_ref && (<><Text color={P.inkFaint} fontSize={TYPE.label}>·</Text><Text color={P.inkMuted} fontSize={TYPE.label} fontFamily="mono">{d.commit_ref.slice(0, 7)}</Text></>)}
+                        {d.commit_ref && (<Box display={{ base: 'none', md: 'contents' }}><Text color={P.inkFaint} fontSize={TYPE.label}>·</Text><Text color={P.inkMuted} fontSize={TYPE.label} fontFamily="mono">{d.commit_ref.slice(0, 7)}</Text></Box>)}
                       </HStack>
                     </Box>
                     <VStack align="end" spacing={0} flexShrink={0}>
@@ -332,6 +341,13 @@ const SitesTab = ({ clientId, clientName }) => {
                   </HStack>
                 );
               })}
+              {filteredDeploys.length > DEPLOYS_SHOWN && (
+                <HStack as="button" type="button" pt={3} spacing={1.5} onClick={() => setShowAllDeploys(!showAllDeploys)} color={P.inkMuted} _hover={{ color: P.ink }} alignSelf="flex-start">
+                  <Kicker color="inherit">
+                    {showAllDeploys ? 'Show the latest only' : `Show ${filteredDeploys.length - DEPLOYS_SHOWN} older deploys`}
+                  </Kicker>
+                </HStack>
+              )}
             </VStack>
           )}
         </Section>

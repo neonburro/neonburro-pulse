@@ -255,6 +255,8 @@ export const buildInvoiceEmailHTML = ({
 
   // Bill To. A business leads with the company and lists the contact as Attn, an
   // individual leads with the name. Then the billing address, then the email.
+  // The Bill to card on src/pages/Clients/ClientDetail.jsx (billToLines) shows
+  // this same block to the team. Change one, change both in the same commit.
   const addrLines = [];
   if (client?.address_line1) addrLines.push(escapeHtml(client.address_line1));
   if (client?.address_line2) addrLines.push(escapeHtml(client.address_line2));

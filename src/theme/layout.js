@@ -162,10 +162,15 @@ export const TYPE = {
   lede: '15px',            // the line under a page title
   body: '14px',            // fixed. see the note above
   small: '13px',
-  label: '11px',
-  kicker: '10px',          // mono, 500, uppercase, tracked
-  micro: '9px',
+  label: '12px',           // was 11 until 2026-10-05, see below
+  kicker: '11px',          // mono, 500, uppercase, tracked. was 10
+  micro: '10px',           // was 9
 };
+// 2026-10-05, the readability pass. Tyler asked for easier to read things.
+// The three smallest jobs each went up one pixel. At 10px an uppercase kicker
+// tracked 0.2em in a rounded face was the hardest text in the tool to read and
+// it labels every field and every section. Body, small and the fluid jobs did
+// not move, so no row of data changes height for it.
 
 // ── the kicker, one style for every section head and every field label ──────
 export const KICKER = {

@@ -27,18 +27,37 @@ nice, formatted forms."
   always open, no Details toggle
 - `src/pages/Invoicing/components/InvoiceList.jsx`, rows carry the due date
   and what the invoice is for
+- `src/pages/Clients/components/SitesTab.jsx`, the deploy feed shows the latest
+  eight, the heading reads Websites
+- `src/components/common/PortalAccessCard.jsx`, the PIN row wraps, it was 56px
+  wider than a phone
+- `src/theme/colors.js`, the paper is lighter and the two faint inks darker,
+  Tyler asked for more contrast. This touches every Paper page in Pulse
+- `src/theme/layout.js`, kicker, label and micro each one pixel larger
+- `src/theme/typography.js` and `src/main.jsx`, a new font once Tyler picks one
+  from the specimen, Rubik is what renders today and Tyler wants a change
+- `src/lib/invoiceEmailTemplate.js`, one comment line only, the sync note that
+  points at the Bill to card. Nothing a client receives changes
 
 ## What I am deliberately not touching
 
 - Anything under `src/pages/Mail/`, `src/lib/mail*` or `netlify/functions/mail-send.js`.
   That is the letter and email composer, another agent's work in
   `/private/tmp/neonburro-pulse-letters`.
-- The invoice email template `src/lib/invoiceEmailTemplate.js`. What a client
-  receives does not change in this pass.
+- What a client receives. `src/lib/emailTokens.js` and every email function
+  keep their colours, the lighter paper is the tool only.
 - The database. One client holding several companies and several websites is
   being designed on paper first. `client_sites` already holds many sites per
   client. Any migration will be additive, written here, and applied only on
   Tyler's go with RLS read before and after.
+
+## The composer, agreed with Aster the same day
+
+The composer adds EmailsSection, OpenItemsSection and ProposedUpdatesSection
+to the client page as standalone components, each one import and one line
+right after InvoicesSection in ClientDetail.jsx. Whichever branch merges
+second adds those lines. Cadence and any updates panel belong to the
+composer, not to this branch.
 
 ## Still open from the same ask
 

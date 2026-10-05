@@ -14,11 +14,28 @@
 //
 // 2026-09-25. The house column, the house fields and labels, the house tabs,
 // nothing centred. No oxford commas, no em dashes.
+//
+// ── NO COMPOSE AND PREVIEW TABS, 2026-10-05 ─────────────────────────────────
+// The exact client preview sat behind a Preview tab, one tap from the fields
+// that change it. Tyler asked for nothing to sit behind a tap, so from lg up
+// the compose column and the preview stand side by side and the preview is
+// sticky, it stays in view while the lines are written. Below lg the preview
+// follows the compose column on the same page. The preview column is about
+// 540px wide at lg, under the document's 600px phone rule, which only trims
+// padding, so what shows is still the real document.
+//
+// Two reading aids beside the fields, neither of which blocks anything.
+// BillToReadout under the client shows the Billed to block the document will
+// print, the same rule as invoiceEmailTemplate.js and the client page card.
+// A due date that has already passed says so in gold under the field, because
+// flip-overdue-invoices turns a sent invoice overdue the first midnight after
+// its due date, so sending one dated last week makes it overdue the same
+// night. The 2026-10-05 MWGrid hosting draft carried 10/01 on the 5th.
 
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  Box, VStack, HStack, Text, Icon, Button,
+  Box, VStack, HStack, Text, Icon, Button, Grid,
   Input, Textarea, Divider, Tooltip, useToast,
 } from '@chakra-ui/react';
 import DotSelect from '../../../components/common/DotSelect';
@@ -40,7 +57,7 @@ import {
 import { validateSprintsForSend } from '../../../lib/invoiceValidation';
 import colors from '../../../theme/colors';
 import { TYPE, EASE, FAST } from '../../../theme/layout';
-import { Page, Field, Kicker, Tabs, Empty, Loading, Plate } from '../../../components/common/Page';
+import { Page, Field, Kicker, Empty, Loading, Plate } from '../../../components/common/Page';
 
 import SprintEditRow from './SprintEditRow';
 import InvoiceAttachments from './InvoiceAttachments';
@@ -66,12 +83,44 @@ const dateInputValue = (val) => {
   }
 };
 
+// A YYYY-MM-DD from the date input, read as a local day. new Date on the bare
+// string is UTC midnight, the evening before in Ridgway.
+const dueIsPast = (val) => {
+  const m = String(val || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return false;
+  const due = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return due < today;
+};
+
+// The Billed to block as the document prints it. Same rule as the template
+// and as billToLines in src/pages/Clients/ClientDetail.jsx.
+const BillToReadout = ({ client }) => {
+  if (!client) return null;
+  const primary = client.company || client.name || 'Client';
+  const attn = client.company ? client.name : null;
+  const cityRegion = [client.city, client.region].filter(Boolean).join(', ');
+  const cityLine = [cityRegion, client.postal_code].filter(Boolean).join(' ').trim();
+  const lines = [client.address_line1, client.address_line2, cityLine].filter(Boolean);
+  return (
+    <Box mt={2.5} pl={3.5} borderLeft="2px solid" borderColor={P.hair}>
+      <Text fontSize={TYPE.small} fontWeight="600" color={P.ink}>{primary}</Text>
+      {attn && <Text fontSize={TYPE.small} color={P.inkSec}>Attn {attn}</Text>}
+      {lines.map((line) => <Text key={line} fontSize={TYPE.small} color={P.inkSec}>{line}</Text>)}
+      {client.email
+        ? <Text fontSize={TYPE.small} color={P.inkSec}>{client.email}</Text>
+        : <Text fontSize={TYPE.small} color={P.gold}>No email on this client, it cannot be sent</Text>}
+      {lines.length === 0 && <Text fontSize={TYPE.label} fontFamily="mono" color={P.inkFaint} mt={1}>no billing address on file</Text>}
+    </Box>
+  );
+};
+
 const InvoiceEditor = ({ invoiceId, clientId: initialClientId, clients, onClose, onSaved, voltDraft = null }) => {
   const toast = useToast();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const [activeTab, setActiveTab] = useState('compose');
   const [loading, setLoading] = useState(true);
   const [invoice, setInvoice] = useState(null);
   const [clientId, setClientId] = useState(initialClientId || '');
@@ -764,7 +813,8 @@ const InvoiceEditor = ({ invoiceId, clientId: initialClientId, clients, onClose,
               {displayNumber}
             </Text>
             <Text color={P.inkMuted} fontSize={TYPE.lede}>
-              {billableCount} sprint{billableCount !== 1 ? 's' : ''} · {formatCurrency(billableTotal)}
+              {client ? `${client.company || client.name} · ` : ''}
+              {billableCount} line{billableCount !== 1 ? 's' : ''} · {formatCurrency(billableTotal)}
             </Text>
           </VStack>
 
@@ -882,14 +932,12 @@ const InvoiceEditor = ({ invoiceId, clientId: initialClientId, clients, onClose,
         )}
       </VStack>
 
-      <Tabs
-        items={[{ key: 'compose', label: 'Compose' }, { key: 'preview', label: 'Preview' }]}
-        value={activeTab}
-        onChange={setActiveTab}
-      />
-
-      {activeTab === 'compose' && (
-        <VStack spacing={8} align="stretch">
+      <Grid
+        templateColumns={{ base: '1fr', lg: 'minmax(0, 1fr) minmax(0, 1fr)' }}
+        gap={{ base: 12, lg: 8 }}
+        alignItems="start"
+      >
+        <VStack spacing={8} align="stretch" minW={0}>
           <HStack spacing={6} align="start" flexWrap="wrap" rowGap={6}>
             <Box flex={1} minW="220px">
               <Field label="Client">
@@ -901,6 +949,7 @@ const InvoiceEditor = ({ invoiceId, clientId: initialClientId, clients, onClose,
                   options={clients.map((c) => ({ value: c.id, label: `${c.name}${c.company ? ` · ${c.company}` : ''}` }))}
                 />
               </Field>
+              <BillToReadout client={client} />
             </Box>
             {projects.length > 0 && (
               <Box flex={1} minW="220px">
@@ -1000,6 +1049,17 @@ const InvoiceEditor = ({ invoiceId, clientId: initialClientId, clients, onClose,
                   isDisabled={isPaid}
                 />
               </Field>
+              {!isPaid && isDraft && dueIsPast(dueDate) && (
+                <HStack spacing={1.5} mt={2} align="start">
+                  <Icon as={TbAlertTriangle} boxSize={3.5} color={P.gold} mt="2px" flexShrink={0} />
+                  <Text fontSize={TYPE.small} color={P.inkSec} lineHeight="1.5">
+                    This date has passed. Sent as is, it reads overdue the same night.
+                  </Text>
+                </HStack>
+              )}
+              {!isPaid && isDraft && !dueDate && (
+                <Text fontSize={TYPE.label} fontFamily="mono" color={P.inkFaint} mt={2}>no due date, the document shows none</Text>
+              )}
             </Box>
           </HStack>
 
@@ -1045,15 +1105,22 @@ const InvoiceEditor = ({ invoiceId, clientId: initialClientId, clients, onClose,
             </Box>
           )}
         </VStack>
-      )}
 
-      {activeTab === 'preview' && (
-        <InvoicePreview
-          invoice={previewInvoice}
-          client={client}
-          sprints={sprints.filter((s) => s.is_billable !== false)}
-        />
-      )}
+        <Box
+          position={{ base: 'static', lg: 'sticky' }}
+          top={{ lg: '24px' }}
+          maxH={{ lg: 'calc(100vh - 48px)' }}
+          overflowY={{ lg: 'auto' }}
+          minW={0}
+          sx={{ scrollbarWidth: 'thin' }}
+        >
+          <InvoicePreview
+            invoice={previewInvoice}
+            client={client}
+            sprints={sprints.filter((s) => s.is_billable !== false)}
+          />
+        </Box>
+      </Grid>
 
       <CancelInvoiceModal
         isOpen={showCancelModal}

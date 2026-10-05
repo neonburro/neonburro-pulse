@@ -4,6 +4,10 @@
 // - Regenerate PIN (updates clients.portal_pin + the auth password)
 // - Copy PIN when revealed, shows last login
 // A house section with a kicker. No oxford commas, no dashes.
+//
+// 2026-10-05, Volt. The PIN row wraps now. On a 390px phone the row of PIN,
+// Show and Regenerate was 56px wider than the screen and dragged the whole
+// client page sideways. Measured in the harness, scrollWidth 446 against 390.
 
 import { useState } from 'react';
 import { Box, VStack, HStack, Text, Icon, Button, useToast, Spinner } from '@chakra-ui/react';
@@ -18,8 +22,8 @@ const P = colors.paper;
 
 const Row = ({ label, children }) => (
   <HStack py={3} spacing={4} borderBottom="1px solid" borderColor={P.hairSoft} align="center" _last={{ borderBottom: 'none' }}>
-    <Kicker minW="90px">{label}</Kicker>
-    <Box flex={1}>{children}</Box>
+    <Kicker minW="76px" flexShrink={0}>{label}</Kicker>
+    <Box flex={1} minW={0}>{children}</Box>
   </HStack>
 );
 
@@ -125,8 +129,8 @@ const PortalAccessCard = ({ client, onUpdate }) => {
         </Row>
 
         <Row label="PIN">
-          <HStack spacing={2} align="center">
-            <Text color={showPin ? P.ink : P.inkFaint} fontSize={TYPE.body} fontFamily="mono" fontWeight="700" letterSpacing="0.15em" minW="100px">
+          <HStack spacing={2} align="center" flexWrap="wrap" rowGap={1}>
+            <Text color={showPin ? P.ink : P.inkFaint} fontSize={TYPE.body} fontFamily="mono" fontWeight="700" letterSpacing="0.15em" minW="88px">
               {showPin ? (revealedPin || 'none') : '••••••••'}
             </Text>
             <GhostBtn leftIcon={loading && !showPin ? <Spinner size="xs" /> : (showPin ? <TbEyeOff size={12} /> : <TbEye size={12} />)} onClick={handleShow} isDisabled={loading}>{showPin ? 'Hide' : 'Show'}</GhostBtn>

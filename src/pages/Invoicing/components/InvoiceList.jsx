@@ -4,10 +4,21 @@
 // on the clipboard for anything sent and not yet paid, Tyler's ask of
 // 2026-09-17, the link is the thing most often needed from a row. The link is
 // built by payLinkFor in ResendModal.jsx so the row and the editor agree. The
-// status dot warms toward lime as the invoice progresses. Lime is the paid win
+// three row controls rest at low contrast rather than at zero, because a
+// control at opacity 0 does not exist on a phone (ClientGrid.jsx says the same).
+// The status dot warms toward lime as the invoice progresses. Lime is the paid win
 // state and is not spent elsewhere in the row. Rows bleed the inset so the
 // number sits on the column edge, the empty state is the house line. No
 // oxford commas, no dashes.
+//
+// 2026-10-05, Volt. Each row now says what the invoice is FOR and WHEN, so it
+// reads without being opened, Tyler's ask that day. The third line is the
+// first billable line title with a count of the rest, then the due day, gold
+// when it is close and coral once it has passed on anything still open. The
+// figures print in full, $1,549 rather than $1.5k, because the compact form
+// hid the cents and the hundreds on exactly the rows that get compared. The
+// due date is a date column with no time, so dueDay() reads it as a local
+// day, the same trap noted in ClientDetail.jsx.
 
 import { useState } from 'react';
 import {
@@ -40,9 +51,39 @@ const SENT_LIKE_STATUSES = ['sent', 'viewed', 'partial', 'overdue', 'paid'];
 
 const currency = (val) => {
   const num = parseFloat(val || 0);
-  if (num === 0) return '$0';
-  if (num >= 1000) return `$${(num / 1000).toFixed(1)}k`;
-  return `$${num.toLocaleString()}`;
+  const whole = Math.round(num * 100) % 100 === 0;
+  return `$${num.toLocaleString('en-US', {
+    minimumFractionDigits: whole ? 0 : 2,
+    maximumFractionDigits: whole ? 0 : 2,
+  })}`;
+};
+
+const dueDay = (val) => {
+  const m = String(val || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : null;
+};
+
+// What the invoice is for, in one line.
+const forLine = (items) => {
+  const billable = (items || []).filter((i) => i.is_billable !== false);
+  if (billable.length === 0) return null;
+  const first = (billable[0].title || '').trim() || 'Untitled line';
+  return billable.length > 1 ? `${first} and ${billable.length - 1} more` : first;
+};
+
+// When, and how loudly to say it.
+const dueNote = (invoice) => {
+  if (invoice.status === 'paid' || invoice.status === 'cancelled') return null;
+  const due = dueDay(invoice.due_date);
+  if (!due) return invoice.status === 'draft' ? { text: 'no due date', color: P.inkFaint } : null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const days = Math.round((due - today) / 86400000);
+  const day = due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  if (days < 0) return { text: `${invoice.status === 'draft' ? 'due date passed' : 'was due'} ${day}`, color: invoice.status === 'draft' ? P.gold : P.coral };
+  if (days === 0) return { text: 'due today', color: P.gold };
+  if (days <= 7) return { text: `due ${day}`, color: P.gold };
+  return { text: `due ${day}`, color: P.inkMuted };
 };
 
 const InvoiceRow = ({ invoice, onSelect, onQuickDelete, onViewSnapshot }) => {
@@ -58,6 +99,8 @@ const InvoiceRow = ({ invoice, onSelect, onQuickDelete, onViewSnapshot }) => {
   const isDraft = invoice.status === 'draft';
   const wasSent = SENT_LIKE_STATUSES.includes(invoice.status);
   const payLink = invoice.status !== 'paid' && invoice.status !== 'cancelled' ? payLinkFor(invoice) : null;
+  const forText = forLine(invoice.invoice_items);
+  const due = dueNote(invoice);
 
   const handleTrashClick = (e) => {
     e.stopPropagation();
@@ -121,6 +164,17 @@ const InvoiceRow = ({ invoice, onSelect, onQuickDelete, onViewSnapshot }) => {
             {client?.name || 'No client'}
             {client?.company && ` · ${client.company}`}
           </Text>
+          {(forText || due) && (
+            <HStack spacing={2} mt={0.5} minW={0} maxW="100%">
+              {forText && (
+                <Text color={P.inkSec} fontSize={TYPE.small} noOfLines={1} minW={0}>{forText}</Text>
+              )}
+              {forText && due && <Text color={P.inkFaint} fontSize={TYPE.small} flexShrink={0}>·</Text>}
+              {due && (
+                <Text color={due.color} fontSize={TYPE.label} fontFamily="mono" flexShrink={0} whiteSpace="nowrap">{due.text}</Text>
+              )}
+            </HStack>
+          )}
         </VStack>
 
         {/* sent, opened, paid. three dots and the last one that lit, with its day.
@@ -193,7 +247,7 @@ const InvoiceRow = ({ invoice, onSelect, onQuickDelete, onViewSnapshot }) => {
               as="button"
               type="button"
               onClick={handleCopyClick}
-              opacity={copied ? 1 : 0}
+              opacity={copied ? 1 : 0.4}
               color={copied ? P.limeDeep : P.inkFaint}
               p={1.5}
               borderRadius="md"
@@ -214,7 +268,7 @@ const InvoiceRow = ({ invoice, onSelect, onQuickDelete, onViewSnapshot }) => {
               as="button"
               type="button"
               onClick={handleEyeClick}
-              opacity={0}
+              opacity={0.4}
               color={P.inkFaint}
               p={1.5}
               borderRadius="md"
@@ -234,7 +288,7 @@ const InvoiceRow = ({ invoice, onSelect, onQuickDelete, onViewSnapshot }) => {
               as="button"
               type="button"
               onClick={handleTrashClick}
-              opacity={confirmDelete ? 1 : 0}
+              opacity={confirmDelete ? 1 : 0.3}
               color={confirmDelete ? P.coral : P.inkFaint}
               p={1.5}
               borderRadius="md"
