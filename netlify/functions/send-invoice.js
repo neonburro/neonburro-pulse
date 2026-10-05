@@ -2,9 +2,38 @@
 // NeonBurro Pulse - Invoice Email Sender
 // Client email uses shared template (src/lib/invoiceEmailTemplate.js).
 // Admin notification is light-mode with banner, palette from emailTokens.js.
+//
+// ── THE DOOR IS STAFF ONLY ──────────────────────────────────────────────────
+// Until 2026-10-05 this function took POST { invoiceId } from anybody. It runs
+// on the service role, so anyone who knew or guessed an invoice uuid could make
+// Pulse email that invoice and its private backup documents to the client, and
+// every such call rewrote invoices.pay_token, sent_at and status. A fresh
+// pay_token kills the link the client already holds, so a stranger could break
+// a client's pay link from outside the building.
+//
+// It now goes through gate(db, event) from _social.js, the house staff gate:
+// the bearer token of a signed in Supabase session and profiles.role in
+// super_admin, admin or manager. The only caller is handleSend in
+// src/pages/Invoicing/components/InvoiceEditor.jsx and it sends that header.
+// Note that public.is_staff() in the database also counts team, so a team
+// member can open and edit an invoice and is refused here. That is the line
+// Tyler drew, sending asks a client for money and editing does not.
+//
+// The gate runs before anything else, the config checks included, so an
+// anonymous caller learns nothing but "Sign in first." The signed in person's
+// id is written to invoice_history.sent_by and activity_log.user_id, which
+// were empty before because the door did not know who knocked.
+//
+// The invoiceId goes straight into a PostgREST query string below, so it is
+// held to the shape of a uuid first. invoices.id is a uuid in every migration.
+//
+// No oxford commas, no em dashes.
 
 import { buildInvoiceEmailHTML, getDueNow } from '../../src/lib/invoiceEmailTemplate.js';
 import { EMAIL } from '../../src/lib/emailTokens.js';
+import { createDb, gate } from './_social.js';
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -225,7 +254,7 @@ const buildAdminEmail = ({ invoice, client, project, lineItems, totalAmount, tot
 export const handler = async (event) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
   };
 
@@ -233,6 +262,13 @@ export const handler = async (event) => {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, headers, body: JSON.stringify({ error: 'Method not allowed' }) };
   }
+
+  const gated = await gate(createDb(), event);
+  if (gated.error) {
+    return { statusCode: gated.status, headers, body: JSON.stringify({ error: gated.error }) };
+  }
+  const senderId = gated.user.id;
+
   if (!RESEND_API_KEY) {
     return { statusCode: 500, headers, body: JSON.stringify({ error: 'Email not configured' }) };
   }
@@ -244,6 +280,9 @@ export const handler = async (event) => {
     const { invoiceId } = JSON.parse(event.body);
     if (!invoiceId) {
       return { statusCode: 400, headers, body: JSON.stringify({ error: 'Invoice ID required' }) };
+    }
+    if (!UUID_RE.test(String(invoiceId))) {
+      return { statusCode: 400, headers, body: JSON.stringify({ error: 'Invoice ID is not a uuid' }) };
     }
 
     const invoices = await sbGet('invoices', `id=eq.${invoiceId}&select=*`);
@@ -363,6 +402,7 @@ export const handler = async (event) => {
       invoice_number: invoice.invoice_number,
       sent_at: now,
       sent_to: client.email,
+      sent_by: senderId,
       amount: totalAmount,
       method: 'email',
       send_type: 'initial',
@@ -372,6 +412,7 @@ export const handler = async (event) => {
     });
 
     await sbInsert('activity_log', {
+      user_id: senderId,
       action: 'invoice_sent',
       entity_type: 'invoice',
       entity_id: invoice.id,

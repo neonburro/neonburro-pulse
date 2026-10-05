@@ -362,6 +362,14 @@ const InvoiceEditor = ({ invoiceId, clientId: initialClientId, clients, onClose,
     }
   };
 
+  // ── THE TWO MAIL DOORS ARE STAFF ONLY ──────────────────────────────────────
+  // send-invoice.js and resend-invoice.js answer only to a signed in session
+  // with a staff role since 2026-10-05, through gate() in
+  // netlify/functions/_social.js. Every call below carries the session's
+  // access token as a bearer, the way VoltComposer.jsx beside this file does.
+  // Without it the door answers 401 Sign in first and the toast says so. The
+  // server takes the sender from the token, so no userId rides in the body.
+  // InvoiceSnapshotModal.jsx forwards through the same door the same way.
   const handleSend = async (id = invoiceId, ccEmails = null) => {
     if (!id) {
       toast({ title: 'Save first before sending', status: 'warning' });
@@ -375,9 +383,10 @@ const InvoiceEditor = ({ invoiceId, clientId: initialClientId, clients, onClose,
         const { error: ccErr } = await supabase.from('invoices').update({ cc_emails: ccEmails }).eq('id', id);
         if (ccErr) throw new Error(ccErr.message || 'Could not save the extra addresses');
       }
+      const { data: { session } } = await supabase.auth.getSession();
       const res = await fetch('/.netlify/functions/send-invoice', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` },
         body: JSON.stringify({ invoiceId: id }),
       });
       if (!res.ok) {
@@ -403,11 +412,11 @@ const InvoiceEditor = ({ invoiceId, clientId: initialClientId, clients, onClose,
     if (!invoiceId) return;
     setResending(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { session } } = await supabase.auth.getSession();
       const res = await fetch('/.netlify/functions/resend-invoice', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ invoiceId, action: 'resend', userId: user?.id, recipients }),
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` },
+        body: JSON.stringify({ invoiceId, action: 'resend', recipients }),
       });
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || 'Resend failed');
@@ -432,12 +441,12 @@ const InvoiceEditor = ({ invoiceId, clientId: initialClientId, clients, onClose,
     if (!invoiceId) return;
     setSendingReminder(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { session } } = await supabase.auth.getSession();
       const res = await fetch('/.netlify/functions/resend-invoice', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` },
         body: JSON.stringify({
-          invoiceId, action: 'reminder', subject, body, userId: user?.id, recipients,
+          invoiceId, action: 'reminder', subject, body, recipients,
         }),
       });
       const result = await res.json();

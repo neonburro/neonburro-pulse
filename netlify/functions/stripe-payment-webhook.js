@@ -491,15 +491,30 @@ const processCheckoutSuccess = async (session) => {
   // into paid, a retry of the same session finds the row already paid above
   // and never reaches here. A failure here never fails the webhook, the
   // payment is recorded and the receipt can be sent by hand from the editor.
+  //
+  // The key, 2026-10-05. resend-invoice.js is staff only now and this call
+  // has no session, so it carries a shared secret in the
+  // x-pulse-receipt-secret header, read from INVOICE_RECEIPT_SECRET on the
+  // Pulse site, functions scope. resend-invoice.js names the same header and
+  // the same variable, change all four or none. The secret only buys the
+  // receipt for a paid invoice to the addresses it already went to. Without
+  // the variable the call is not made and the log names what is missing. The
+  // studio copy of this file has no receipt call, so there is nothing to
+  // mirror there. Never print the value.
   if (isFull && invoice.status !== 'paid') {
-    const site = process.env.URL || 'https://pulse.neonburro.com';
-    fetch(`${site}/.netlify/functions/resend-invoice`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ invoiceId: invoice_id, action: 'resend', userId: null, auto: 'receipt' }),
-    }).then(async (r) => {
-      if (!r.ok) console.warn('[webhook] receipt did not send', r.status, (await r.text()).slice(0, 200));
-    }).catch((e) => console.warn('[webhook] receipt did not send', e.message));
+    const receiptSecret = process.env.INVOICE_RECEIPT_SECRET;
+    if (!receiptSecret) {
+      console.warn('[webhook] receipt did not send, INVOICE_RECEIPT_SECRET is not set on the Pulse site');
+    } else {
+      const site = process.env.URL || 'https://pulse.neonburro.com';
+      fetch(`${site}/.netlify/functions/resend-invoice`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-pulse-receipt-secret': receiptSecret },
+        body: JSON.stringify({ invoiceId: invoice_id, action: 'resend', auto: 'receipt' }),
+      }).then(async (r) => {
+        if (!r.ok) console.warn('[webhook] receipt did not send', r.status, (await r.text()).slice(0, 200));
+      }).catch((e) => console.warn('[webhook] receipt did not send', e.message));
+    }
   }
 
   // Activity log
