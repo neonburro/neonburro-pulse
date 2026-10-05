@@ -19,6 +19,18 @@
 // list the router honours, and a page in one and not the other is either
 // unreachable or invisible.
 //
+// MAIL, 2026-10-05. /mail/ is the room and /mail/:mailId/ is one letter.
+// The editor is its own lazy chunk so the list opens without the field kit.
+// /mail/clients/:clientId/ is one client's mail, the demo mount for the
+// three client parts until Volt's one page ClientDetail imports them.
+// /answer/:token/ is public, above the protected block, the page a client
+// lands on from an approve or deny link beside an open item. It reads by
+// token through netlify/functions/item-answer.js and answers on a press.
+// /__review/mail/ and /__review/mail/room/ are development only fixtures,
+// stripped from production by the same import.meta.env.DEV guard as the
+// brand kit fixture. They mount the editor and the room on sample letters
+// that read and write nothing.
+//
 // No oxford commas, no em dashes.
 
 import { lazy, Suspense } from 'react';
@@ -37,6 +49,7 @@ import Login from './pages/Auth/Login';
 const ResetPassword = lazy(() => import('./pages/Auth/ResetPassword'));
 const AcceptInvite  = lazy(() => import('./pages/Auth/AcceptInvite'));
 const PinApproval   = lazy(() => import('./pages/PinApproval'));
+const Answer        = lazy(() => import('./pages/Answer'));
 
 // Protected, lazy.
 const Dashboard     = lazy(() => import('./pages/Dashboard'));
@@ -57,11 +70,17 @@ const Calendar      = lazy(() => import('./pages/Calendar'));
 const Socials       = lazy(() => import('./pages/Releases'));
 const Analytics     = lazy(() => import('./pages/Analytics'));
 const Reports       = lazy(() => import('./pages/Reports'));
+const Mail          = lazy(() => import('./pages/Mail'));
+const MailEditor    = lazy(() => import('./pages/Mail/MailEditor'));
+const MailClient    = lazy(() => import('./pages/Mail/MailClient'));
 const Settings      = lazy(() => import('./pages/Settings'));
-// This route is stripped from production. It lets Warbleur inspect the exact
-// read-only Brand Kit desk without fabricating a paid row or signing in.
+// These routes are stripped from production. They let a reviewer inspect a
+// desk at real widths without fabricating a row or signing in.
 const BrandKitReviewFixture = import.meta.env.DEV
   ? lazy(() => import('./pages/Orders/BrandKitReviewFixture'))
+  : null;
+const MailFixture = import.meta.env.DEV
+  ? lazy(() => import('./pages/Mail/MailFixture'))
   : null;
 
 const Quiet = () => <Box minH="100vh" bg={colors.paper.mat} />;
@@ -85,8 +104,21 @@ function App() {
           <Route path="/accept-invite/" element={<AcceptInvite />} />
           <Route path="/pin-approval/" element={<PinApproval />} />
           <Route path="/pin-approval" element={<PinApproval />} />
+          <Route path="/answer/:token/" element={<Answer />} />
           {BrandKitReviewFixture && (
             <Route path="/__review/custom-brand-kit/" element={<BrandKitReviewFixture />} />
+          )}
+          {MailFixture && (
+            <Route path="/__review/mail/" element={<MailFixture />} />
+          )}
+          {MailFixture && (
+            <Route path="/__review/mail/room/" element={<MailFixture view="room" />} />
+          )}
+          {MailFixture && (
+            <Route path="/__review/answer/" element={<MailFixture view="answer" />} />
+          )}
+          {MailFixture && (
+            <Route path="/__review/mail/client/" element={<MailFixture view="client" />} />
           )}
 
           {/* Protected admin routes */}
@@ -116,6 +148,9 @@ function App() {
               <Route path="releases/" element={<Navigate to="/socials/" replace />} />
               <Route path="analytics/" element={<Analytics />} />
               <Route path="reports/" element={<Reports />} />
+              <Route path="mail/" element={<Mail />} />
+              <Route path="mail/clients/:clientId/" element={<MailClient />} />
+              <Route path="mail/:mailId/" element={<MailEditor />} />
               <Route path="settings/" element={<Settings />} />
               {/* Projects redirect to clients, the source of truth now. */}
               <Route path="projects/" element={<Navigate to="/clients/" replace />} />

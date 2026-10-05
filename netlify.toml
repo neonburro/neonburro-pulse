@@ -89,6 +89,21 @@
 [functions."client-report-monthly"]
   schedule = "0 14 1 * *"
 
+# mail-digest            daily at 14:00 UTC. The one quiet email about what
+#                        is waiting on Tyler in the Mail room, proposed
+#                        updates and answers back from clients, and only on
+#                        a day something new arrived. Added 2026-10-05 from
+#                        Tyler's "just don't do a bunch of them, just add them
+#                        to Pulse". Goes to NOTIFICATION_EMAIL or
+#                        hello@neonburro.com, never to a client. Before
+#                        supabase/migrations/20261005130000_mail_updates_and_open_items.sql
+#                        is applied the client_items read fails, nothing
+#                        counts as new and nothing sends. The schedule is
+#                        also in an inline export const config in the
+#                        function, and the two must agree.
+[functions."mail-digest"]
+  schedule = "0 14 * * *"
+
 # The studio library, proxied. neonburro.com sends no CORS header on
 # /library/index.json so the Socials picture picker cannot fetch it across
 # origins. This rewrite serves it from the Pulse origin, status 200 is a

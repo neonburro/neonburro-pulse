@@ -35,6 +35,12 @@
 // Orders off a phone's primary bar, and a report that goes out on its own is
 // worth less attention per day than money already taken.
 //
+// MAIL SITS UNDER REPORTS, 2026-10-05. It is the hand that carries a report
+// or a letter to a client, so it reads right after the thing it carries. It
+// is below the mobile line for the same reason Reports is, a letter is
+// composed at a desk and the More sheet reaches it on a phone. The route is
+// /mail/ in App.jsx and the room is src/pages/Mail/.
+//
 // HOW TO ADD A PAGE
 // Add it to NAV once. It appears in the sidebar automatically. If it belongs on
 // a phone's primary bar, move it above the MOBILE_PRIMARY_COUNT line. Everything
@@ -45,7 +51,7 @@
 import {
   TbSunrise, TbUsers, TbFileInvoice, TbInbox,
   TbPencil, TbHorse, TbCoins, TbWallet, TbMessageCircle, TbCalendar, TbChartBar, TbSettings,
-  TbBroadcast, TbCoin, TbMap2, TbArrowsSplit2, TbReportAnalytics,
+  TbBroadcast, TbCoin, TbMap2, TbArrowsSplit2, TbReportAnalytics, TbMail,
 } from 'react-icons/tb';
 
 export const NAV = [
@@ -65,6 +71,7 @@ export const NAV = [
   { path: '/calendar/',  label: 'Calendar',   icon: TbCalendar,      desc: 'Scheduling and sprints' },
   { path: '/analytics/', label: 'Analytics',  icon: TbChartBar,      desc: 'Traffic and trends' },
   { path: '/reports/',   label: 'Reports',    icon: TbReportAnalytics, desc: 'What each client gets on the 1st' },
+  { path: '/mail/',      label: 'Mail',       icon: TbMail,          desc: 'Letters to clients, tested then sent' },
 ];
 
 export const SETTINGS_ITEM = {
