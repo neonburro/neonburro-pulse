@@ -50,6 +50,13 @@ const DEPLOY_STATE_COLORS = {
 
 const DEPLOYS_SHOWN = 8;
 
+// Both site functions are staff only since 2026-10-05, they read the Supabase
+// session from this header. See the STAFF ONLY note in list-netlify-sites.js.
+const authHeaders = async () => {
+  const { data: { session } } = await supabase.auth.getSession();
+  return session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
+};
+
 const SitesTab = ({ clientId, clientName }) => {
   const [sites, setSites] = useState([]);
   const [deploys, setDeploys] = useState([]);
@@ -93,8 +100,14 @@ const SitesTab = ({ clientId, clientName }) => {
 
     setLoadingNetlify(true);
     try {
-      const res = await fetch('/.netlify/functions/list-netlify-sites');
-      if (!res.ok) throw new Error(`Failed to load Netlify sites (${res.status})`);
+      const res = await fetch('/.netlify/functions/list-netlify-sites', { headers: await authHeaders() });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        // A 401 from Netlify itself means the token on the Pulse site has
+        // lapsed, which is a settings job and not a bug, so say which one.
+        if (/Netlify API 401/.test(body.error || '')) throw new Error('Netlify refused the token. NETLIFY_PAT on the Pulse site needs renewing.');
+        throw new Error(body.error || `Failed to load Netlify sites (${res.status})`);
+      }
       const data = await res.json();
       setNetlifySites(data.sites || []);
     } catch (err) {
@@ -132,7 +145,7 @@ const SitesTab = ({ clientId, clientName }) => {
     setConnectError(null);
     try {
       const res = await fetch('/.netlify/functions/connect-netlify-site', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
         body: JSON.stringify({ siteName: selectedSite.name, clientId, isInternal, displayName: displayName.trim() || null }),
       });
       const data = await res.json();
