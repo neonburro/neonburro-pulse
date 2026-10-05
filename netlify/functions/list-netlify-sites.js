@@ -7,7 +7,19 @@
 // Returns: { sites: [{ id, name, url, framework, updated_at, published_at, connected }], count }
 // `connected` = true if this site is already linked in client_sites table
 
+//
+// ── STAFF ONLY, 2026-10-05, Volt ────────────────────────────────────────────
+// This door had no sign in check at all. Anybody holding the url could call
+// it, and with the service role behind it that meant every Netlify site on the
+// account and the name of the client each one belongs to, readable by the
+// whole internet. It was hidden only because NETLIFY_PAT on the Pulse site
+// answers 401 from Netlify today, so every call died before reaching the
+// database. The gate is the one in _social.js that publish-blog-post.js uses,
+// a Supabase session in the Authorization header and a staff role in profiles.
+// Keep it ahead of the PAT being renewed, never after.
+
 import { createClient } from '@supabase/supabase-js';
+import { gate } from './_social.js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -36,6 +48,11 @@ const netlifyFetch = async (path) => {
 export const handler = async (event) => {
   if (event.httpMethod !== 'GET') {
     return { statusCode: 405, body: JSON.stringify({ error: 'Method not allowed' }) };
+  }
+
+  const door = await gate(supabase, event);
+  if (door.error) {
+    return { statusCode: door.status, body: JSON.stringify({ error: door.error }) };
   }
 
   if (!NETLIFY_PAT) {
