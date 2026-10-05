@@ -57,6 +57,7 @@ const Calendar      = lazy(() => import('./pages/Calendar'));
 const Socials       = lazy(() => import('./pages/Releases'));
 const Analytics     = lazy(() => import('./pages/Analytics'));
 const Reports       = lazy(() => import('./pages/Reports'));
+const Trademarks    = lazy(() => import('./pages/Trademarks'));
 const Settings      = lazy(() => import('./pages/Settings'));
 // This route is stripped from production. It lets Warbleur inspect the exact
 // read-only Brand Kit desk without fabricating a paid row or signing in.
@@ -116,6 +117,7 @@ function App() {
               <Route path="releases/" element={<Navigate to="/socials/" replace />} />
               <Route path="analytics/" element={<Analytics />} />
               <Route path="reports/" element={<Reports />} />
+              <Route path="trademarks/" element={<Trademarks />} />
               <Route path="settings/" element={<Settings />} />
               {/* Projects redirect to clients, the source of truth now. */}
               <Route path="projects/" element={<Navigate to="/clients/" replace />} />

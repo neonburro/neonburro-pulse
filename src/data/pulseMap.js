@@ -107,6 +107,12 @@ export const PULSE_MAP = [
     can: 'read any client\'s report for any of the last twelve closed months, approve a client once so the schedule carries them from the 1st on, and send one now which takes two presses and prints the addresses before it goes. the studio inbox hears about every send',
   },
   {
+    path: '/trademarks/',
+    name: 'Trademarks',
+    holds: 'the studio\'s watch on words it might file for The Burroship LLC, one lowercase word each, every exact mark on the USPTO register live or dead with its owner, classes and serial, and the live close spellings an examiner would weigh. studio roles only, the list lives in Netlify Blobs and never in the repo',
+    can: 'add a word and it is searched at once, check one or all again, keep a note on a word, take a word off the list. it files nothing',
+  },
+  {
     path: '/settings/',
     name: 'Settings',
     holds: 'the profile, the avatar, the password and for admins the team',

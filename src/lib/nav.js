@@ -35,6 +35,10 @@
 // Orders off a phone's primary bar, and a report that goes out on its own is
 // worth less attention per day than money already taken.
 //
+// TRADEMARKS SITS LAST, UNDER REPORTS, 2026-10-05. The studio's own watch
+// on the words it might file for The Burroship LLC. Opened when a name is on
+// the table, never on a given morning, so it lives in the More sheet.
+//
 // HOW TO ADD A PAGE
 // Add it to NAV once. It appears in the sidebar automatically. If it belongs on
 // a phone's primary bar, move it above the MOBILE_PRIMARY_COUNT line. Everything
@@ -45,7 +49,7 @@
 import {
   TbSunrise, TbUsers, TbFileInvoice, TbInbox,
   TbPencil, TbHorse, TbCoins, TbWallet, TbMessageCircle, TbCalendar, TbChartBar, TbSettings,
-  TbBroadcast, TbCoin, TbMap2, TbArrowsSplit2, TbReportAnalytics,
+  TbBroadcast, TbCoin, TbMap2, TbArrowsSplit2, TbReportAnalytics, TbTrademark,
 } from 'react-icons/tb';
 
 export const NAV = [
@@ -65,6 +69,7 @@ export const NAV = [
   { path: '/calendar/',  label: 'Calendar',   icon: TbCalendar,      desc: 'Scheduling and sprints' },
   { path: '/analytics/', label: 'Analytics',  icon: TbChartBar,      desc: 'Traffic and trends' },
   { path: '/reports/',   label: 'Reports',    icon: TbReportAnalytics, desc: 'What each client gets on the 1st' },
+  { path: '/trademarks/', label: 'Trademarks', icon: TbTrademark,     desc: 'Words the studio might file' },
 ];
 
 export const SETTINGS_ITEM = {

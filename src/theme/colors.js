@@ -135,28 +135,44 @@ const colors = {
   //   lime is spent ONCE per screen, everything else is ink on paper
   //   on a phone there are no containers around content, the cream is the frame
   //
+  // LIGHTER, 2026-10-05. Tyler: "make the cream color just a lot lighter, so
+  // there's better contrast", then "even lighter ... or something else that you
+  // recommend for contrast". Two moves, measured, not guessed:
+  //   the paper rose two steps. ground #E7DFD1 to #F7F5F0, cards #F4EEE2 to
+  //   #FDFCF9, wells #EDE6D7 to #F2EEE7, still warm, still never #FFFFFF
+  //   the quiet text went darker, because on any cream the weak spot was never
+  //   the ink (15.6 to 1 now) but the labels. Against the new ground inkMuted
+  //   #6B5245 to #5C4A3F (7.7), inkFaint #9A8574 to #7A695D (4.8, was 3.2),
+  //   limeDeep to #5E6928, gold to #7E6400, green to #566F1B, coral to #B83B2B.
+  //   Every text color now clears 4.5 to 1 on mat, sheet and sunken alike.
+  // The invoice paper in src/lib/emailTokens.js did NOT move with it, emails
+  // still render on their own sheet #FBF9F4. The two papers were one material
+  // until this day and are deliberately apart now, the room lighter than the
+  // letter. Bring the letter up in its own sitting if Tyler asks, with the
+  // auth templates in scripts/auth-email-templates.mjs, which read it.
+  //
   // Pages convert to this one at a time. The login page is the first. Until a
   // given authed page is converted it still reads the dark surface/text tokens
   // above, both are valid while the migration is underway.
   paper: {
-    mat:      '#E7DFD1',  // page ground, cream as dark as cream goes
-    sheet:    '#F4EEE2',  // cards and surfaces, a lighter warm cream, NEVER white
-    sunken:   '#EDE6D7',  // inset panels and wells, a hair below sheet
-    hair:     '#E1D7C6',  // borders and real rules
-    hairSoft: '#EBE3D4',  // faintest inner rules
+    mat:      '#F7F5F0',  // page ground, a light warm paper (was #E7DFD1)
+    sheet:    '#FDFCF9',  // cards and surfaces, the warm near white, NEVER #FFFFFF
+    sunken:   '#F2EEE7',  // inset panels and wells, a step below the ground
+    hair:     '#E5DFD4',  // borders and real rules
+    hairSoft: '#EEEAE2',  // faintest inner rules
 
     ink:      '#241A16',  // Night Tack, primary text
     inkSec:   '#4A382F',  // Canyon Stitch, supporting text
-    inkMuted: '#6B5245',  // Burro Hide, labels
-    inkFaint: '#9A8574',  // faintest meta
+    inkMuted: '#5C4A3F',  // Burro Hide, labels, darkened 2026-10-05 for contrast
+    inkFaint: '#7A695D',  // faintest meta, still 4.5 to 1 on every ground
 
     lime:     '#C5D957',  // the one accent, Topo Lime
-    limeDeep: '#6E7A30',  // lime dark enough to read as small text on cream
+    limeDeep: '#5E6928',  // lime dark enough to read as small text on paper
     limeInk:  '#3A4319',  // ink that sits on a lime fill
 
-    gold:     '#9A7B00',  // pending, waiting
-    coral:    '#C2402F',  // overdue, destructive
-    green:    '#5E7A1E',  // paid, positive
+    gold:     '#7E6400',  // pending, waiting
+    coral:    '#B83B2B',  // overdue, destructive
+    green:    '#566F1B',  // paid, positive
   },
 
   // ── CHROME, THE DARK ROUNDED RECTANGLES ────────────────────────────────────

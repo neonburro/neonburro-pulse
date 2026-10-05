@@ -7,6 +7,9 @@
 // ink, warm brown accents, Topo Lime signal, banana for amounts due.
 //
 // ── THE WARM-PAPER INVOICE SET (2026-08, sheet + hair + lime* keys) ──────────
+// On 2026-10-05 Pulse's own paper in src/theme/colors.js went lighter than
+// this set on purpose, the room lighter than the letter. This set did not
+// move. See the LIGHTER note there before bringing the two back together.
 // The invoice document (invoiceEmailTemplate.js) is a real letterhead now, so
 // it uses a brighter, sharper paper than the older banner-led emails: `sheet`
 // is the invoice card, `sheet2` the inset panels, `hair`/`hairSoft` the rules,
