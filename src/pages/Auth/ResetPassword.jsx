@@ -1,20 +1,36 @@
 // src/pages/Auth/ResetPassword.jsx
+// Where the recovery email lands. Pulse's forgot password (Login.jsx) asks
+// Supabase for a reset with redirectTo /reset-password/, the mail written by
+// scripts/auth-email-templates.mjs carries the link, and this page sets the
+// new password.
+//
+// ── WHAT IS PRESERVED ────────────────────────────────────────────────────────
+// The session handling is unchanged from the dark version. The recovery
+// tokens arrive in the URL hash, setSession takes them, the hash is cleared
+// so a refresh cannot replay it, and ready gates the button until that has
+// run. After updateUser the page signs out and returns to /login/ so the new
+// password is used once straight away. That updateUser is also what fires the
+// password changed notice, if its switch is on.
+//
+// ── WHAT CHANGED, 2026-10-05 ─────────────────────────────────────────────────
+// The page moved onto the paper shell (components/AuthPaper.jsx), the same
+// cream as the sign in page and the email that sent the person here. The
+// form submits on Enter. An expired or reused link used to show Supabase's
+// raw "Auth session missing" and now says what to do instead.
+//
+// No oxford commas, no em dashes.
+
 import { useState, useEffect } from 'react';
-import {
-  Box, VStack, Text, Input, Button, FormControl,
-  Center, Image, Icon, HStack,
-  InputGroup, InputRightElement,
-} from '@chakra-ui/react';
-import { GiBananaPeeled } from 'react-icons/gi';
-import { TbCheck, TbAlertTriangle, TbEye, TbEyeOff } from 'react-icons/tb';
-import { supabase } from '../../lib/supabase';
+import { VStack, FormControl } from '@chakra-ui/react';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '../../lib/supabase';
+import {
+  AuthScreen, Brand, Heading, ErrorNote, PasswordInput, Pill, Done, QuietLink,
+} from './components/AuthPaper';
 
 const ResetPassword = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
@@ -27,7 +43,6 @@ const ResetPassword = () => {
       const hashParams = new URLSearchParams(window.location.hash.substring(1));
       const accessToken = hashParams.get('access_token');
       const refreshToken = hashParams.get('refresh_token');
-      const type = hashParams.get('type');
 
       if (accessToken && refreshToken) {
         const { error } = await supabase.auth.setSession({
@@ -48,11 +63,11 @@ const ResetPassword = () => {
   const handleReset = async () => {
     setError('');
     if (password.length < 6) {
-      setError('Password must be at least 6 characters');
+      setError('Six characters at least.');
       return;
     }
     if (password !== confirmPassword) {
-      setError('Passwords do not match');
+      setError('The two do not match.');
       return;
     }
     setLoading(true);
@@ -64,166 +79,62 @@ const ResetPassword = () => {
       await supabase.auth.signOut();
       setTimeout(() => navigate('/login/'), 2500);
     } catch (err) {
-      setError(err.message || 'Could not update password');
+      const message = err?.message || '';
+      setError(
+        /session/i.test(message)
+          ? 'This link has expired. Ask for a fresh one from sign in.'
+          : message || 'Could not save the password.',
+      );
     } finally {
       setLoading(false);
     }
   };
 
-  const passwordInputBase = {
-    bg: 'transparent',
-    border: '1px solid',
-    borderColor: 'surface.700',
-    color: 'white',
-    fontSize: 'sm',
-    h: '48px',
-    borderRadius: 'xl',
-    pr: '44px',
-    _hover: { borderColor: 'surface.500' },
-    _focus: { borderColor: 'brand.500', boxShadow: '0 0 0 1px var(--chakra-colors-brand-500)' },
-    _placeholder: { color: 'surface.600', fontSize: 'sm' },
-  };
-
   return (
-    <Box minH="100vh" bg="surface.950" position="relative" overflow="hidden">
-      <Box
-        position="absolute"
-        top="-300px"
-        left="50%"
-        transform="translateX(-50%)"
-        w="800px"
-        h="800px"
-        borderRadius="full"
-        bg="radial-gradient(circle, rgba(0,229,229,0.04) 0%, transparent 60%)"
-        pointerEvents="none"
-      />
+    <AuthScreen>
+      <Brand />
 
-      <Center minH="100vh" px={4} position="relative" zIndex={1}>
-        <Box w="100%" maxW="340px">
-          <VStack spacing={8} align="stretch">
-            <Center>
-              <Image src="/logo-main.svg" alt="NeonBurro" w="120px" h="auto" />
-            </Center>
+      {success ? (
+        <Done title="Saved." line="Back to sign in with the new one." />
+      ) : (
+        <>
+          <Heading title="A fresh password." line="Six characters or more. Then sign in with it." />
 
-            {error && (
-              <HStack
-                spacing={2}
-                bg="rgba(255, 229, 0, 0.08)"
-                border="1px solid"
-                borderColor="rgba(255, 229, 0, 0.3)"
-                borderRadius="xl"
-                px={4}
-                py={3}
-              >
-                <Icon as={TbAlertTriangle} boxSize={4} color="accent.banana" flexShrink={0} />
-                <Text fontSize="xs" color="accent.banana">{error}</Text>
-              </HStack>
-            )}
+          <ErrorNote error={error} />
 
-            {success ? (
-              <VStack spacing={3} py={4}>
-                <Icon as={TbCheck} boxSize={10} color="brand.500" />
-                <Text fontSize="lg" fontWeight="700" color="white" textAlign="center">
-                  Password updated
-                </Text>
-                <Text fontSize="xs" color="surface.400" textAlign="center">
-                  Redirecting to login...
-                </Text>
-              </VStack>
-            ) : (
-              <VStack spacing={4}>
-                <HStack spacing={2}>
-                  <Icon as={GiBananaPeeled} boxSize={5} color="accent.banana" />
-                  <Text fontSize="sm" color="surface.400">Pick a new password</Text>
-                </HStack>
-
-                <FormControl>
-                  <InputGroup>
-                    <Input
-                      type={showPassword ? 'text' : 'password'}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="new password"
-                      autoComplete="new-password"
-                      {...passwordInputBase}
-                    />
-                    <InputRightElement h="48px" w="44px">
-                      <Box
-                        as="button"
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        display="flex"
-                        alignItems="center"
-                        justifyContent="center"
-                        w="32px"
-                        h="32px"
-                        borderRadius="md"
-                        color="surface.500"
-                        opacity={0.6}
-                        transition="all 0.15s"
-                        _hover={{ color: 'brand.500', opacity: 1 }}
-                        tabIndex={-1}
-                        aria-label={showPassword ? 'Hide password' : 'Show password'}
-                      >
-                        <Icon as={showPassword ? TbEyeOff : TbEye} boxSize={4} />
-                      </Box>
-                    </InputRightElement>
-                  </InputGroup>
-                </FormControl>
-
-                <FormControl>
-                  <InputGroup>
-                    <Input
-                      type={showConfirm ? 'text' : 'password'}
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      placeholder="confirm password"
-                      autoComplete="new-password"
-                      {...passwordInputBase}
-                    />
-                    <InputRightElement h="48px" w="44px">
-                      <Box
-                        as="button"
-                        type="button"
-                        onClick={() => setShowConfirm(!showConfirm)}
-                        display="flex"
-                        alignItems="center"
-                        justifyContent="center"
-                        w="32px"
-                        h="32px"
-                        borderRadius="md"
-                        color="surface.500"
-                        opacity={0.6}
-                        transition="all 0.15s"
-                        _hover={{ color: 'brand.500', opacity: 1 }}
-                        tabIndex={-1}
-                        aria-label={showConfirm ? 'Hide password' : 'Show password'}
-                      >
-                        <Icon as={showConfirm ? TbEyeOff : TbEye} boxSize={4} />
-                      </Box>
-                    </InputRightElement>
-                  </InputGroup>
-                </FormControl>
-
-                <Button
-                  w="100%"
-                  h="48px"
-                  borderRadius="xl"
-                  isLoading={loading}
-                  loadingText="Updating..."
-                  fontSize="sm"
-                  fontWeight="700"
-                  onClick={handleReset}
-                  isDisabled={!ready}
-                >
-                  Update Password
-                </Button>
-              </VStack>
-            )}
+          <VStack
+            as="form"
+            spacing={4}
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleReset();
+            }}
+          >
+            <FormControl>
+              <PasswordInput
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="new password"
+                enterKeyHint="next"
+              />
+            </FormControl>
+            <FormControl>
+              <PasswordInput
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="once more"
+                enterKeyHint="go"
+              />
+            </FormControl>
+            <Pill type="submit" mt={2} isLoading={loading} loadingText="Saving" isDisabled={!ready}>
+              Save the password
+            </Pill>
           </VStack>
-        </Box>
-      </Center>
-    </Box>
+
+          <QuietLink to="/login/">Back to sign in</QuietLink>
+        </>
+      )}
+    </AuthScreen>
   );
 };
 

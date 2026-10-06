@@ -18,6 +18,13 @@
 // One little heartbeat line sweeps across, the Pulse motif, drawn in lime. It is
 // the only motion and the only lime spent up top so the accent stays singular.
 //
+// ── THE OTHER DOORS ──────────────────────────────────────────────────────────
+// The reset and invite pages wear the same look through
+// components/AuthPaper.jsx, which copies the pieces of this page value for
+// value. If a value moves here, move it there. "No seat yet? Ask for one" is
+// the request access path Tyler asked for on 2026-10-05, a mail to the studio
+// and nothing more, because a seat in Pulse is handed out by a person.
+//
 // No containers wrap the content, on a phone the cream is the frame. No cold
 // white, the brightest surface is the input fill. No oxford commas, no dashes.
 
@@ -389,7 +396,7 @@ const Login = () => {
                 <VStack spacing={3}>
                   <Text fontSize="xs" color={P.inkMuted} textAlign="center" lineHeight="1.6" px={2}>
                     Pulse remembers everything. You do not have to.
-                    <br />Drop your email and we will send a reset.
+                    <br />Drop your email and a reset link follows.
                   </Text>
                   <Input
                     type="email"
@@ -428,6 +435,21 @@ const Login = () => {
                 </VStack>
               )}
             </Collapse>
+
+            {/* The way in for somebody without a seat, a note to the studio */}
+            <Text fontSize="sm" color={P.inkMuted} textAlign="center">
+              No seat yet?{' '}
+              <Box
+                as="a"
+                href="mailto:hello@neonburro.com?subject=A%20seat%20in%20Pulse"
+                color={P.ink}
+                fontWeight="600"
+                transition="color 200ms"
+                _hover={{ color: P.limeDeep }}
+              >
+                Ask for one &rarr;
+              </Box>
+            </Text>
 
           </VStack>
         </Box>

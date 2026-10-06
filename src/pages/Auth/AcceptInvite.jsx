@@ -1,22 +1,41 @@
 // src/pages/Auth/AcceptInvite.jsx
+// Where the Pulse invite email lands. send-team-invite.js calls
+// inviteUserByEmail with redirectTo /accept-invite/, the mail written by
+// scripts/auth-email-templates.mjs carries the link, and this page takes a
+// name, a username and a first password.
+//
+// ── WHAT IS PRESERVED ────────────────────────────────────────────────────────
+// Every step of the behavior is unchanged from the dark version. The invite
+// tokens arrive in the URL hash and setSession takes them, or an existing
+// session is used. The display name is guessed from the email. The username
+// rules, the taken check against profiles, updateUser for the password, the
+// profiles upsert with role admin, then sign out and back to /login/. Only
+// the words and the look moved. The first password set here is what fires
+// the password changed notice, which is why that mail says "set or changed".
+//
+// ── WHAT CHANGED, 2026-10-05 ─────────────────────────────────────────────────
+// The page moved onto the paper shell (components/AuthPaper.jsx). Its title
+// is "Pull up a chair.", the same line as the invite email, so the tap lands
+// where it left. The placeholders were Tyler's own name and handle and are
+// plain prompts now. The rules lost their oxford commas. The form submits on
+// Enter.
+//
+// No oxford commas, no em dashes.
+
 import { useState, useEffect } from 'react';
-import {
-  Box, VStack, Text, Input, Button, FormControl,
-  Center, Image, Icon, HStack, InputGroup, InputRightElement,
-  Spinner,
-} from '@chakra-ui/react';
-import { GiBananaPeeled } from 'react-icons/gi';
-import { TbCheck, TbAlertTriangle, TbEye, TbEyeOff, TbUser } from 'react-icons/tb';
-import { supabase } from '../../lib/supabase';
+import { Box, VStack, FormControl, Spinner } from '@chakra-ui/react';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '../../lib/supabase';
+import {
+  P, AuthScreen, Brand, Heading, ErrorNote, Label, Hint, TextInput,
+  PasswordInput, Pill, Done, QuietLink,
+} from './components/AuthPaper';
 
 const AcceptInvite = () => {
   const [displayName, setDisplayName] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
@@ -30,7 +49,6 @@ const AcceptInvite = () => {
       const hashParams = new URLSearchParams(window.location.hash.substring(1));
       const accessToken = hashParams.get('access_token');
       const refreshToken = hashParams.get('refresh_token');
-      const type = hashParams.get('type');
 
       if (accessToken && refreshToken) {
         const { error } = await supabase.auth.setSession({
@@ -38,7 +56,7 @@ const AcceptInvite = () => {
           refresh_token: refreshToken,
         });
         if (error) {
-          setError('This invite link has expired or is invalid. Please ask for a new one.');
+          setError('This invite has expired. Ask the studio for a fresh one.');
           setReady(true);
           return;
         }
@@ -62,7 +80,7 @@ const AcceptInvite = () => {
           const emailName = user.email.split('@')[0];
           setDisplayName(emailName.replace(/[._-]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()));
         } else {
-          setError('No invite token found. Please use the link from your invite email.');
+          setError('Open this page from the invite email.');
         }
       }
       setReady(true);
@@ -75,23 +93,23 @@ const AcceptInvite = () => {
     setError('');
 
     if (!displayName.trim()) {
-      setError('Please enter your name');
+      setError('Add your name.');
       return;
     }
     if (!username.trim() || username.length < 3) {
-      setError('Username must be at least 3 characters');
+      setError('Usernames are three characters or more.');
       return;
     }
     if (!/^[a-z0-9_]+$/.test(username)) {
-      setError('Username can only contain lowercase letters, numbers, and underscores');
+      setError('Usernames take lowercase letters, numbers and underscores.');
       return;
     }
     if (password.length < 6) {
-      setError('Password must be at least 6 characters');
+      setError('Six characters at least for the password.');
       return;
     }
     if (password !== confirmPassword) {
-      setError('Passwords do not match');
+      setError('The two passwords do not match.');
       return;
     }
 
@@ -105,7 +123,7 @@ const AcceptInvite = () => {
         .maybeSingle();
 
       if (existing) {
-        throw new Error('That username is already taken');
+        throw new Error('That username is taken.');
       }
 
       // Set the password
@@ -114,7 +132,7 @@ const AcceptInvite = () => {
 
       // Get the current user
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Session expired. Please use the invite link again.');
+      if (!user) throw new Error('The session ran out. Open the invite link again.');
 
       // Create or update the profile
       const { error: profileError } = await supabase
@@ -138,230 +156,98 @@ const AcceptInvite = () => {
       }, 2500);
 
     } catch (err) {
-      setError(err.message || 'Could not complete invite');
+      setError(err.message || 'Could not finish the invite.');
     } finally {
       setLoading(false);
     }
   };
 
-  const inputBase = {
-    bg: 'transparent',
-    border: '1px solid',
-    borderColor: 'surface.700',
-    color: 'white',
-    fontSize: 'sm',
-    h: '48px',
-    borderRadius: 'xl',
-    _hover: { borderColor: 'surface.500' },
-    _focus: { borderColor: 'brand.500', boxShadow: '0 0 0 1px var(--chakra-colors-brand-500)' },
-    _placeholder: { color: 'surface.600', fontSize: 'sm' },
-  };
-
-  const passwordInputBase = { ...inputBase, pr: '44px' };
-
   if (!ready) {
     return (
-      <Box minH="100vh" bg="surface.950" display="flex" alignItems="center" justifyContent="center">
-        <Spinner color="brand.500" size="lg" thickness="2px" />
-      </Box>
+      <AuthScreen>
+        <Box display="flex" justifyContent="center">
+          <Spinner color={P.limeDeep} size="lg" thickness="2px" />
+        </Box>
+      </AuthScreen>
     );
   }
 
   return (
-    <Box minH="100vh" bg="surface.950" position="relative" overflow="hidden">
-      <Box
-        position="absolute"
-        top="-300px"
-        left="50%"
-        transform="translateX(-50%)"
-        w="800px"
-        h="800px"
-        borderRadius="full"
-        bg="radial-gradient(circle, rgba(0,229,229,0.04) 0%, transparent 60%)"
-        pointerEvents="none"
-      />
+    <AuthScreen>
+      <Brand />
 
-      <Center minH="100vh" px={4} position="relative" zIndex={1}>
-        <Box w="100%" maxW="380px">
-          <VStack spacing={7} align="stretch">
-            <Center>
-              <Image src="/logo-main.svg" alt="NeonBurro" w="120px" h="auto" />
-            </Center>
+      {success ? (
+        <Done title="You are in." line="Sign in with the new password." />
+      ) : (
+        <>
+          <Heading
+            title="Pull up a chair."
+            line={invitedEmail ? `A seat in Pulse for ${invitedEmail}.` : 'A seat in Pulse.'}
+          />
 
-            {!success && (
-              <VStack spacing={2} textAlign="center">
-                <HStack spacing={2}>
-                  <Icon as={GiBananaPeeled} boxSize={5} color="accent.banana" />
-                  <Text fontSize="sm" color="accent.banana" fontWeight="700" letterSpacing="wider" textTransform="uppercase">
-                    Welcome to the herd
-                  </Text>
-                </HStack>
-                <Text fontSize="lg" color="white" fontWeight="700">
-                  You've been invited to NeonBurro Pulse
-                </Text>
-                {invitedEmail && (
-                  <Text fontSize="xs" color="surface.400">
-                    {invitedEmail}
-                  </Text>
-                )}
-              </VStack>
-            )}
+          <ErrorNote error={error} />
 
-            {error && (
-              <HStack
-                spacing={2}
-                bg="rgba(255, 229, 0, 0.08)"
-                border="1px solid"
-                borderColor="rgba(255, 229, 0, 0.3)"
-                borderRadius="xl"
-                px={4}
-                py={3}
-              >
-                <Icon as={TbAlertTriangle} boxSize={4} color="accent.banana" flexShrink={0} />
-                <Text fontSize="xs" color="accent.banana">{error}</Text>
-              </HStack>
-            )}
+          {invitedEmail ? (
+            <VStack
+              as="form"
+              spacing={5}
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleAccept();
+              }}
+            >
+              <FormControl>
+                <Label>Your name</Label>
+                <TextInput
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  placeholder="first and last"
+                  autoComplete="name"
+                />
+              </FormControl>
 
-            {success ? (
-              <VStack spacing={3} py={4}>
-                <Icon as={TbCheck} boxSize={10} color="brand.500" />
-                <Text fontSize="lg" fontWeight="700" color="white" textAlign="center">
-                  You're in
-                </Text>
-                <Text fontSize="xs" color="surface.400" textAlign="center">
-                  Redirecting to login...
-                </Text>
-              </VStack>
-            ) : invitedEmail ? (
-              <VStack spacing={4}>
-                <FormControl>
-                  <Text fontSize="2xs" color="surface.500" fontWeight="700" mb={1.5} letterSpacing="wider" textTransform="uppercase">
-                    Your Name
-                  </Text>
-                  <Input
-                    type="text"
-                    value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
-                    placeholder="Tyler Reagan"
-                    autoComplete="name"
-                    {...inputBase}
-                  />
-                </FormControl>
+              <FormControl>
+                <Label>Username</Label>
+                <TextInput
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value.toLowerCase())}
+                  placeholder="short and lowercase"
+                  autoComplete="username"
+                  autoCapitalize="none"
+                  spellCheck="false"
+                />
+                <Hint>Lowercase letters, numbers and underscores.</Hint>
+              </FormControl>
 
-                <FormControl>
-                  <Text fontSize="2xs" color="surface.500" fontWeight="700" mb={1.5} letterSpacing="wider" textTransform="uppercase">
-                    Pick a Username
-                  </Text>
-                  <Input
-                    type="text"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value.toLowerCase())}
-                    placeholder="treagan"
-                    autoComplete="username"
-                    {...inputBase}
-                  />
-                  <Text fontSize="2xs" color="surface.600" mt={1.5}>
-                    Lowercase letters, numbers, and underscores only
-                  </Text>
-                </FormControl>
+              <FormControl>
+                <Label>Password</Label>
+                <PasswordInput
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="six characters or more"
+                />
+              </FormControl>
 
-                <FormControl>
-                  <Text fontSize="2xs" color="surface.500" fontWeight="700" mb={1.5} letterSpacing="wider" textTransform="uppercase">
-                    Password
-                  </Text>
-                  <InputGroup>
-                    <Input
-                      type={showPassword ? 'text' : 'password'}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="At least 6 characters"
-                      autoComplete="new-password"
-                      {...passwordInputBase}
-                    />
-                    <InputRightElement h="48px" w="44px">
-                      <Box
-                        as="button"
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        display="flex"
-                        alignItems="center"
-                        justifyContent="center"
-                        w="32px"
-                        h="32px"
-                        borderRadius="md"
-                        color="surface.500"
-                        opacity={0.6}
-                        transition="all 0.15s"
-                        _hover={{ color: 'brand.500', opacity: 1 }}
-                        tabIndex={-1}
-                        aria-label={showPassword ? 'Hide password' : 'Show password'}
-                      >
-                        <Icon as={showPassword ? TbEyeOff : TbEye} boxSize={4} />
-                      </Box>
-                    </InputRightElement>
-                  </InputGroup>
-                </FormControl>
+              <FormControl>
+                <Label>Once more</Label>
+                <PasswordInput
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="the same again"
+                  enterKeyHint="go"
+                />
+              </FormControl>
 
-                <FormControl>
-                  <Text fontSize="2xs" color="surface.500" fontWeight="700" mb={1.5} letterSpacing="wider" textTransform="uppercase">
-                    Confirm Password
-                  </Text>
-                  <InputGroup>
-                    <Input
-                      type={showConfirm ? 'text' : 'password'}
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      placeholder="Type it again"
-                      autoComplete="new-password"
-                      {...passwordInputBase}
-                    />
-                    <InputRightElement h="48px" w="44px">
-                      <Box
-                        as="button"
-                        type="button"
-                        onClick={() => setShowConfirm(!showConfirm)}
-                        display="flex"
-                        alignItems="center"
-                        justifyContent="center"
-                        w="32px"
-                        h="32px"
-                        borderRadius="md"
-                        color="surface.500"
-                        opacity={0.6}
-                        transition="all 0.15s"
-                        _hover={{ color: 'brand.500', opacity: 1 }}
-                        tabIndex={-1}
-                        aria-label={showConfirm ? 'Hide password' : 'Show password'}
-                      >
-                        <Icon as={showConfirm ? TbEyeOff : TbEye} boxSize={4} />
-                      </Box>
-                    </InputRightElement>
-                  </InputGroup>
-                </FormControl>
-
-                <Button
-                  w="100%"
-                  h="48px"
-                  borderRadius="xl"
-                  isLoading={loading}
-                  loadingText="Setting up..."
-                  fontSize="sm"
-                  fontWeight="700"
-                  onClick={handleAccept}
-                  bg="brand.500"
-                  color="surface.950"
-                  _hover={{ bg: 'brand.400', transform: 'translateY(-1px)' }}
-                  _active={{ transform: 'translateY(0)' }}
-                  mt={2}
-                >
-                  Join the Herd
-                </Button>
-              </VStack>
-            ) : null}
-          </VStack>
-        </Box>
-      </Center>
-    </Box>
+              <Pill type="submit" mt={1} isLoading={loading} loadingText="Setting up">
+                Take the seat
+              </Pill>
+            </VStack>
+          ) : (
+            <QuietLink to="/login/">Back to sign in</QuietLink>
+          )}
+        </>
+      )}
+    </AuthScreen>
   );
 };
 
