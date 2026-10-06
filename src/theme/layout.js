@@ -240,7 +240,11 @@ export const SEARCH = {
 export const BUTTON = {
   xs: { h: '30px', minW: '30px', px: 3, fontSize: TYPE.small },
   sm: { h: FIELD_H_SM, minW: FIELD_H_SM, px: 3.5, fontSize: TYPE.small },
-  md: { h: FIELD_H, minW: FIELD_H, px: 4.5, fontSize: TYPE.body },
+  // 18px written out. It was px 4.5, and Chakra's spacing scale has 4 and 5
+  // but no 4.5, so it fell through as 4.5 pixels and every default size
+  // button in Pulse hugged its own edge until 2026-10-05. The other sizes
+  // name steps the scale has.
+  md: { h: FIELD_H, minW: FIELD_H, px: '18px', fontSize: TYPE.body },
   lg: { h: '52px', minW: '52px', px: 6, fontSize: TYPE.body },
 };
 
