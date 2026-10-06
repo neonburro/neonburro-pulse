@@ -18,9 +18,17 @@
 // content column, the same way MobileNav does, and it clears the pill on a
 // phone by reading TABBAR_H from the theme. See VoltDesk.jsx for the rest.
 //
+// V6, 2026-10-05. The sidebar width is offered through ShellContext, so
+// Settings, Appearance can change it and the rail moves while you watch.
+// The shell still owns the state and the write to profiles.sidebar_collapsed,
+// there is one hand on that column. Before this the only way to narrow the
+// rail was the chevron at its foot, and the setting existed nowhere a person
+// would look for it. useShell outside the shell answers null, so a page can
+// tell that it is being drawn somewhere else, the dev review route for one.
+//
 // No oxford commas, no dashes.
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, createContext, useContext, useCallback, useMemo } from 'react';
 import { Box, Flex } from '@chakra-ui/react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
@@ -36,6 +44,9 @@ const P = colors.paper;
 // The floating sidebar is inset 12px from the window and the content clears it by
 // a 16px gap, so the offset is width + 28. Sidebar.jsx uses the same 12px inset.
 const OFFSET = (w) => `calc(${w} + 28px)`;
+
+const ShellContext = createContext(null);
+export const useShell = () => useContext(ShellContext);
 
 const AppShell = ({ children }) => {
   const { user } = useAuth();
@@ -55,43 +66,50 @@ const AppShell = ({ children }) => {
     return () => { cancelled = true; };
   }, [user]);
 
-  const toggle = async () => {
-    const next = !collapsed;
+  // Answers whether the choice was kept, so Settings can say so. The rail
+  // moves first either way, the write follows.
+  const setSidebar = useCallback(async (next) => {
     setCollapsed(next);
-    if (!user) return;
-    await supabase.from('profiles').update({ sidebar_collapsed: next }).eq('id', user.id);
-  };
+    if (!user) return { kept: false };
+    const { error } = await supabase.from('profiles').update({ sidebar_collapsed: next }).eq('id', user.id);
+    return { kept: !error };
+  }, [user]);
+
+  const toggle = () => setSidebar(!collapsed);
+  const shell = useMemo(() => ({ collapsed, setSidebar }), [collapsed, setSidebar]);
 
   return (
-    <Flex minH="100dvh" bg={P.mat} align="stretch">
-      <Sidebar collapsed={collapsed} onToggle={toggle} />
-
-      <Box
-        flex={1}
-        minW={0}
-        ml={{ base: 0, lg: OFFSET(collapsed ? SIDEBAR_W_COLLAPSED : SIDEBAR_W) }}
-        minH="100dvh"
-        transition={`margin-left ${SLOW} ${EASE}`}
-        display="flex"
-        flexDirection="column"
-      >
-        <Header />
+    <ShellContext.Provider value={shell}>
+      <Flex minH="100dvh" bg={P.mat} align="stretch">
+        <Sidebar collapsed={collapsed} onToggle={toggle} />
 
         <Box
-          as="main"
-          w="100%"
           flex={1}
-          bg={P.mat}
-          color={P.ink}
-          pb={{ base: TABBAR_PAD, lg: 0 }}
+          minW={0}
+          ml={{ base: 0, lg: OFFSET(collapsed ? SIDEBAR_W_COLLAPSED : SIDEBAR_W) }}
+          minH="100dvh"
+          transition={`margin-left ${SLOW} ${EASE}`}
+          display="flex"
+          flexDirection="column"
         >
-          {children || <Outlet />}
-        </Box>
-      </Box>
+          <Header />
 
-      <MobileNav />
-      <VoltDesk />
-    </Flex>
+          <Box
+            as="main"
+            w="100%"
+            flex={1}
+            bg={P.mat}
+            color={P.ink}
+            pb={{ base: TABBAR_PAD, lg: 0 }}
+          >
+            {children || <Outlet />}
+          </Box>
+        </Box>
+
+        <MobileNav />
+        <VoltDesk />
+      </Flex>
+    </ShellContext.Provider>
   );
 };
 

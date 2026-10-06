@@ -8,11 +8,21 @@
 // The dev proxy mirrors the /studio-library/* rewrite in netlify.toml, the
 // Socials picture picker reads the studio library index through it because
 // neonburro.com sends no CORS header. Change both or neither.
+//
+// __PULSE_BUILD__ stamps the commit Netlify built from into the bundle,
+// COMMIT_REF and CONTEXT being variables Netlify sets on every build. It is
+// a sha and a word, nothing secret, and src/lib/build.js is the one reader.
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
+  define: {
+    __PULSE_BUILD__: JSON.stringify({
+      commit: process.env.COMMIT_REF || '',
+      context: process.env.CONTEXT || '',
+    }),
+  },
   server: {
     port: 3000,
     open: true,

@@ -103,6 +103,17 @@ export const TABBAR_PAD = 'calc(64px + env(safe-area-inset-bottom) + 16px)';
 // ── measure, forms and reading text ─────────────────────────────────────────
 export const MEASURE = '620px';
 
+// ── the settings frame, 2026-10-05 ──────────────────────────────────────────
+// Settings is a list on the left and a pane beside it, the shape of the Claude
+// desktop settings Tyler pointed at. SETTINGS_NAV is the list column, PANE is
+// the widest a pane gets. A pane wider than this puts a toggle a long walk
+// from the label it answers, so it stops here even on a wide monitor, and the
+// rest of CONTENT stays cream, the phantom sidebar on the right. A form inside
+// a pane still sits on MEASURE. Read by src/pages/Settings/components/
+// SettingsFrame.jsx only.
+export const SETTINGS_NAV = '200px';
+export const PANE = '760px';
+
 // ── rhythm ──────────────────────────────────────────────────────────────────
 export const BAND_Y = { base: 6, md: 9 };
 export const STACK = { base: 8, md: 12 };
@@ -235,7 +246,7 @@ export const BUTTON = {
 
 export default {
   RAIL, RAIL_PX, SHEET, CONTENT, CONTENT_PX, SIDEBAR_W, SIDEBAR_W_COLLAPSED,
-  TABBAR_H, TABBAR_PAD, MEASURE, BAND_Y, STACK, PAGE_Y, HEAD_GAP, SECTION_GAP,
+  TABBAR_H, TABBAR_PAD, MEASURE, SETTINGS_NAV, PANE, BAND_Y, STACK, PAGE_Y, HEAD_GAP, SECTION_GAP,
   INSET, INSET_PX, FIELD_H, FIELD_H_SM, FIELD_RADIUS, PLACEHOLDER,
   PLATE_RADIUS, PLATE_PAD, EASE, FAST, SLOW, fluid, TYPE, KICKER, FIELD_LABEL,
   INPUT, TEXTAREA, SEARCH, BUTTON,

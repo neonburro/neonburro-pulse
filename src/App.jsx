@@ -119,6 +119,8 @@ function App() {
               <Route path="reports/" element={<Reports />} />
               <Route path="trademarks/" element={<Trademarks />} />
               <Route path="settings/" element={<Settings />} />
+              {/* One pane each, see src/pages/Settings/panes.js. */}
+              <Route path="settings/:pane/" element={<Settings />} />
               {/* Projects redirect to clients, the source of truth now. */}
               <Route path="projects/" element={<Navigate to="/clients/" replace />} />
               <Route path="projects/*" element={<Navigate to="/clients/" replace />} />

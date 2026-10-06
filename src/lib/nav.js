@@ -39,6 +39,12 @@
 // on the words it might file for The Burroship LLC. Opened when a name is on
 // the table, never on a given morning, so it lives in the More sheet.
 //
+// SETTINGS GREW PANES, 2026-10-05. /settings/ is a list and a pane now,
+// /settings/<key>/ each, and isActivePath already marks Settings for all of
+// them because it matches on the start of the path. The panes have their
+// own list in src/pages/Settings/panes.js, they are not pages and do not
+// belong here.
+//
 // HOW TO ADD A PAGE
 // Add it to NAV once. It appears in the sidebar automatically. If it belongs on
 // a phone's primary bar, move it above the MOBILE_PRIMARY_COUNT line. Everything
@@ -73,7 +79,7 @@ export const NAV = [
 ];
 
 export const SETTINGS_ITEM = {
-  path: '/settings/', label: 'Settings', icon: TbSettings, desc: 'Profile and preferences',
+  path: '/settings/', label: 'Settings', icon: TbSettings, desc: 'Profile, account and preferences',
 };
 
 // Four plus a More button is the ceiling for a thumb. Five icons on a small

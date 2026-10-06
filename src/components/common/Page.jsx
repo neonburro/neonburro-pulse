@@ -27,6 +27,14 @@
 //   Kicker      the section kicker text, KICKER from the theme.
 //   FieldLabel  the label above a field, FIELD_LABEL from the theme.
 //   Field       label, optional hint on the right, then the control.
+//   Rows        a stack of Row with a whisper rule between them, no box.
+//               flush when it sits under a Section kicker.
+//   Row         the settings row, added 2026-10-05 from the Claude desktop
+//               settings Tyler pointed at. A label and one muted line on the
+//               left, the control on the right. When the window is too
+//               narrow for both the control drops under the words, it never
+//               squeezes the label. children open under the row, for a form
+//               a button reveals in place.
 //
 // Lime is spent by the page on its one primary button. The kit spends none,
 // the active tab and the active count are ink.
@@ -230,6 +238,35 @@ export const SearchBox = ({ value, onChange, placeholder = 'search', inputProps 
       {...inputProps}
     />
   </HStack>
+);
+
+// flush drops the padding above the first row and below the last, for Rows
+// sitting under a Section kicker whose rule already gives the edge.
+export const Rows = ({ flush = false, children, ...rest }) => (
+  <VStack
+    align="stretch"
+    spacing={0}
+    divider={<Box h="1px" bg={P.hairSoft} border="none" />}
+    sx={flush ? { '& > :first-of-type': { paddingTop: 0 }, '& > :last-of-type': { paddingBottom: 0 } } : undefined}
+    {...rest}
+  >
+    {children}
+  </VStack>
+);
+
+export const Row = ({ label, desc, control, children, ...rest }) => (
+  <Box py={4} {...rest}>
+    <HStack spacing={0} align="center" justify="space-between" flexWrap="wrap" columnGap={6} rowGap={3}>
+      <VStack align="start" spacing={1} flex="1 1 200px" minW={0}>
+        <Text fontSize={TYPE.body} fontWeight="600" color={P.ink} lineHeight="1.4">{label}</Text>
+        {desc && (
+          <Text fontSize={TYPE.small} color={P.inkMuted} lineHeight="1.55" maxW="56ch">{desc}</Text>
+        )}
+      </VStack>
+      {control && <Box flexShrink={0} maxW="100%">{control}</Box>}
+    </HStack>
+    {children}
+  </Box>
 );
 
 export const Field = ({ label, hint, hintColor, children, ...rest }) => (
