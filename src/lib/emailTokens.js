@@ -10,6 +10,10 @@
 // On 2026-10-05 Pulse's own paper in src/theme/colors.js went lighter than
 // this set on purpose, the room lighter than the letter. This set did not
 // move. See the LIGHTER note there before bringing the two back together.
+// The Supabase auth mails no longer read this file. Since that same day
+// scripts/auth-email-templates.mjs reads colors.paper, the room's paper,
+// because those mails open straight onto the sign in pages. Invoices,
+// receipts and netlify/functions/_letterhead.js stay on this set.
 // The invoice document (invoiceEmailTemplate.js) is a real letterhead now, so
 // it uses a brighter, sharper paper than the older banner-led emails: `sheet`
 // is the invoice card, `sheet2` the inset panels, `hair`/`hairSoft` the rules,

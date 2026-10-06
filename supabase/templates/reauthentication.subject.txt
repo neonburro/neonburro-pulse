@@ -1,1 +1,1 @@
-Your confirmation code • neonburro
+{{ .Token }} is your code

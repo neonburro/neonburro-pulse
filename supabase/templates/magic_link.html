@@ -1,53 +1,69 @@
+<!-- supabase/templates/magic_link.html, written by scripts/auth-email-templates.mjs. Edit the script and run it, never this file. Go strips this comment before sending. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="x-apple-disable-message-reformatting">
+<meta name="format-detection" content="telephone=no,date=no,address=no,email=no,url=no">
 <meta name="color-scheme" content="light">
 <meta name="supported-color-schemes" content="light">
-<title>Your way in.</title>
+<title>The short way in.</title>
+<style>
+@media only screen and (max-width:620px){
+.nb-outer{padding:0!important;}
+.nb-screen{border:0!important;border-radius:0!important;}
+.nb-pad{padding-left:24px!important;padding-right:24px!important;}
+.nb-bar{padding-top:22px!important;}
+.nb-body{padding-top:44px!important;padding-bottom:40px!important;}
+.nb-foot{padding:22px 24px 40px!important;}
+}
+</style>
+<style>
+:root{color-scheme:light;supported-color-schemes:light;}
+a[x-apple-data-detectors]{color:inherit!important;text-decoration:none!important;font-size:inherit!important;font-family:inherit!important;font-weight:inherit!important;line-height:inherit!important;}
+</style>
 </head>
-<body style="margin:0;padding:0;background:#E7DFD1;">
-<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">A one time link to sign in to Pulse.</div>
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;background:#E7DFD1;">
+<body style="margin:0;padding:0;background:#F7F5F0;-webkit-text-size-adjust:100%;">
+<div style="display:none;max-height:0;max-width:0;overflow:hidden;opacity:0;mso-hide:all;">The short way in.&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#F7F5F0" style="border-collapse:collapse;background:#F7F5F0;">
   <tr>
-    <td align="center" style="padding:36px 16px 48px;">
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;max-width:560px;background:#FBF9F4;border-radius:18px;overflow:hidden;">
-        <tr><td style="height:3px;background:#C5D957;font-size:0;line-height:0;">&nbsp;</td></tr>
+    <td align="center" class="nb-outer" style="padding:48px 12px 0;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="nb-screen" bgcolor="#FDFCF9" style="border-collapse:separate;max-width:480px;background:#FDFCF9;border:1px solid #E5DFD4;border-radius:28px;">
         <tr>
-          <td style="padding:34px 40px 8px;">
-            <div style="font-family:'Geist','Geist Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:22px;font-weight:600;letter-spacing:-0.035em;color:#241A16;line-height:1;">neonburro<span style="display:inline-block;width:0.16em;height:0.16em;border-radius:99px;background:#C5D957;margin-left:0.03em;vertical-align:baseline;"></span></div>
-            <div style="font-family:'Geist','Geist Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:12px;font-weight:600;letter-spacing:-0.02em;color:#4A382F;margin-top:8px;">theburroship<span style="display:inline-block;width:0.16em;height:0.16em;border-radius:99px;background:#C5D957;margin-left:0.03em;vertical-align:baseline;"></span></div>
-          </td>
-        </tr>
-        <tr>
-          <td style="padding:30px 40px 0;">
-            <div style="font-family:'Geist Mono','JetBrains Mono',ui-monospace,'SF Mono',Menlo,monospace;font-size:10px;font-weight:500;letter-spacing:0.2em;text-transform:uppercase;color:#6B5245;">pulse · sign in</div>
-            <div style="font-family:'Fraunces',Georgia,'Times New Roman',serif;font-size:30px;font-weight:500;letter-spacing:-0.02em;line-height:1.1;color:#241A16;margin-top:12px;">Your way in.</div>
-            <div style="font-family:'Geist','Geist Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:15px;line-height:1.65;color:#4A382F;margin-top:18px;max-width:46ch;">Here is a one time link to sign in to Pulse as {{ .Email }}. It works once, then it is gone.</div>
-            
-<table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-top:28px;">
-  <tr>
-    <td style="border-radius:999px;background:#C5D957;">
-      <a href="{{ .ConfirmationURL }}" style="display:inline-block;padding:14px 26px;font-family:'Geist','Geist Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:14px;font-weight:600;letter-spacing:-0.01em;color:#3A4319;text-decoration:none;border-radius:999px;">Sign in to Pulse</a>
-    </td>
-  </tr>
-</table>
-<div style="font-family:'Geist','Geist Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:12px;line-height:1.6;color:#6B5245;margin-top:26px;">If the button does not open, paste this into your browser.</div>
-<div style="font-family:'Geist Mono','JetBrains Mono',ui-monospace,'SF Mono',Menlo,monospace;font-size:11px;line-height:1.6;color:#4A382F;word-break:break-all;margin-top:6px;">{{ .ConfirmationURL }}</div>
-            <div style="font-family:'Geist','Geist Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:13px;line-height:1.65;color:#6B5245;margin-top:28px;max-width:46ch;">If you did not ask for this, nothing happens without the click.</div>
-          </td>
-        </tr>
-        <tr>
-          <td style="padding:34px 40px 30px;">
-            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border-top:1px solid #E4DBCB;">
+          <td class="nb-pad nb-bar" style="padding:28px 36px 0;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
               <tr>
-                <td style="padding-top:18px;">
-                  <div style="font-family:'Geist','Geist Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:12px;line-height:1.6;color:#6B5245;">Pulse is the client portal of neonburro, a digital studio in Ridgway, Colorado. This message was sent to {{ .Email }} because of an action on that account.</div>
-                  <div style="font-family:'Geist Mono','JetBrains Mono',ui-monospace,'SF Mono',Menlo,monospace;font-size:9.5px;letter-spacing:0.14em;text-transform:uppercase;color:#6B5245;line-height:1.8;margin-top:16px;">The Burroship, LLC · PO Box 2111, Ridgway CO 81432 · hello@neonburro.com</div>
-                </td>
+                <td valign="middle" style="padding:0;"><a href="https://neonburro.com/" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:22px;font-weight:600;letter-spacing:-0.035em;line-height:26px;mso-line-height-rule:exactly;color:#241A16;text-decoration:none;">neonburro<span style="display:inline-block;width:0.16em;height:0.16em;margin-left:0.03em;border-radius:50%;background:#C5D957;vertical-align:baseline;"></span></a></td>
+                <td valign="middle" align="right" style="padding:0 0 0 16px;"><div style="font-family:ui-monospace,'SF Mono',SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.2em;line-height:14px;mso-line-height-rule:exactly;text-transform:uppercase;color:#5C4A3F;text-align:right;">Sign in</div></td>
               </tr>
             </table>
+          </td>
+        </tr>
+        <tr>
+          <td class="nb-pad nb-body" style="padding:56px 36px 40px;">
+            <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:32px;font-weight:700;letter-spacing:-0.03em;line-height:36px;mso-line-height-rule:exactly;color:#241A16;text-wrap:balance;">The short way in.</div>
+            <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:16px;line-height:24px;mso-line-height-rule:exactly;color:#4A382F;margin-top:12px;text-wrap:pretty;">No password needed for {{ .Email }}.</div>
+            
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;margin-top:32px;">
+  <tr>
+    <td align="center" style="background:#C5D957;border-radius:999px;mso-padding-alt:17px 24px;">
+      <a href="{{ .ConfirmationURL }}" style="display:block;padding:17px 24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:16px;font-weight:600;line-height:20px;letter-spacing:-0.01em;text-align:center;color:#3A4319;text-decoration:none;border-radius:999px;">Sign in&nbsp;&rarr;</a>
+    </td>
+  </tr>
+</table><div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:13px;line-height:19px;mso-line-height-rule:exactly;color:#5C4A3F;text-align:center;margin-top:16px;">Works once. Not you? Ignore it.</div>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" class="nb-outer" style="padding:0 12px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;max-width:480px;">
+        <tr>
+          <td class="nb-foot" align="center" style="padding:24px 36px 56px;">
+            {{ if .Email }}<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:12px;line-height:18px;mso-line-height-rule:exactly;color:#5C4A3F;text-align:center;margin-bottom:8px;">For {{ .Email }}</div>{{ end }}
+            <div style="font-family:ui-monospace,'SF Mono',SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.2em;line-height:14px;mso-line-height-rule:exactly;text-transform:uppercase;color:#5C4A3F;text-align:center;">The Burroship, LLC<br>PO Box 2111 · Ridgway CO 81432</div>
           </td>
         </tr>
       </table>

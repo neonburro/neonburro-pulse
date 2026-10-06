@@ -1,9 +1,11 @@
 // netlify/functions/_letterhead.js
 // The one letterhead for every plain mail Pulse sends a person, the client
 // invite, the PIN, and whatever comes next that is not an invoice. It is the
-// same warm paper as src/lib/invoiceEmailTemplate.js and the same sheet the
-// six Supabase auth mails wear (scripts/auth-email-templates.mjs), so a
-// password reset, a PIN and an invoice read as one house.
+// same warm paper as src/lib/invoiceEmailTemplate.js, so a PIN and an
+// invoice read as one house. The Supabase auth mails wore this sheet until
+// 2026-10-05 and moved that day to the lighter room paper and an app screen
+// shape (scripts/auth-email-templates.mjs), because they open straight onto
+// the sign in pages. This file did not move with them.
 //
 // ── WHY THIS CARRIES ITS OWN PALETTE ─────────────────────────────────────────────────────────────────
 // This file is ESM like half the functions folder, and the two that read it

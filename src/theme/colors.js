@@ -145,11 +145,15 @@ const colors = {
   //   #6B5245 to #5C4A3F (7.7), inkFaint #9A8574 to #7A695D (4.8, was 3.2),
   //   limeDeep to #5E6928, gold to #7E6400, green to #566F1B, coral to #B83B2B.
   //   Every text color now clears 4.5 to 1 on mat, sheet and sunken alike.
-  // The invoice paper in src/lib/emailTokens.js did NOT move with it, emails
-  // still render on their own sheet #FBF9F4. The two papers were one material
-  // until this day and are deliberately apart now, the room lighter than the
-  // letter. Bring the letter up in its own sitting if Tyler asks, with the
-  // auth templates in scripts/auth-email-templates.mjs, which read it.
+  // The invoice paper in src/lib/emailTokens.js did NOT move with it, invoices
+  // and the plain mails in netlify/functions/_letterhead.js still render on
+  // their own sheet #FBF9F4, the room lighter than the letter. The thirteen
+  // Supabase auth mails DID move, the same day. scripts/auth-email-templates.mjs
+  // reads this paper object directly, because a person taps from those mails
+  // straight onto the sign in, reset and invite pages, which wear it. So keep
+  // every value here a plain hex, email cannot read anything else, and rerun
+  // that script and repaste the templates when a value moves. Bring the
+  // letter up in its own sitting if Tyler asks.
   //
   // Pages convert to this one at a time. The login page is the first. Until a
   // given authed page is converted it still reads the dark surface/text tokens
