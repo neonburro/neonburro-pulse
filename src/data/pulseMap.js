@@ -107,6 +107,12 @@ export const PULSE_MAP = [
     can: 'read any client\'s report for any of the last twelve closed months, approve a client once so the schedule carries them from the 1st on, and send one now which takes two presses and prints the addresses before it goes. the studio inbox hears about every send',
   },
   {
+    path: '/daylight/',
+    name: 'Daylight',
+    holds: 'the next twenty one days from today as three rows of seven, each marked open, tight or gone with a studio only note, the times clients have offered back, and the shareable links that were made for them. a day nobody has marked reads as quiet and is deliberately not a promise either way',
+    can: 'tap a day to mark it and drag across to mark a run, write a note only the studio sees, make or revoke a link per client, and take an offered time onto the calendar or pass on it. it books nothing itself, the calendar owns appointments',
+  },
+  {
     path: '/trademarks/',
     name: 'Trademarks',
     holds: 'the studio\'s watch on words it might file for The Burroship LLC, one lowercase word each, every exact mark on the USPTO register live or dead with its owner, classes and serial, and the live close spellings an examiner would weigh. studio roles only, the list lives in Netlify Blobs and never in the repo',

@@ -12,3 +12,5 @@ _to_delete/
 
 # supabase cli scratch
 supabase/.temp/
+
+.claude/

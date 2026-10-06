@@ -37,6 +37,10 @@ import Login from './pages/Auth/Login';
 const ResetPassword = lazy(() => import('./pages/Auth/ResetPassword'));
 const AcceptInvite  = lazy(() => import('./pages/Auth/AcceptInvite'));
 const PinApproval   = lazy(() => import('./pages/PinApproval'));
+// Public on purpose. The shared daylight link has no session and never touches
+// Supabase, it speaks only to netlify/functions/daylight-public.js. If this ever
+// moves inside ProtectedRoute the link stops working for every client at once.
+const DaylightShared = lazy(() => import('./pages/DaylightShared'));
 
 // Protected, lazy.
 const Dashboard     = lazy(() => import('./pages/Dashboard'));
@@ -57,6 +61,7 @@ const Calendar      = lazy(() => import('./pages/Calendar'));
 const Socials       = lazy(() => import('./pages/Releases'));
 const Analytics     = lazy(() => import('./pages/Analytics'));
 const Reports       = lazy(() => import('./pages/Reports'));
+const Daylight      = lazy(() => import('./pages/Daylight'));
 const Trademarks    = lazy(() => import('./pages/Trademarks'));
 const Settings      = lazy(() => import('./pages/Settings'));
 // This route is stripped from production. It lets Warbleur inspect the exact
@@ -86,6 +91,8 @@ function App() {
           <Route path="/accept-invite/" element={<AcceptInvite />} />
           <Route path="/pin-approval/" element={<PinApproval />} />
           <Route path="/pin-approval" element={<PinApproval />} />
+          <Route path="/daylight/:token/" element={<DaylightShared />} />
+          <Route path="/daylight/:token" element={<DaylightShared />} />
           {BrandKitReviewFixture && (
             <Route path="/__review/custom-brand-kit/" element={<BrandKitReviewFixture />} />
           )}
@@ -117,6 +124,7 @@ function App() {
               <Route path="releases/" element={<Navigate to="/socials/" replace />} />
               <Route path="analytics/" element={<Analytics />} />
               <Route path="reports/" element={<Reports />} />
+              <Route path="daylight/" element={<Daylight />} />
               <Route path="trademarks/" element={<Trademarks />} />
               <Route path="settings/" element={<Settings />} />
               {/* Projects redirect to clients, the source of truth now. */}

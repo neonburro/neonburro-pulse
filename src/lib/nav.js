@@ -49,7 +49,7 @@
 import {
   TbSunrise, TbUsers, TbFileInvoice, TbInbox,
   TbPencil, TbHorse, TbCoins, TbWallet, TbMessageCircle, TbCalendar, TbChartBar, TbSettings,
-  TbBroadcast, TbCoin, TbMap2, TbArrowsSplit2, TbReportAnalytics, TbTrademark,
+  TbBroadcast, TbCoin, TbMap2, TbArrowsSplit2, TbReportAnalytics, TbTrademark, TbSunHigh,
 } from 'react-icons/tb';
 
 export const NAV = [
@@ -67,6 +67,9 @@ export const NAV = [
   { path: '/wallets/',   label: 'Wallets',    icon: TbMap2,          desc: 'The public map, before it is published' },
   { path: '/messages/',  label: 'Messages',   icon: TbMessageCircle, desc: 'Threads with clients' },
   { path: '/calendar/',  label: 'Calendar',   icon: TbCalendar,      desc: 'Scheduling and sprints' },
+  // Beside the calendar on purpose. The calendar is what is booked, daylight is
+  // the shape of the next three weeks before anything is. See src/lib/daylight.js.
+  { path: '/daylight/',  label: 'Daylight',   icon: TbSunHigh,       desc: 'The next three weeks, and what clients offer back' },
   { path: '/analytics/', label: 'Analytics',  icon: TbChartBar,      desc: 'Traffic and trends' },
   { path: '/reports/',   label: 'Reports',    icon: TbReportAnalytics, desc: 'What each client gets on the 1st' },
   { path: '/trademarks/', label: 'Trademarks', icon: TbTrademark,     desc: 'Words the studio might file' },
