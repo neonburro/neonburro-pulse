@@ -117,7 +117,7 @@ export const CHANNEL_TINT = {
   newsletter: { accent: '#9A7B00', tint: 'rgba(154,123,0,0.11)' },
   phosphor: { accent: '#3C8A6B', tint: 'rgba(60,138,107,0.11)' },
   shop: { accent: '#8F6A17', tint: 'rgba(143,106,23,0.11)' },
-  pulse: { accent: '#4A382F', tint: 'rgba(74,56,47,0.10)' },
+  pulse: { accent: '#39404D', tint: 'rgba(57,64,77,0.10)' },   // follows the night repaint, 2026-10-06
 };
 
 // What Meta renders. w and h are the pixels the channel shows, the picker

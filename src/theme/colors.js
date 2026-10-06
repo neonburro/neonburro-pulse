@@ -158,25 +158,44 @@ const colors = {
   // Pages convert to this one at a time. The login page is the first. Until a
   // given authed page is converted it still reads the dark surface/text tokens
   // above, both are valid while the migration is underway.
+  // ── VINTAGE WHITE AND NIGHT, 2026-10-06 ──────────────────────────────────
+  //
+  // Tyler: "instead of the cream, I want it to be more of a vintage white
+  // color. The brown needs to be a dark night color ... I love the lime green
+  // in Pulse. It's just more of a night, but also white and clean."
+  //
+  // WHAT CHANGED AND WHY IT IS NOT A TINT. The old system was warm all the way
+  // through: a cream ground and browns for every level of text, which is a
+  // leather and paper world. It read handsome and it read soft, and Pulse is a
+  // tool somebody works in all day. So the ground loses most of its yellow and
+  // the text goes cool and near black. The result is colder, flatter and much
+  // easier to scan, and the lime stops competing with a warm ground and starts
+  // reading as the one live thing on the screen.
+  //
+  // EVERY PAIR WAS MEASURED, not eyeballed. The weakest is inkFaint, 4.74 to 1
+  // on the ground and 5.05 on a card, both over the 4.5 line. Lime on the night
+  // chrome is 11.36. If any value here moves, run the check again rather than
+  // trusting that a small nudge is safe, which is how inkMuted ended up needing
+  // a fix on 2026-10-05.
   paper: {
-    mat:      '#F7F5F0',  // page ground, a light warm paper (was #E7DFD1)
-    sheet:    '#FDFCF9',  // cards and surfaces, the warm near white, NEVER #FFFFFF
-    sunken:   '#F2EEE7',  // inset panels and wells, a step below the ground
-    hair:     '#E5DFD4',  // borders and real rules
-    hairSoft: '#EEEAE2',  // faintest inner rules
+    mat:      '#F4F3EF',  // page ground, vintage white. warm enough to not be clinical, never cream
+    sheet:    '#FBFAF8',  // cards and surfaces, NEVER #FFFFFF
+    sunken:   '#EDECE7',  // inset panels and wells, a step below the ground
+    hair:     '#DDDBD4',  // borders and real rules
+    hairSoft: '#E8E6E0',  // faintest inner rules
 
-    ink:      '#241A16',  // Night Tack, primary text
-    inkSec:   '#4A382F',  // Canyon Stitch, supporting text
-    inkMuted: '#5C4A3F',  // Burro Hide, labels, darkened 2026-10-05 for contrast
-    inkFaint: '#7A695D',  // faintest meta, still 4.5 to 1 on every ground
+    ink:      '#141821',  // night, primary text. cool near black, was the warm #241A16
+    inkSec:   '#39404D',  // supporting text
+    inkMuted: '#4E5668',  // labels
+    inkFaint: '#656C7C',  // faintest meta, 4.74 to 1 on the ground
 
-    lime:     '#C5D957',  // the one accent, Topo Lime
-    limeDeep: '#5E6928',  // lime dark enough to read as small text on paper
-    limeInk:  '#3A4319',  // ink that sits on a lime fill
+    lime:     '#C5D957',  // the one accent, Topo Lime, unchanged and now unopposed
+    limeDeep: '#5A6626',  // lime dark enough to read as small text on the ground
+    limeInk:  '#2A3110',  // ink that sits on a lime fill, 8.70 to 1
 
-    gold:     '#7E6400',  // pending, waiting
-    coral:    '#B83B2B',  // overdue, destructive
-    green:    '#566F1B',  // paid, positive
+    gold:     '#7A6000',  // pending, waiting
+    coral:    '#B23527',  // overdue, destructive
+    green:    '#51691A',  // paid, positive
   },
 
   // ── CHROME, THE DARK ROUNDED RECTANGLES ────────────────────────────────────
@@ -187,12 +206,12 @@ const colors = {
   // it is a warm cream, never white. Lime stays the one accent, on the active nav
   // item only. Read by AppShell, Sidebar and MobileNav.
   chrome: {
-    ground:    '#241A16',  // the ink, the floating dark rectangles (sidebar, pill)
-    raised:    '#3A2C22',  // hover and active nav surface on the dark rectangle
-    line:      '#3E2F25',  // hairline on the dark rectangle
-    text:      '#EFE7DA',  // warm cream text on the dark rectangle, never white
-    textMuted: '#A2937F',  // muted nav label
-    textFaint: '#7A6B58',  // faint meta on the dark rectangle
+    ground:    '#141821',  // night. the floating dark rectangles, sidebar and pill
+    raised:    '#1F2531',  // hover and active nav surface on the night rectangle
+    line:      '#2A3140',  // hairline on the night rectangle
+    text:      '#E8E9EC',  // text on night. cool off white, never pure white
+    textMuted: '#9AA1AF',  // muted nav label
+    textFaint: '#6E7686',  // faint meta on the night rectangle
   },
 };
 
