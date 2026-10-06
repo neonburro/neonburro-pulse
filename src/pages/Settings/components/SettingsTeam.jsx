@@ -1,9 +1,16 @@
 // src/pages/Settings/components/SettingsTeam.jsx
 // Team management for super_admin and admin, on Paper. super_admin is protected
-// from edits, the role select offers admin/manager/team, the invite flow accepts
-// the same. super_admin promotion stays SQL only. Role tones carry meaning and
-// are kept, deepened for cream. A section like the others, house fields in
-// the invite modal. No oxford commas, no dashes.
+// from edits, the role select offers admin, manager and team, the invite flow
+// grants the same. super_admin promotion stays SQL only. Role tones carry
+// meaning and are kept, deepened for cream. A section like the others, house
+// fields in the invite modal.
+//
+// The invite goes through sendTeamInvite in src/lib/teamInvite.js, which sends
+// the session as a bearer token. send-team-invite.js refuses any caller who is
+// not a studio admin since 2026-10-05, so a bare fetch from here would now
+// fail with a 401. The roles the modal offers come from the same file, so the
+// modal and the function cannot drift apart again the way manager did.
+// No oxford commas, no dashes.
 
 import { useState, useEffect } from 'react';
 import {
@@ -14,6 +21,7 @@ import {
 import DotSelect from '../../../components/common/DotSelect';
 import { TbUserPlus, TbCrown, TbShield, TbBriefcase, TbUser, TbBuilding, TbMail } from 'react-icons/tb';
 import { supabase } from '../../../lib/supabase';
+import { sendTeamInvite, INVITABLE_ROLES } from '../../../lib/teamInvite';
 import Avatar from '../../../components/common/Avatar';
 import { usePresence } from '../../../hooks/usePresence';
 import colors from '../../../theme/colors';
@@ -32,7 +40,6 @@ const ROLE_CONFIG = {
 
 const STAFF_ROLES = ['super_admin', 'admin', 'manager', 'team'];
 const EDITABLE_ROLES = ['admin', 'manager', 'team'];
-const INVITABLE_ROLES = ['admin', 'manager', 'team'];
 
 const TeamMemberRow = ({ member, currentUserId, onRoleChange }) => {
   const config = ROLE_CONFIG[member.role] || ROLE_CONFIG.team;
@@ -85,11 +92,7 @@ const InviteModal = ({ isOpen, onClose, onInvited }) => {
     if (!email.trim() || !email.includes('@')) { toast({ title: 'Valid email required', status: 'warning', duration: 2000 }); return; }
     setSending(true);
     try {
-      const res = await fetch('/.netlify/functions/send-team-invite', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim().toLowerCase(), display_name: displayName.trim(), role }),
-      });
-      if (!res.ok) { const err = await res.json(); throw new Error(err.error || 'Invite failed'); }
+      await sendTeamInvite({ email: email.trim().toLowerCase(), display_name: displayName.trim(), role });
       toast({ title: 'Invite sent', description: `${email} will receive an email`, status: 'success', duration: 3000 });
       setEmail(''); setDisplayName(''); setRole('team');
       onInvited();
