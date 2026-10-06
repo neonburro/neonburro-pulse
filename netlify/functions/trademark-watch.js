@@ -1,70 +1,77 @@
 // netlify/functions/trademark-watch.js
-// SENTINEL: NB_PULSE_TRADEMARK_WATCH_V1
+// SENTINEL: NB_PULSE_TRADEMARK_WATCH_V2
 //
-// The studio's trademark watch, behind /trademarks/ in Pulse. A list of words
-// the studio might file for The Burroship LLC, each one checked against the
-// USPTO register and the answer kept, so the page is an evolving record and
-// not a search box. Tyler, 2026-10-05: "We could make a list of words that we're
-// trying. We'll keep adding to the report. It's an evolving link ... they're
-// all one word." Every word is lowercase and one word, never two words.
+// The door a person uses into the trademark watch. Pulse /trademarks/ calls
+// it for the studio, and neonburro.com /account/trademarks/ calls it across
+// origins for a client. Everything it knows about the register, TSDR, the
+// dates and the store is in netlify/lib/trademarks.js, read that header
+// first. This file is who may do what, and nothing else.
 //
-// NO WORD EVER APPEARS IN THIS REPO. It is public, and a list of names the
-// studio means to file is exactly what somebody would race to file first.
-// The list was seeded straight into the store from the CLI, netlify
-// blobs:set studio-trademarks words, never from code.
+// Tyler, 2026-10-05: "I'd like that tool to just be accessible in Pulse ...
+// you can keep adding names to it ... daily, weekly, biweekly or monthly ...
+// set dates to check this one again when the trademark expires." And the
+// studio offers it to clients, so a client keeps a watch list of their own.
 //
-// ── WHO CAN OPEN IT ─────────────────────────────────────────────────────────
-// Studio only. Clients sign in to Pulse too, so a session is not enough, the
-// caller's profiles.role must be super_admin or admin, the same check as
-// impersonate-client.js. The neonburro-pulse repo is PUBLIC on GitHub, so the
-// words live in Netlify Blobs and never in this file or anywhere in the repo.
+// ── WHO CAN OPEN WHAT ───────────────────────────────────────────────────────
+// Every Pulse client signs in to the same Supabase project as the studio, so
+// a session proves nothing. The role decides, read from profiles with the
+// service key on every call:
+//   studio   profiles.role super_admin or admin, the same two roles as
+//            impersonate-client.js and v1. Opens any list. Only the studio
+//            opens or closes a client's list.
+//   client   profiles.role client with a client_id, the same test the
+//            portal's useClientAuth makes. Reaches ONE list, client/<their
+//            client_id>, and the key is worked out here from the profile.
+//            Whatever owner a client sends is ignored, so there is no
+//            request a client can shape that reads another list.
+//   anyone else gets 403, team and manager included, because v1 kept this
+//   to the two top roles and nobody has asked to widen it.
+// A client's list exists only once the studio opens it. Until then the
+// portal asks, hears open false and shows nothing, so the offer is the
+// studio's to make.
 //
-// ── THE SEARCH ──────────────────────────────────────────────────────────────
-// tmsearch.uspto.gov posts an Elasticsearch body to prod-stage-v1-0-0/tmsearch.
-// Read off the page's own request on 2026-10-05 by Ion and by Aster, and it
-// answers a plain server request with no browser session. Two reads a word:
-//   exact   the page's own wordmark query, WM phrase and match plus the PM
-//           pseudo mark, every status. A hit counts only when its wordmark,
-//           stripped to letters and digits and lowercased, equals the word.
-//   close   a fuzzy match on WM, live marks only (LD true), the spellings an
-//           examiner would weigh. The office pairs a word with its sound
-//           alike pseudo mark, so a made up spelling of a common word meets
-//           the common word at examination. That is where a filing would be
-//           refused, so this is not a nicety.
-// The status word is worked out because no field holds one. alive with a
-// registration number is registered, alive without one is pending, dead with
-// a cancel date is cancelled, dead with an abandon date is abandoned.
-// The page sends one word a call and pauses between them, so a long list
-// never hammers the office and never runs past the ten second clock. If the
-// office starts refusing plain requests, the answer says so and the entry
-// keeps its last good read.
+// ── WHY CLIENTS ARE NOT SENT INTO PULSE ─────────────────────────────────────
+// Pulse's ProtectedRoute admits any session and its pages read tables that
+// still answer to any signed in token, checked live on 2026-10-05: twelve
+// policies qualified only on auth.uid() is not null, form_submissions and
+// client_contacts among them, see supabase/migrations/
+// 20260927170000_staff_scope_the_twelve.sql, prepared and not applied. A
+// client sent to pulse.neonburro.com would find every other client's
+// contacts one click away. So a client's watch lives in the portal they
+// already use, and this function is the only thing the two surfaces share.
 //
-// ── THE VERDICT ─────────────────────────────────────────────────────────────
-//   clear      no mark with this exact word, live or dead
-//   dead       only dead marks with this exact word
-//   taken      at least one live mark, registered or pending
-// Clear means the federal register only. It says nothing about state marks or
-// a name in use without a filing, and a lawyer reads before anything is filed.
-// Owner for every filing is The Burroship LLC, Tyler 2026-10-05.
+// ── CROSS ORIGIN ────────────────────────────────────────────────────────────
+// The portal is neonburro.com and this is pulse.neonburro.com, so the
+// browser sends a preflight. Only the studio's own origins and localhost get
+// an allow header. The bearer token is what authorises, CORS only decides
+// which pages may read the answer.
 //
-// ── THE STORE ───────────────────────────────────────────────────────────────
-// Netlify Blobs, store studio-trademarks, one key, words, a JSON list. Read,
-// change, write, which is fine for one studio adding a word at a time.
-// connectLambda(event) first, the same pattern and guard as
-// registry-balances.js. An empty store is an empty list. Words written from
-// the CLI arrive unchecked and the page checks them on first open.
-//
-// ── ACTIONS, POST { action, word, note } ────────────────────────────────────
-//   list     every entry, newest first
-//   add      a new word, checked straight away
-//   check    read the register again for one word
-//   note     keep a line of context on a word
-//   remove   take a word off the list
+// ── ACTIONS, POST { action, owner, word, ... } ──────────────────────────────
+//   list      one list, every entry with its dates worked out for today
+//   lists     studio only. Every list with counts, and clients with none
+//   open      studio only. Start a client's list
+//   close     studio only. Delete a client's list
+//   add       a word, read straight away. cadence defaults to monthly
+//   check     read the register again for one word
+//   watch     set cadence and the look again date
+//   note      a line of context on a word
+//   remove    take a word off
+//   facts     read TSDR for one mark, the next unread live one or a serial
+//   suggest   one word variants, no reads
+//   probe     the exact read alone for one suggestion, cached a week
+// Every read of the office is charged to the list first, see the ceilings in
+// the lib header. A ceiling answers 429 with a sentence a person can read.
 //
 // No oxford commas, no em dashes.
 
 import { createClient } from '@supabase/supabase-js';
-import { connectLambda, getStore } from '@netlify/blobs';
+import { getStore } from '@netlify/blobs';
+import {
+  STORE, STUDIO_KEY, CLIENT_PREFIX, clientKey, keyFor, ownerOf, UUID, CADENCES, LIMITS,
+  cleanWord, isoDay, addYears, readRegister, probeRegister, readTsdr, factsStale,
+  decorate, applyRead, recordFailure, charge, mutate, readList, emptyList, suggest,
+  keepProbe, PROBE_FRESH_MS, Ceiling, NotOpen,
+} from '../lib/trademarks.js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -72,170 +79,280 @@ const supa = (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY)
   ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { autoRefreshToken: false, persistSession: false } })
   : null;
 
-const ALLOWED_ROLES = ['super_admin', 'admin'];
-const STORE = 'studio-trademarks';
-const KEY = 'words';
-const SEARCH = 'https://tmsearch.uspto.gov/prod-stage-v1-0-0/tmsearch';
-const TSDR = (serial) => `https://tsdr.uspto.gov/#caseNumber=${serial}&caseType=SERIAL_NO&searchType=statusSearch`;
-const FIELDS = [
-  'alive', 'abandonDate', 'cancelDate', 'filedDate', 'internationalClass',
-  'ownerName', 'registrationDate', 'registrationId', 'wordmark', 'currentBasis',
-];
+const STUDIO_ROLES = ['super_admin', 'admin'];
+const ORIGINS = ['https://neonburro.com', 'https://www.neonburro.com'];
+const LOCAL = /^http:\/\/(localhost|127\.0\.0\.1):\d+$/;
 
-const json = (statusCode, body) => ({
-  statusCode,
-  headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  body: JSON.stringify(body),
-});
+const corsFor = (origin) => (origin && (ORIGINS.includes(origin) || LOCAL.test(origin))
+  ? {
+    'Access-Control-Allow-Origin': origin,
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Max-Age': '600',
+    Vary: 'Origin',
+  }
+  : { Vary: 'Origin' });
 
-// One lowercase word, letters and digits only, the rule Tyler set.
-const cleanWord = (raw) => String(raw || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-const flat = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-
-const statusOf = (s) => {
-  if (s.alive) return s.registrationId ? 'registered' : 'pending';
-  if (s.cancelDate) return 'cancelled';
-  if (s.abandonDate) return 'abandoned';
-  return 'dead';
-};
-
-const shape = (hit) => {
-  const s = hit.source || {};
-  return {
-    serial: hit.id,
-    mark: s.wordmark || '',
-    alive: !!s.alive,
-    status: statusOf(s),
-    owner: (s.ownerName || [])[0] || '',
-    classes: (s.internationalClass || []).filter((c) => !/CANCELLED|DELETED/i.test(c)).map((c) => c.replace(/^IC\s*/i, '')),
-    filed: s.filedDate ? String(s.filedDate).slice(0, 10) : null,
-    registered: s.registrationDate ? String(s.registrationDate).slice(0, 10) : null,
-    link: TSDR(hit.id),
-  };
-};
-
-const ask = async (body) => {
-  const res = await fetch(SEARCH, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Accept: 'application/json, text/plain, */*' },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) throw new Error(`the register answered ${res.status}`);
-  const data = await res.json();
-  if (!data?.hits) throw new Error('the register sent something unexpected');
-  return data.hits;
-};
-
-const readRegister = async (word) => {
-  const [exactHits, closeHits] = await Promise.all([
-    ask({
-      query: { bool: { must: [{ bool: { should: [
-        { match_phrase: { WM: { query: word, boost: 5 } } },
-        { match: { WM: { query: word, boost: 2 } } },
-        { match_phrase: { PM: { query: word, boost: 2 } } },
-      ] } }] } },
-      size: 100, from: 0, track_total_hits: true, _source: FIELDS,
-    }),
-    ask({
-      query: { bool: {
-        must: [{ fuzzy: { WM: { value: word, fuzziness: 'AUTO', max_expansions: 30 } } }],
-        filter: [{ term: { LD: 'true' } }],
-      } },
-      size: 12, track_total_hits: true, _source: FIELDS,
-    }),
-  ]);
-  const exact = (exactHits.hits || []).map(shape).filter((m) => flat(m.mark) === word);
-  const close = (closeHits.hits || []).map(shape).filter((m) => flat(m.mark) !== word).slice(0, 8);
-  const verdict = exact.some((m) => m.alive) ? 'taken' : exact.length ? 'dead' : 'clear';
-  return {
-    verdict,
-    exact,
-    close,
-    closeTotal: Math.max(0, (closeHits.totalValue || 0) - exact.filter((m) => m.alive).length),
-    checkedAt: new Date().toISOString(),
-    error: null,
-  };
-};
-
-const whoIs = async (event) => {
-  const header = event.headers.authorization || event.headers.Authorization || '';
-  const token = header.replace(/^Bearer\s+/i, '').trim();
+const whoIs = async (req) => {
+  const token = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '').trim();
   if (!supa || !token) return null;
   const { data, error } = await supa.auth.getUser(token);
   if (error || !data?.user) return null;
-  const { data: profile } = await supa.from('profiles').select('id, role, display_name').eq('id', data.user.id).maybeSingle();
-  if (!profile || !ALLOWED_ROLES.includes(profile.role)) return { user: data.user, allowed: false };
-  return { user: data.user, email: profile.display_name || data.user.email || '', allowed: true };
+  const { data: profile } = await supa
+    .from('profiles')
+    .select('id, role, client_id, display_name')
+    .eq('id', data.user.id)
+    .maybeSingle();
+  if (profile && STUDIO_ROLES.includes(profile.role)) {
+    return { kind: 'studio', by: profile.display_name || data.user.email || 'the studio' };
+  }
+  if (profile && profile.role === 'client' && profile.client_id && UUID.test(profile.client_id)) {
+    return { kind: 'client', clientId: profile.client_id, by: 'the client' };
+  }
+  return { kind: 'none' };
 };
 
-export const handler = async (event) => {
-  if (event.httpMethod !== 'POST') return json(405, { error: 'Method not allowed' });
+const clientName = async (id) => {
+  const { data } = await supa.from('clients').select('name, company').eq('id', id).maybeSingle();
+  return data ? (data.name || data.company || 'A client') : null;
+};
 
-  const who = await whoIs(event);
+export default async (req) => {
+  const cors = corsFor(req.headers.get('origin'));
+  const json = (status, body) => new Response(JSON.stringify(body), {
+    status,
+    headers: { ...cors, 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
+  });
+
+  if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
+  if (req.method !== 'POST') return json(405, { error: 'Method not allowed' });
+
+  const who = await whoIs(req);
   if (!who) return json(401, { error: 'Sign in first.' });
-  if (!who.allowed) return json(403, { error: 'This page is for the studio.' });
+  if (who.kind === 'none') return json(403, { error: 'This watch is for the studio and the clients it opens one for.' });
+
+  let body = {};
+  try { body = await req.json(); } catch { return json(400, { error: 'Send JSON.' }); }
+  const action = String(body.action || 'list');
+  const studio = who.kind === 'studio';
 
   let store;
   try {
-    connectLambda(event);
-    store = getStore(STORE);
+    store = getStore({ name: STORE, consistency: 'strong' });
   } catch {
     return json(500, { error: 'The store is not reachable from here. Run it on the site or under netlify dev.' });
   }
 
-  let body = {};
-  try { body = JSON.parse(event.body || '{}'); } catch { return json(400, { error: 'Send JSON.' }); }
-  const action = String(body.action || 'list');
+  // The owner. A client's is fixed by their profile, never by the request.
+  const owner = studio ? (body.owner && body.owner !== 'studio' ? String(body.owner) : 'studio') : who.clientId;
+  if (owner !== 'studio' && !UUID.test(owner)) return json(400, { error: 'That is not a list.' });
+  const key = keyFor(owner);
+  const limits = { ...(studio ? LIMITS.studio : LIMITS.client), words: owner === 'studio' ? LIMITS.studio.words : LIMITS.client.words };
+  const today = isoDay();
+  const reply = (doc, extra = {}) => ({ reads: doc.reads, limits, ...extra });
 
-  let words = await store.get(KEY, { type: 'json' }).catch(() => null);
-  if (!Array.isArray(words)) words = [];
-  // An entry written from the CLI may carry only word and note.
-  words = words.map((e) => ({
-    note: '', addedAt: null, addedBy: '', checkedAt: null, verdict: null,
-    exact: [], close: [], closeTotal: 0, error: null, ...e,
-  }));
-  const save = () => store.setJSON(KEY, words);
-  const find = (w) => words.find((e) => e.word === w);
-
-  if (action === 'list') return json(200, { words });
-
-  const word = cleanWord(body.word);
-  if (!word || word.length < 2 || word.length > 40) {
-    return json(400, { error: 'One word, lowercase, letters and digits, 2 to 40 long.' });
-  }
-
-  if (action === 'remove') {
-    words = words.filter((e) => e.word !== word);
-    await save();
-    return json(200, { words });
-  }
-
-  if (action === 'note') {
-    const entry = find(word);
-    if (!entry) return json(404, { error: 'Not on the list.' });
-    entry.note = String(body.note || '').slice(0, 400);
-    await save();
-    return json(200, { entry });
-  }
-
-  if (action === 'add' || action === 'check') {
-    let entry = find(word);
-    if (!entry) {
-      if (action === 'check') return json(404, { error: 'Not on the list.' });
-      entry = {
-        word, note: String(body.note || '').slice(0, 400), addedAt: new Date().toISOString(),
-        addedBy: who.email, checkedAt: null, verdict: null, exact: [], close: [], closeTotal: 0, error: null,
+  try {
+    // ── studio only ───────────────────────────────────────────────────────
+    if (action === 'lists') {
+      if (!studio) return json(403, { error: 'Only the studio sees every list.' });
+      const { blobs } = await store.list({ prefix: CLIENT_PREFIX });
+      const ids = blobs.map((b) => ownerOf(b.key)).filter((id) => UUID.test(id));
+      const [studioDoc, docs, clients] = await Promise.all([
+        readList(store, STUDIO_KEY),
+        Promise.all(ids.map((id) => readList(store, clientKey(id)))),
+        supa.from('clients').select('id, name, company').order('name'),
+      ]);
+      const names = new Map((clients.data || []).map((c) => [c.id, c.name || c.company || 'A client']));
+      const sum = (doc) => {
+        const entries = (doc?.entries || []).map((e) => decorate(e, today));
+        return {
+          words: entries.length,
+          watching: entries.filter((e) => e.cadence !== 'off').length,
+          free: entries.filter((e) => e.chance === 'free').length,
+          clear: entries.filter((e) => e.verdict === 'clear').length,
+          taken: entries.filter((e) => e.verdict === 'taken').length,
+        };
       };
-      words.unshift(entry);
+      const lists = [
+        { owner: 'studio', name: 'The studio', ...sum(studioDoc) },
+        ...ids.map((id, i) => ({ owner: id, name: names.get(id) || 'A client no longer in Pulse', ...sum(docs[i]) }))
+          .sort((a, b) => a.name.localeCompare(b.name)),
+      ];
+      const open = new Set(ids);
+      return json(200, {
+        lists,
+        clients: (clients.data || []).filter((c) => !open.has(c.id)).map((c) => ({ id: c.id, name: c.name || c.company || 'A client' })),
+      });
     }
-    try {
-      Object.assign(entry, await readRegister(word));
-    } catch (err) {
-      entry.error = `${err.message}. The last good read is kept.`;
-    }
-    await save();
-    return json(200, { entry });
-  }
 
-  return json(400, { error: 'Unknown action.' });
+    if (action === 'open' || action === 'close') {
+      if (!studio) return json(403, { error: 'Only the studio opens or closes a list.' });
+      if (owner === 'studio') return json(400, { error: 'The studio list is always open.' });
+      const name = await clientName(owner);
+      if (action === 'open') {
+        if (!name) return json(404, { error: 'No such client.' });
+        await store.setJSON(key, emptyList(owner, who.by), { onlyIfNew: true });
+        const doc = await readList(store, key);
+        return json(200, reply(doc, { owner, name, open: true, entries: [] }));
+      }
+      await store.delete(key);
+      return json(200, { owner, closed: true });
+    }
+
+    // ── one list ──────────────────────────────────────────────────────────
+    if (action === 'list') {
+      const doc = await readList(store, key);
+      if (!doc && owner !== 'studio') {
+        if (!studio) return json(200, { open: false });
+        return json(404, { error: 'The studio has not opened a watch for this client.' });
+      }
+      const list = doc || emptyList('studio', '');
+      const name = owner === 'studio' ? 'The studio' : await clientName(owner);
+      return json(200, reply(list, {
+        viewer: who.kind, owner, name, open: true, today,
+        entries: list.entries.map((e) => decorate(e, today)),
+      }));
+    }
+
+    if (action === 'suggest') {
+      const doc = await readList(store, key);
+      if (!doc && owner !== 'studio') throw new NotOpen('The studio has not opened a watch for this client.');
+      const skip = (doc?.entries || []).map((e) => e.word);
+      const candidates = suggest(body.word, { owner: owner === 'studio' ? 'studio' : 'client', round: Number(body.round) || 0, skip })
+        .map((c) => {
+          const hit = doc?.probes?.[c.word];
+          return hit && Date.now() - Date.parse(hit.at) < PROBE_FRESH_MS ? { ...c, probe: hit } : c;
+        });
+      return json(200, { candidates });
+    }
+
+    const word = cleanWord(body.word);
+    if (!word || word.length < 2 || word.length > 40) {
+      return json(400, { error: 'One word, lowercase, letters and digits, 2 to 40 long.' });
+    }
+    const entryOf = (doc) => doc.entries.find((e) => e.word === word);
+
+    if (action === 'probe') {
+      const { doc: before } = await mutate(store, key, (doc) => {
+        const hit = doc.probes[word];
+        if (hit && Date.now() - Date.parse(hit.at) < PROBE_FRESH_MS) return false;
+        charge(doc, 1, limits);
+        return true;
+      });
+      const cached = before.probes[word];
+      if (cached && Date.now() - Date.parse(cached.at) < PROBE_FRESH_MS) return json(200, reply(before, { word, ...cached, cached: true }));
+      const result = await probeRegister(word);
+      const { doc } = await mutate(store, key, (d) => { keepProbe(d, word, result); });
+      return json(200, reply(doc, { word, ...result, cached: false }));
+    }
+
+    if (action === 'add' || action === 'check') {
+      const cadence = CADENCES[body.cadence] !== undefined ? body.cadence : 'monthly';
+      const { result: known } = await mutate(store, key, (doc) => {
+        const entry = entryOf(doc);
+        if (action === 'add' && entry) return false;
+        if (action === 'check' && !entry) throw new NotOpen('That word is not on the list.');
+        if (action === 'add' && doc.entries.length >= limits.words) {
+          throw new Ceiling(`A list holds ${limits.words} words. Take one off to add another.`);
+        }
+        charge(doc, 2, limits);
+        if (!entry) {
+          doc.entries.unshift({
+            word, note: String(body.note || '').slice(0, 400), addedAt: new Date().toISOString(), addedBy: who.by,
+            cadence, lookAgain: null, checkedAt: null, checkedBy: '', verdict: null, exact: [], close: [],
+            closeTotal: 0, error: null, failedAt: null, changes: [], seen: [],
+          });
+        }
+        return 'charged';
+      });
+      if (known === false) {
+        const doc = await readList(store, key);
+        return json(200, reply(doc, { entry: decorate(entryOf(doc), today), existed: true }));
+      }
+      let read = null;
+      let failure = null;
+      try { read = await readRegister(word); } catch (err) { failure = err.message; }
+      const { doc } = await mutate(store, key, (d) => {
+        const entry = entryOf(d);
+        if (!entry) return false;
+        if (read) applyRead(entry, read, 'person');
+        else recordFailure(entry, failure);
+        return true;
+      });
+      const entry = entryOf(doc);
+      if (!entry) return json(404, { error: 'That word was taken off while it was being read.' });
+      return json(200, reply(doc, { entry: decorate(entry, today) }));
+    }
+
+    if (action === 'watch' || action === 'note' || action === 'remove') {
+      if (action === 'watch') {
+        if (body.cadence !== undefined && CADENCES[body.cadence] === undefined) return json(400, { error: 'Off, daily, weekly, biweekly or monthly.' });
+        if (body.lookAgain !== undefined && body.lookAgain !== null) {
+          const d = String(body.lookAgain);
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(d) || Number.isNaN(Date.parse(d))) return json(400, { error: 'A look again date is a day, like 2027-03-01.' });
+          if (d < today) return json(400, { error: 'Pick today or a day after it.' });
+          if (d > addYears(today, 12)) return json(400, { error: 'Twelve years out is as far as this looks.' });
+        }
+      }
+      const { doc } = await mutate(store, key, (d) => {
+        const entry = entryOf(d);
+        if (!entry) throw new NotOpen('That word is not on the list.');
+        if (action === 'remove') { d.entries = d.entries.filter((e) => e.word !== word); return true; }
+        if (action === 'note') { entry.note = String(body.note || '').slice(0, 400); return true; }
+        if (body.cadence !== undefined) entry.cadence = body.cadence;
+        if (body.lookAgain !== undefined) entry.lookAgain = body.lookAgain || null;
+        return true;
+      });
+      if (action === 'remove') return json(200, reply(doc, { removed: word }));
+      return json(200, reply(doc, { entry: decorate(entryOf(doc), today) }));
+    }
+
+    if (action === 'facts') {
+      // ONE mark a call. TSDR answered 403 to the second of four reads sent
+      // 350ms apart on 2026-10-05 and 200 to a single read a minute later, so
+      // it refuses a burst and not a read. The page asks for the next mark
+      // itself, a few seconds on, stops at the first refusal and stops after
+      // four marks a word. more tells it whether a live mark is still unread.
+      const doc = await readList(store, key);
+      if (!doc) throw new NotOpen('The studio has not opened a watch for this client.');
+      const entry = entryOf(doc);
+      if (!entry) throw new NotOpen('That word is not on the list.');
+      let mark;
+      if (body.serial) {
+        mark = [...entry.exact, ...entry.close].find((m) => m.serial === String(body.serial));
+        if (!mark) return json(404, { error: 'That mark is not on this word.' });
+        if (!factsStale(mark)) mark = null;
+      } else {
+        mark = entry.exact.find((m) => m.alive && factsStale(m)) || null;
+      }
+      if (!mark) return json(200, reply(doc, { entry: decorate(entry, today), read: 0, more: false }));
+      await mutate(store, key, (d) => { charge(d, 1, limits); });
+      let facts;
+      try {
+        facts = await readTsdr(mark.serial);
+      } catch (err) {
+        const slow = /403|429/.test(err.message);
+        return json(slow ? 429 : 502, { error: slow ? 'TSDR asked for a slower pace. Give it a minute.' : err.message });
+      }
+      const { doc: after } = await mutate(store, key, (d) => {
+        const e = entryOf(d);
+        if (!e) return false;
+        for (const list of [e.exact, e.close]) {
+          for (const m of list) if (m.serial === mark.serial) m.facts = facts;
+        }
+        return true;
+      });
+      const fresh = entryOf(after);
+      if (!fresh) return json(404, { error: 'That word was taken off while TSDR was being read.' });
+      const more = !body.serial && fresh.exact.some((m) => m.alive && factsStale(m));
+      return json(200, reply(after, { entry: decorate(fresh, today), read: 1, serial: mark.serial, more }));
+    }
+
+    return json(400, { error: 'Unknown action.' });
+  } catch (err) {
+    if (err instanceof Ceiling) return json(429, { error: err.message });
+    if (err instanceof NotOpen) return json(404, { error: err.message });
+    console.log(JSON.stringify({ fn: 'trademark-watch', action, viewer: who.kind, error: err.message }));
+    return json(502, { error: err.message || 'The watch could not finish that.' });
+  }
 };

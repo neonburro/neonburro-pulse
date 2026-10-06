@@ -89,6 +89,20 @@
 [functions."client-report-monthly"]
   schedule = "0 14 1 * *"
 
+# trademark-watch-scheduled  every twenty minutes from 03:00 to 08:40 UTC,
+#                        after ten at night and before five in the morning on
+#                        the east coast in either season. Reads the words on
+#                        every trademark watch list whose cadence or look
+#                        again date has come, at most nine a run and a second
+#                        and a half apart, the search index only and never
+#                        TSDR. The USPTO's terms deny service to unusually
+#                        high volume, so the pace is the point, the header of
+#                        the function has the arithmetic. The schedule is also
+#                        in the function's inline export const config and the
+#                        two must agree.
+[functions."trademark-watch-scheduled"]
+  schedule = "*/20 3-8 * * *"
+
 # The studio library, proxied. neonburro.com sends no CORS header on
 # /library/index.json so the Socials picture picker cannot fetch it across
 # origins. This rewrite serves it from the Pulse origin, status 200 is a
