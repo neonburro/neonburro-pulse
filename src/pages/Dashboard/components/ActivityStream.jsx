@@ -27,6 +27,8 @@ const VERB_MAP = {
   payment_received: 'received payment', form_submitted: 'received form', message_sent: 'replied to',
   message_received: 'message from', note_added: 'added note to', portal_activated: 'activated portal for',
   deploy_succeeded: 'deployed', deploy_failed: 'deploy failed for',
+  // Written by the shop's markOrderPaid (neonburro-shop _shop-catalog.js).
+  shop_order_paid: 'sold in the shop to',
 };
 
 const SLATE = '#6C6F97';
@@ -38,6 +40,7 @@ const ENTITY_COLORS = {
   payment_received: P.green, form_submitted: PURPLE, message_sent: PURPLE,
   message_received: PURPLE, note_added: P.inkMuted, portal_activated: SLATE,
   deploy_succeeded: P.green, deploy_failed: P.coral,
+  shop_order_paid: P.green,
 };
 
 const PaymentMethodIcon = ({ type, brand, wallet }) => {
@@ -82,7 +85,7 @@ const ActivityItem = ({ activity, profileMap }) => {
   const status = activity.user_id ? getStatus(activity.user_id) : null;
   const isSystem = !activity.user_id;
   const displayName = isSystem ? 'Neon Burro' : (profile?.display_name || 'Unknown');
-  const entityName = activity.metadata?.client_name || activity.metadata?.project_name || activity.metadata?.invoice_number || activity.metadata?.sender_name || activity.metadata?.site_name || activity.metadata?.form_type || '';
+  const entityName = activity.metadata?.client_name || activity.metadata?.project_name || activity.metadata?.invoice_number || activity.metadata?.sender_name || activity.metadata?.site_name || activity.metadata?.form_type || activity.metadata?.customer_name || '';
   const amount = activity.metadata?.total ?? activity.metadata?.amount ?? activity.metadata?.due_now;
   const amountDisplay = amount ? `$${parseFloat(amount).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` : null;
   const pmType = activity.metadata?.payment_method_type;
@@ -90,7 +93,7 @@ const ActivityItem = ({ activity, profileMap }) => {
   const pmLast4 = activity.metadata?.payment_method_last4;
   const pmWallet = activity.metadata?.payment_method_wallet;
   const showPaymentMethod = (activity.action === 'invoice_paid' || activity.action === 'payment_received') && pmType;
-  const isPayment = activity.action === 'invoice_paid' || activity.action === 'payment_received';
+  const isPayment = activity.action === 'invoice_paid' || activity.action === 'payment_received' || activity.action === 'shop_order_paid';
 
   const handleEntityClick = (e) => { e.stopPropagation(); if (activity.client_id) navigate(`/clients/${activity.client_id}/`); };
 

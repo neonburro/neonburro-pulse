@@ -35,6 +35,12 @@
 // Orders off a phone's primary bar, and a report that goes out on its own is
 // worth less attention per day than money already taken.
 //
+// SHOP SITS UNDER PAYOUTS, 2026-10-07. The shop's sales, what still has to
+// go out and the stock counts, read straight from the shop's own ledger on
+// the shared project. It is money already taken like Orders, but it sits
+// below the mobile line so Orders keeps its place on a phone's primary bar,
+// and a shirt waiting a day is not a person waiting on a brief.
+//
 // TRADEMARKS SITS LAST, UNDER REPORTS, 2026-10-05. The studio's own watch
 // on the words it might file for The Burroship LLC. Opened when a name is on
 // the table, never on a given morning, so it lives in the More sheet.
@@ -47,7 +53,7 @@
 // No oxford commas, no em dashes.
 
 import {
-  TbSunrise, TbUsers, TbFileInvoice, TbInbox,
+  TbSunrise, TbUsers, TbFileInvoice, TbInbox, TbBuildingStore,
   TbPencil, TbHorse, TbCoins, TbWallet, TbMessageCircle, TbCalendar, TbChartBar, TbSettings,
   TbBroadcast, TbCoin, TbMap2, TbArrowsSplit2, TbReportAnalytics, TbTrademark,
 } from 'react-icons/tb';
@@ -58,6 +64,7 @@ export const NAV = [
   { path: '/invoicing/', label: 'Invoicing',  icon: TbFileInvoice,   desc: 'Sprints, invoices and what is owed' },
   { path: '/orders/',    label: 'Orders',     icon: TbCoin,          desc: 'Paid and waiting on somebody here' },
   { path: '/payouts/',   label: 'Payouts',    icon: TbArrowsSplit2,  desc: 'What is owed out, and what can be checked' },
+  { path: '/shop/',      label: 'Shop',       icon: TbBuildingStore, desc: 'What the shop sold, what ships and the stock' },
   { path: '/forms/',     label: 'Forms',      icon: TbInbox,         desc: 'Inbound submissions' },
   { path: '/blog/',      label: 'Blog',       icon: TbPencil,        desc: 'Posts and the social run' },
   { path: '/socials/',   label: 'Socials',    icon: TbBroadcast,     desc: 'Every voice, account and release' },
