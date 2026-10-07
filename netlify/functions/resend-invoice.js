@@ -5,15 +5,64 @@
 // receipt:  a paid invoice resent goes out stamped, drawn from the live rows.
 // reminder: editorial nudge, now light-mode with banner.
 // Admin audit emails also light-mode with banner. Palette from emailTokens.js.
+//
+// ── TWO WAYS THROUGH THIS DOOR, AND NO THIRD ────────────────────────────────
+// Until 2026-10-05 this door had no lock. Worse than send-invoice.js, because
+// recipients and toOverride choose the address, so anybody holding an invoice
+// uuid could have Pulse mail that invoice, and the supplier invoices in the
+// private invoice-attachments bucket with our wholesale pricing, to an inbox
+// of their choosing. userId also came from the body, so the history recorded
+// whichever hand the caller claimed.
+//
+// 1. A person. gate(db, event) from _social.js, the bearer token of a signed
+//    in Supabase session and profiles.role in super_admin, admin or manager.
+//    Every action is open to them, resend, forward, receipt and reminder. The
+//    id written to invoice_history.sent_by and activity_log.user_id is the
+//    gated user's and never the body's, a userId in the body is ignored. The
+//    callers are handleResend and handleSendReminder in
+//    src/pages/Invoicing/components/InvoiceEditor.jsx and handleForward in
+//    InvoiceSnapshotModal.jsx beside it, and all three send the header.
+//
+// 2. The machine. stripe-payment-webhook.js calls this door server to server
+//    the moment an invoice is paid in full, so the stamped receipt sends
+//    itself. There is no session there, so it carries a shared secret in the
+//    x-pulse-receipt-secret header, compared in constant time against the
+//    INVOICE_RECEIPT_SECRET variable on the Pulse site, functions scope. The
+//    header name and the variable name are written in both files and must
+//    match. The machine gets one errand only, the receipt for a paid invoice
+//    to the addresses the invoice already went to. recipients, toOverride and
+//    userId are dropped and an unpaid invoice is refused, so a leaked secret
+//    can resend a client their own receipt and nothing else.
+//
+// If the secret header is present at all the call is judged as the machine
+// and never falls through to the session gate, so a wrong secret is a 401 and
+// not a second chance. If INVOICE_RECEIPT_SECRET is not set the machine door
+// is shut, the webhook logs that the receipt did not send, the payment is
+// still recorded and a person sends the receipt from the editor.
+//
+// Never put the secret in a VITE_ variable, those are baked into the browser
+// bundle. Never print it.
+//
+// No oxford commas, no em dashes.
 
+import { timingSafeEqual } from 'node:crypto';
 import { Resend } from 'resend';
 import { createClient } from '@supabase/supabase-js';
 import { buildInvoiceEmailHTML } from '../../src/lib/invoiceEmailTemplate.js';
 import { EMAIL } from '../../src/lib/emailTokens.js';
+import { createDb, gate } from './_social.js';
 
 const RESEND_API_KEY   = process.env.RESEND_API_KEY;
 const SUPABASE_URL     = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+// Both names also live in stripe-payment-webhook.js. Change all four or none.
+// Netlify hands headers over lowercased, so the name is lowercase here.
+const RECEIPT_SECRET = process.env.INVOICE_RECEIPT_SECRET || '';
+const RECEIPT_HEADER = 'x-pulse-receipt-secret';
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 const FROM_EMAIL = 'NeonBurro <hello@neonburro.com>';
 const ADMIN_FROM = 'NeonBurro Pulse <notifications@neonburro.com>';
 const ADMIN_TO = ['hello@neonburro.com'];
@@ -437,7 +486,7 @@ const cleanRecipients = (list) => {
   return out;
 };
 
-const handleResend = async ({ invoiceId, userId, toOverride, recipients }) => {
+const handleResend = async ({ invoiceId, userId, toOverride, recipients, receiptOnly = false }) => {
   const { data: invoice } = await supabase
     .from('invoices')
     .select('*, clients(name, email, company)')
@@ -445,6 +494,9 @@ const handleResend = async ({ invoiceId, userId, toOverride, recipients }) => {
     .maybeSingle();
 
   if (!invoice) throw new Error('Invoice not found');
+  if (receiptOnly && invoice.status !== 'paid') {
+    throw new Error('The automatic door only sends the receipt for a paid invoice');
+  }
   if (invoice.cancelled_at) throw new Error('Cannot resend a cancelled invoice');
   if (!invoice.clients?.email) throw new Error('Client has no email on file');
 
@@ -682,29 +734,58 @@ const handleReminder = async ({ invoiceId, subject, body, userId, recipients }) 
 
 // ---------- handler ----------
 
+// Constant time, and a length mismatch is a plain no without comparing.
+// An unset variable never matches anything, the empty string included.
+const secretMatches = (given) => {
+  if (!RECEIPT_SECRET || !given) return false;
+  const a = Buffer.from(String(given));
+  const b = Buffer.from(RECEIPT_SECRET);
+  return a.length === b.length && timingSafeEqual(a, b);
+};
+
+const reply = (statusCode, payload) => ({ statusCode, body: JSON.stringify(payload) });
+
 export const handler = async (event) => {
-  if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, body: JSON.stringify({ error: 'Method not allowed' }) };
+  if (event.httpMethod !== 'POST') return reply(405, { error: 'Method not allowed' });
+
+  // Who is knocking is settled before the body is read. See the note at the
+  // top of this file for why the machine never falls through to the gate.
+  const machineSecret = event.headers?.[RECEIPT_HEADER];
+  let userId = null;
+  if (machineSecret !== undefined) {
+    if (!RECEIPT_SECRET) {
+      return reply(503, { error: 'INVOICE_RECEIPT_SECRET is not set on the Pulse site, the automatic receipt door is shut.' });
+    }
+    if (!secretMatches(machineSecret)) return reply(401, { error: 'That secret does not open this door.' });
+  } else {
+    const gated = await gate(createDb(), event);
+    if (gated.error) return reply(gated.status, { error: gated.error });
+    userId = gated.user.id;
   }
+  const machine = machineSecret !== undefined;
 
   try {
-    const { invoiceId, action, subject, body, userId, toOverride, recipients, auto } = JSON.parse(event.body || '{}');
+    const { invoiceId, action, subject, body, toOverride, recipients, auto } = JSON.parse(event.body || '{}');
     if (auto) console.log('[resend-invoice] automatic', auto, invoiceId);
 
-    if (!invoiceId) {
-      return { statusCode: 400, body: JSON.stringify({ error: 'invoiceId required' }) };
-    }
+    if (!invoiceId) return reply(400, { error: 'invoiceId required' });
+    if (!UUID_RE.test(String(invoiceId))) return reply(400, { error: 'invoiceId is not a uuid' });
     if (!['resend', 'reminder'].includes(action)) {
-      return { statusCode: 400, body: JSON.stringify({ error: 'action must be "resend" or "reminder"' }) };
+      return reply(400, { error: 'action must be "resend" or "reminder"' });
+    }
+    if (machine && action !== 'resend') {
+      return reply(403, { error: 'The automatic door only sends a receipt.' });
     }
 
-    const result = action === 'resend'
-      ? await handleResend({ invoiceId, userId, toOverride, recipients })
-      : await handleReminder({ invoiceId, subject, body, userId, recipients });
+    const result = machine
+      ? await handleResend({ invoiceId, userId: null, receiptOnly: true })
+      : action === 'resend'
+        ? await handleResend({ invoiceId, userId, toOverride, recipients })
+        : await handleReminder({ invoiceId, subject, body, userId, recipients });
 
-    return { statusCode: 200, body: JSON.stringify(result) };
+    return reply(200, result);
   } catch (err) {
     console.error('resend-invoice error:', err);
-    return { statusCode: 500, body: JSON.stringify({ error: err.message || 'Server error' }) };
+    return reply(500, { error: err.message || 'Server error' });
   }
 };

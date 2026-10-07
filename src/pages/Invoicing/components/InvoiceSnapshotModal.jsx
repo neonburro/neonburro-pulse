@@ -19,7 +19,13 @@
 //                   stays small. Rasterising it with canvas would be worse on
 //                   both counts and would need a dependency
 //   download html   the literal file, byte for byte what was emailed
-//   forward         posts to resend-invoice with a recipient override
+//   forward         posts to resend-invoice with a recipient override, and
+//                   carries the session's bearer token, because the door is
+//                   staff only since 2026-10-05. The override chooses where an
+//                   invoice and its private backup documents go, which is the
+//                   exact reason the door needed a lock. The server takes the
+//                   sender from the token, so no userId rides in the body. See
+//                   the note at the top of netlify/functions/resend-invoice.js
 //
 // ── WHY THE PRINT FRAME IS A SECOND IFRAME ──────────────────────────────────
 //
@@ -171,11 +177,11 @@ const InvoiceSnapshotModal = ({ isOpen, onClose, invoiceId }) => {
     }
     setSending(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { session } } = await supabase.auth.getSession();
       const res = await fetch('/.netlify/functions/resend-invoice', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ invoiceId, action: 'resend', toOverride: to, userId: user?.id }),
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` },
+        body: JSON.stringify({ invoiceId, action: 'resend', toOverride: to }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Send failed');
