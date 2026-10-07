@@ -127,33 +127,61 @@ export const handler = async (event) => {
 
     if (siteError) throw new Error(`client_sites upsert failed: ${siteError.message}`);
 
-    // 4. Register webhooks for deploy_succeeded and deploy_failed
-    // Netlify API: POST /sites/{site_id}/hooks
-    const webhookEvents = ['deploy_succeeded', 'deploy_failed'];
-    for (const eventType of webhookEvents) {
-      try {
-        await netlifyFetch(`/hooks?site_id=${netlifySiteId}`, {
-          method: 'POST',
-          body: JSON.stringify({
-            site_id: netlifySiteId,
-            type: 'url',
-            event: eventType,
-            data: {
-              url: WEBHOOK_URL,
-            },
-          }),
-        });
-      } catch (hookErr) {
-        // If hook already exists Netlify returns an error - that's fine, continue
-        console.warn(`Webhook ${eventType} for ${netlifySiteName}:`, hookErr.message);
+    // 4. Register webhooks for deploy_succeeded and deploy_failed, signed.
+    // Netlify API: POST /hooks?site_id=
+    //
+    // ── THE HOOKS ARE SIGNED, 2026-10-07, Cypher ──────────────────────────
+    // netlify-deploy-webhook.js refuses anything without a good
+    // X-Webhook-Signature, HS256 with WEBHOOK_SECRET. This file read that
+    // variable and never used it, so every hook it registered was unsigned
+    // and would only be refused. A hook now carries WEBHOOK_SECRET as its JWS
+    // secret, in data.signature_secret beside the url. The two files must
+    // agree on the variable name.
+    //
+    // The field name was first remembered rather than read, because Netlify's
+    // open api spec types hook data as a free object. On 2026-10-08 Warbleur
+    // read it live from Netlify's listHookTypes: the url hook type takes
+    // signature_secret. The last proof is still the artifact, connect one
+    // site after deploy and see the JWS secret filled on its two outgoing
+    // webhooks in the Netlify UI.
+    //
+    // No WEBHOOK_SECRET on the Pulse site means no hooks are registered at
+    // all, because an unsigned hook would only be refused. The site still
+    // connects and backfills, webhook_registered_at stays empty and the reply
+    // says why. This note sits here and not in the header on purpose, so it
+    // does not collide with Volt's STAFF ONLY block when his branch merges.
+    let hooksNote = '';
+    if (WEBHOOK_SECRET) {
+      const webhookEvents = ['deploy_succeeded', 'deploy_failed'];
+      for (const eventType of webhookEvents) {
+        try {
+          await netlifyFetch(`/hooks?site_id=${netlifySiteId}`, {
+            method: 'POST',
+            body: JSON.stringify({
+              site_id: netlifySiteId,
+              type: 'url',
+              event: eventType,
+              data: {
+                url: WEBHOOK_URL,
+                signature_secret: WEBHOOK_SECRET,
+              },
+            }),
+          });
+        } catch (hookErr) {
+          // If hook already exists Netlify returns an error - that's fine, continue
+          console.warn(`Webhook ${eventType} for ${netlifySiteName}:`, hookErr.message);
+        }
       }
-    }
 
-    // Mark webhook registered
-    await supabase
-      .from('client_sites')
-      .update({ webhook_registered_at: new Date().toISOString() })
-      .eq('id', siteRow.id);
+      // Mark webhook registered
+      await supabase
+        .from('client_sites')
+        .update({ webhook_registered_at: new Date().toISOString() })
+        .eq('id', siteRow.id);
+    } else {
+      console.warn(`No hooks registered for ${netlifySiteName}, WEBHOOK_SECRET is not set on the Pulse site`);
+      hooksNote = ' New deploys will not stream in until WEBHOOK_SECRET is set on the Pulse site and the site is connected again.';
+    }
 
     // 5. Backfill last 20 deploys
     const deploys = await netlifyFetch(`/sites/${netlifySiteId}/deploys?per_page=20`);
@@ -216,7 +244,7 @@ export const handler = async (event) => {
         success: true,
         site: siteRow,
         backfilledDeploys: deploys.length,
-        message: `Connected ${netlifySiteName} to ${client.name} (${deploys.length} deploys synced)`,
+        message: `Connected ${netlifySiteName} to ${client.name} (${deploys.length} deploys synced).${hooksNote}`,
       }),
     };
   } catch (err) {
