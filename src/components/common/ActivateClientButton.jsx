@@ -2,7 +2,9 @@
 // Fires send-client-invite: ensures a PIN, creates the auth user, upserts a
 // client-role profile, sends the branded welcome email, marks the client
 // activated. Shown only when portal_account_created_at is null. Paper styled,
-// confirm dialog before firing. No oxford commas, no dashes.
+// confirm dialog before firing. The door answers staff only since 2026-10-05,
+// so the call carries the session token as Authorization: Bearer. No oxford
+// commas, no dashes.
 
 import { useState, useRef } from 'react';
 import {
@@ -10,6 +12,7 @@ import {
   AlertDialogFooter, AlertDialogHeader, AlertDialogOverlay, VStack, Text, HStack, Box,
 } from '@chakra-ui/react';
 import { TbMailForward, TbSparkles } from 'react-icons/tb';
+import { supabase } from '../../lib/supabase';
 import colors from '../../theme/colors';
 
 const P = colors.paper;
@@ -35,8 +38,11 @@ const ActivateClientButton = ({ client, onActivated }) => {
     }
     setLoading(true);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
       const res = await fetch('/.netlify/functions/send-client-invite', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ clientId: client.id }),
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` },
+        body: JSON.stringify({ clientId: client.id }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Activation failed');

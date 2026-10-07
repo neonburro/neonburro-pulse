@@ -14,6 +14,13 @@
 // operator via bookedBy. Internal appointments (no client) skip the persona and
 // the portal note.
 //
+// WHO SIGNS IS DECIDED ON THE SERVER, 2026-10-05. send-appointment.js is staff
+// only now and works out senderId, senderName, bookedBy and personaId itself,
+// from the session token and personaForClient on the row's client id, the same
+// call this file used to make. This file sends the row id, the mode and the
+// three switches with Authorization: Bearer, and nothing about identity,
+// because a body that names its own sender is a body anybody can forge.
+//
 // TIME: the operator's date + time are read as THEIR local wall time
 // (combineLocal), stored as an absolute instant, and stamped with the operator's
 // resolved zone. The invite and the .ics convert automatically for the client,
@@ -37,7 +44,6 @@ import {
 import { supabase } from '../../../lib/supabase';
 import colors from '../../../theme/colors';
 import { TYPE, EASE, FAST } from '../../../theme/layout';
-import { personaForClient } from '../../../lib/personas';
 import {
   MEETING_TYPES, typeOf, DURATIONS, ymd, combineLocal, buildVideoRoom, endFrom, fmtTime,
 } from '../calendarConstants';
@@ -164,23 +170,15 @@ const AppointmentModal = ({ isOpen, onClose, clients = [], appointment = null, i
   };
 
   const notify = async (appointmentId, mode) => {
-    const persona = clientId ? personaForClient(clientId) : null;
-    let bookedBy = 'the team';
-    try {
-      const { data: prof } = await supabase.from('profiles').select('display_name').eq('id', user?.id).single();
-      if (prof?.display_name) bookedBy = prof.display_name;
-    } catch (e) { /* noop */ }
+    const { data: { session } } = await supabase.auth.getSession();
     const res = await fetch('/.netlify/functions/send-appointment', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` },
       body: JSON.stringify({
         appointmentId, mode,
         sendClient: mode === 'reminder' ? true : (notifyClient && clientHasEmail),
         notifyTeam: mode === 'reminder' ? false : notifyTeam,
         postPortal: mode === 'reminder' ? Boolean(clientId) : (postPortal && Boolean(clientId)),
-        senderId: user?.id || null,
-        senderName: persona ? persona.name : 'Neon Burro',
-        bookedBy,
-        personaId: persona ? persona.id : null,
       }),
     });
     if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error(j.error || 'Notify failed'); }

@@ -1,15 +1,32 @@
 // netlify/functions/send-client-invite.js
+// SENTINEL: NB_PULSE_CLIENT_INVITE_V2
+//
 // Activates a client's portal account and sends them their credentials.
+// Two callers, both staff screens, src/components/common/ActivateClientButton.jsx
+// and the Portal tab in src/pages/Clients/components/ClientModal.jsx.
+//
+// POST { clientId }. Staff only.
 //
 // Flow:
-//   1. Ensures the client has a fresh 8-char PIN (regenerates 6-char legacy PINs)
-//   2. Creates the Supabase auth user with email + PIN as password (email pre-confirmed)
-//   3. Creates the profile row with role='client' linked to client_id
-//   4. Sends the letterhead mail through Resend with username + PIN + the sign in link
-//   5. Marks client.portal_account_created_at
+//   1. Checks the caller is signed in and holds a staff role
+//   2. Ensures the client has a fresh 8-char PIN (regenerates 6-char legacy PINs)
+//   3. Creates the Supabase auth user with email + PIN as password (email pre-confirmed)
+//   4. Creates the profile row with role='client' linked to client_id
+//   5. Sends the letterhead mail through Resend with username + PIN + the sign in link
+//   6. Marks client.portal_account_created_at
 //
 // Safe to run more than once. If the auth user exists the PIN is re-applied
 // as the password and the mail goes again.
+//
+// ── WHY THIS DOOR IS LOCKED, 2026-10-05 ─────────────────────────────────────
+// Until this date it had no authentication. Anybody holding a client id could
+// make the studio rewrite that client's portal password, regenerate a short
+// PIN and mail it out, and could do it as often as they liked. The PIN only
+// ever went to the address on file, so it was not a takeover, but it reset a
+// real person's password on a stranger's request and spent Resend on it.
+// gate() in _social.js is the lock, the same one client-report-send.js uses,
+// super_admin, admin or manager. Both callers send the session token as
+// Authorization: Bearer, read from supabase.auth.getSession().
 //
 // ── THE MAIL IS THE LETTERHEAD, 2026-09-17 ───────────────────────────────────
 // This used to be the dark card with the neon ridge and cyan. It now wears the
@@ -20,19 +37,13 @@
 //
 // No oxford commas, no em dashes.
 
-import { createClient } from '@supabase/supabase-js';
+import { createDb, gate, json } from './_social.js';
 import { letterhead, button, rows, fallback, escapeHtml } from './_letterhead.js';
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 
 const FROM_EMAIL = 'neonburro <hello@neonburro.com>';
 const PORTAL_URL = 'https://neonburro.com/account/';
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-  auth: { autoRefreshToken: false, persistSession: false },
-});
 
 const firstNameOf = (name) => String(name || '').trim().split(/\s+/)[0] || 'there';
 
@@ -62,15 +73,15 @@ const buildInviteEmailHTML = ({ clientName, clientEmail, username, pin, portalUr
 // HANDLER
 // ============================================================
 export const handler = async (event) => {
-  if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, body: JSON.stringify({ error: 'Method not allowed' }) };
-  }
+  if (event.httpMethod !== 'POST') return json(405, { error: 'Method not allowed' });
+
+  const supabase = createDb();
+  const gated = await gate(supabase, event);
+  if (gated.error) return json(gated.status, { error: gated.error });
 
   try {
     const { clientId } = JSON.parse(event.body || '{}');
-    if (!clientId) {
-      return { statusCode: 400, body: JSON.stringify({ error: 'Client ID required' }) };
-    }
+    if (!clientId) return json(400, { error: 'Client ID required' });
 
     // Fetch client
     const { data: client, error: clientError } = await supabase
@@ -79,14 +90,10 @@ export const handler = async (event) => {
       .eq('id', clientId)
       .single();
 
-    if (clientError || !client) {
-      return { statusCode: 404, body: JSON.stringify({ error: 'Client not found' }) };
-    }
-    if (!client.email) {
-      return { statusCode: 400, body: JSON.stringify({ error: 'Client has no email on file' }) };
-    }
+    if (clientError || !client) return json(404, { error: 'Client not found' });
+    if (!client.email) return json(400, { error: 'Client has no email on file' });
     if (!client.username) {
-      return { statusCode: 400, body: JSON.stringify({ error: 'Client has no username - run backfill migration first' }) };
+      return json(400, { error: 'Client has no username - run backfill migration first' });
     }
 
     const email = client.email.toLowerCase();
@@ -199,6 +206,7 @@ export const handler = async (event) => {
       entity_type: 'client',
       entity_id: clientId,
       client_id: clientId,
+      user_id: gated.user.id,
       category: 'transactional',
       metadata: {
         client_name: client.name,
@@ -208,20 +216,14 @@ export const handler = async (event) => {
       created_at: new Date().toISOString(),
     });
 
-    return {
-      statusCode: 200,
-      body: JSON.stringify({
-        success: true,
-        message: `Portal access sent to ${email}`,
-        username: client.username,
-        userId,
-      }),
-    };
+    return json(200, {
+      success: true,
+      message: `Portal access sent to ${email}`,
+      username: client.username,
+      userId,
+    });
   } catch (err) {
     console.error('send-client-invite error:', err);
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: err.message || 'Failed to activate portal' }),
-    };
+    return json(500, { error: err.message || 'Failed to activate portal' });
   }
 };

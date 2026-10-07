@@ -378,9 +378,11 @@ const ClientModal = ({ isOpen, onClose, client, onSave }) => {
     if (!client?.id) return;
     setSendingInvite(true);
     try {
+      // Staff only door since 2026-10-05, the session token rides along.
+      const { data: { session } } = await supabase.auth.getSession();
       const res = await fetch('/.netlify/functions/send-client-invite', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` },
         body: JSON.stringify({ clientId: client.id }),
       });
       if (!res.ok) { const err = await res.json(); throw new Error(err.error || 'Invite failed'); }

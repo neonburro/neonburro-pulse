@@ -1,6 +1,12 @@
 // netlify/functions/send-appointment.js
+// SENTINEL: NB_PULSE_APPOINTMENT_SEND_V2
+//
 // The notification half of the calendar. The app writes the appointment row
 // itself (client-side, RLS), then calls this with the row id and three switches.
+// The one caller is src/pages/Calendar/components/AppointmentModal.jsx.
+//
+// POST { appointmentId, mode, sendClient, notifyTeam, postPortal }. Staff only.
+//
 // This function owns everything that leaves the building:
 //   1. builds a real .ics calendar file and a one-click Google Calendar link
 //   2. emails the client the warm-paper invite with the .ics attached  (sendClient)
@@ -9,6 +15,26 @@
 //   5. stamps client_notified_at (invite) or reminder_sent_at (reminder)
 //   6. logs the whole thing to activity_log
 //
+// ── WHY THIS DOOR IS LOCKED, 2026-10-05 ─────────────────────────────────────
+// Until this date it had no authentication and it took senderId, senderName,
+// bookedBy and personaId from the body. Anybody holding an appointment id
+// could mail a client and the team inbox from hello@neonburro.com and post a
+// note into the client's portal thread signed with any name and any user id
+// they chose. gate() in _social.js is the lock now, super_admin, admin or
+// manager, the same one client-report-send.js uses.
+//
+// ── WHO SIGNED IT IS DECIDED HERE, NOT IN THE BODY ──────────────────────────
+// The four identity fields are worked out on this side and anything the body
+// says about them is ignored.
+//   senderId    the signed in caller, from the session token
+//   bookedBy    that caller's profiles.display_name, for the team mail
+//   personaId   personaForClient(appt.client_id) from src/lib/personas.js
+//   senderName  that persona's name, or neonburro when there is no client
+// The modal computed the persona the same way from the same client id, so the
+// face on the invite and the face in the thread are unchanged. personas.js is
+// pure and dependency free, which is why a function can import it the way
+// this file already imports appointmentEmail.js.
+//
 // ESM on purpose so it can import the shared appointmentEmail template, the same
 // way reply-to-form.js imports the reply template. All dates are formatted HERE
 // in the appointment's stored zone and handed to the template as finished
@@ -16,13 +42,14 @@
 //
 // Env: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, RESEND_API_KEY (all already set
 // on the Pulse site, send-client-invite uses them), NOTIFICATION_EMAIL optional
-// (falls back to hello@neonburro.com). No new secrets. No oxford commas.
+// (falls back to hello@neonburro.com). No new secrets.
+//
+// No oxford commas, no em dashes.
 
-import { createClient } from '@supabase/supabase-js';
+import { createDb, gate, json } from './_social.js';
 import { buildAppointmentEmailHTML } from '../../src/lib/appointmentEmail.js';
+import { personaForClient } from '../../src/lib/personas.js';
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const TEAM_EMAIL = process.env.NOTIFICATION_EMAIL || 'hello@neonburro.com';
 
@@ -31,10 +58,7 @@ const REPLY_TO = 'hello@neonburro.com';
 const PULSE_CAL_URL = 'https://pulse.neonburro.com/calendar/';
 
 const TYPE_VERB = { call: 'Phone call', video: 'Video call', in_person: 'In-person meeting' };
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-  auth: { autoRefreshToken: false, persistSession: false },
-});
+const MODES = ['invite', 'reminder'];
 
 // ── formatting, all in the appointment's zone ───────────────────────────────
 const fmtDay = (iso, tz) =>
@@ -53,7 +77,7 @@ const fmtZone = (iso, tz) => {
 };
 
 const buildTimeLine = (startIso, endIso, tz) =>
-  `${fmtTime(startIso, tz)} – ${fmtTime(endIso, tz)} ${fmtZone(startIso, tz)}`.trim();
+  `${fmtTime(startIso, tz)} to ${fmtTime(endIso, tz)} ${fmtZone(startIso, tz)}`.trim();
 
 // ── .ics + Google Calendar link ─────────────────────────────────────────────
 const toUTCStamp = (iso) => new Date(iso).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
@@ -107,38 +131,43 @@ const sendEmail = async ({ to, subject, html, attachments }) => {
 };
 
 export const handler = async (event) => {
-  if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, body: JSON.stringify({ error: 'Method not allowed' }) };
-  }
+  if (event.httpMethod !== 'POST') return json(405, { error: 'Method not allowed' });
+
+  const supabase = createDb();
+  const gated = await gate(supabase, event);
+  if (gated.error) return json(gated.status, { error: gated.error });
 
   try {
     const {
       appointmentId,
-      mode = 'invite',
+      mode: askedMode = 'invite',
       sendClient = true,
       notifyTeam = true,
       postPortal = true,
-      senderId = null,
-      senderName = 'Neon Burro',
-      bookedBy = null,
-      personaId = null,
     } = JSON.parse(event.body || '{}');
+    const mode = MODES.includes(askedMode) ? askedMode : 'invite';
 
-    if (!appointmentId) {
-      return { statusCode: 400, body: JSON.stringify({ error: 'appointmentId required' }) };
-    }
+    if (!appointmentId) return json(400, { error: 'appointmentId required' });
 
     const { data: appt, error: apptErr } = await supabase
       .from('appointments').select('*').eq('id', appointmentId).single();
-    if (apptErr || !appt) {
-      return { statusCode: 404, body: JSON.stringify({ error: 'Appointment not found' }) };
-    }
+    if (apptErr || !appt) return json(404, { error: 'Appointment not found' });
 
     let client = null;
     if (appt.client_id) {
       const { data } = await supabase.from('clients').select('*').eq('id', appt.client_id).single();
       client = data || null;
     }
+
+    // Who signed it, from the session and the row, never from the body.
+    const senderId = gated.user.id;
+    const persona = appt.client_id ? personaForClient(appt.client_id) : null;
+    const senderName = persona ? persona.name : 'Neon Burro';
+    const personaId = persona ? persona.id : null;
+    let bookedBy = 'the team';
+    const { data: caller } = await supabase
+      .from('profiles').select('display_name').eq('id', senderId).maybeSingle();
+    if (caller?.display_name) bookedBy = caller.display_name;
 
     const tz = appt.timezone || 'America/Denver';
     const typeVerb = TYPE_VERB[appt.meeting_type] || 'Meeting';
@@ -195,7 +224,7 @@ export const handler = async (event) => {
     if (notifyTeam) {
       const html = buildAppointmentEmailHTML({
         audience: 'admin', mode,
-        clientName: client?.name, adminName: bookedBy || senderName,
+        clientName: client?.name, adminName: bookedBy,
         title: appt.title, typeId: appt.meeting_type, typeVerb,
         dayLine, timeLine,
         description: appt.description, videoUrl: appt.meeting_url, location: appt.location, phone: client?.phone,
@@ -249,9 +278,9 @@ export const handler = async (event) => {
       created_at: new Date().toISOString(),
     });
 
-    return { statusCode: 200, body: JSON.stringify({ success: true, results }) };
+    return json(200, { success: true, results });
   } catch (err) {
     console.error('send-appointment error:', err);
-    return { statusCode: 500, body: JSON.stringify({ error: err.message || 'Failed to send appointment' }) };
+    return json(500, { error: err.message || 'Failed to send appointment' });
   }
 };
